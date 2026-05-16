@@ -147,31 +147,61 @@ async def call_tool(name: str, arguments: dict):
             return [TextContent(type="text", text=json.dumps(
                 {"error": f"任务不存在: {task_id}"}, ensure_ascii=False,
             ))]
-        # 提取各方案的设计内容（从 schemes 中取 integrated_content 或 step designs）
-        scheme_summaries = {}
+
+        # 提取 Top1 方案的完整正文（最顶层，AI 优先看到）
+        top_scheme_content = ""
+        scheme_details = {}
         for sid, scheme in result.get("schemes", {}).items():
             integrated = scheme.get("integrated_content", "")
             step_designs = scheme.get("steps", {})
-            scheme_summaries[sid] = {
+            scheme_details[sid] = {
                 "agent_role": scheme.get("agent_role", ""),
                 "object_name": scheme.get("object_name", ""),
                 "integrated_content": integrated,
                 "step_designs": step_designs,
                 "complexity_score": scheme.get("complexity_score", 0),
             }
-        return [TextContent(type="text", text=json.dumps({
+
+        # 找到 Top1 方案 ID 并提取其完整内容
+        top3 = result.get("top3", [])
+        if top3 and top3[0].get("plan_id"):
+            top1_id = top3[0]["plan_id"]
+            import re as _re
+            m = _re.search(r'[A-C]', top1_id)
+            if m:
+                top1_id = m.group(0)
+            if top1_id in scheme_details:
+                top_scheme_content = scheme_details[top1_id].get("integrated_content", "")
+
+        # 合并步骤定义和方案设计内容
+        steps_with_designs = []
+        for step in result.get("step_list", []):
+            sd = dict(step)
+            # 从各方案中提取该步骤的设计内容
+            sd["designs"] = {}
+            for sid, scheme in scheme_details.items():
+                design = scheme.get("step_designs", {}).get(step.get("id", ""), "")
+                if design:
+                    sd["designs"][sid] = design[:300]  # 每方案每步骤最多300字
+            steps_with_designs.append(sd)
+
+        output = {
             "task_id": result["task_id"],
             "task": result["original_task"],
             "phase": result["phase"],
             "status": "completed" if result["phase"] == "done" else "running",
-            "top3": result["top3"],
+            "plan_summary": top_scheme_content,
+            "top3": top3,
             "vote_results": result["vote_results"],
-            "steps": result["step_list"],
-            "schemes": scheme_summaries,
+            "steps": steps_with_designs,
+            "schemes": scheme_details,
             "cost": result["total_cost_rmb"],
             "tokens": result["total_tokens"],
             "error": result.get("error"),
-        }, ensure_ascii=False, indent=2))]
+        }
+        return [TextContent(type="text", text=json.dumps(
+            output, ensure_ascii=False, indent=2,
+        ))]
 
     else:
         return [TextContent(type="text", text=f"Unknown tool: {name}")]
