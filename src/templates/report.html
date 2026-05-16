@@ -304,7 +304,7 @@ function submitMods() {
   .then(result => {
     btn.textContent = '🚀 提交修改（Agent 审查）';
     btn.disabled = false;
-    showFeedbackMatrix(result);
+    showResultAndClose(result);
   })
   .catch(err => {
     btn.textContent = '🚀 提交修改（Agent 审查）';
@@ -313,50 +313,52 @@ function submitMods() {
   });
 }
 
-function showFeedbackMatrix(result) {
+function showResultAndClose(result) {
   let html = '';
   if (result.error) {
-    html = '<p style="color:var(--red);">错误: ' + escapeHtml(result.error) + '</p>';
+    html += '<p style="color:var(--red);">❌ ' + escapeHtml(result.error) + '</p>';
   } else {
-    const autoApplied = result.auto_applied || [];
-    const needsReview = result.needs_review || [];
+    const auto = result.auto_applied || [];
+    const review = result.needs_review || [];
+    html += '<div style="text-align:center;padding:16px;">';
+    html += '<div style="font-size:3rem;margin-bottom:8px;">' + (auto.length > 0 ? '✅' : '⚠️') + '</div>';
+    html += '<h3>' + (auto.length > 0 ? '修改已通过审查' : '修改已提交') + '</h3>';
+    html += '<p style="color:var(--muted);">通过: ' + auto.length + ' 条 | 需审核: ' + review.length + ' 条</p>';
+    if (auto.length > 0) html += '<p style="color:var(--green);">方案文件已自动更新。</p>';
+    html += '</div>';
 
-    // 简洁结论
     for (const item of result.feedback_matrix || []) {
-      const ok = autoApplied.includes(item.step_name);
-      html += '<div style="margin:12px 0;padding:16px;border-radius:8px;' + (ok ? 'background:#ecfdf5;border-left:4px solid var(--green)' : 'background:#fffbeb;border-left:4px solid var(--yellow)') + '">';
-      html += '<h4 style="margin:0 0 6px;">' + (ok ? '✅ 已采纳' : '⚠️ 有隐患') + '：「' + escapeHtml(item.suggestion) + '」</h4>';
-      html += '<p style="color:var(--muted);margin:0;">目标环节：' + escapeHtml(item.step_name) + '</p>';
-      // 各Agent意见摘要
+      const ok = auto.includes(item.step_name);
+      html += '<div style="margin:8px 0;padding:12px;border-radius:6px;' + (ok ? 'background:#ecfdf5;border-left:3px solid var(--green)' : 'background:#fffbeb;border-left:3px solid var(--yellow)') + '">';
+      html += (ok ? '✅' : '⚠️') + ' <strong>' + escapeHtml(item.step_name) + '</strong>: ' + escapeHtml(item.suggestion) + '<br>';
       for (const v of item.verdicts || []) {
         let e = v.verdict === '认可' ? '✅' : (v.verdict === '有隐患' ? '⚠️' : '💡');
-        html += '<span style="margin-right:12px;font-size:0.85rem;">' + e + ' ' + escapeHtml(v.agent) + ': ' + escapeHtml(v.reason) + '</span><br>';
+        html += '<span style="font-size:0.8rem;color:var(--muted);">' + e + ' ' + escapeHtml(v.agent) + ': ' + escapeHtml(v.reason) + '</span><br>';
       }
       html += '</div>';
     }
 
-    // 有通过的修改 → 显示更新后的方案
-    const up = result.updated_plan;
-    if (up && up.length > 100) {
-      html += '<hr><h3>📝 更新后的方案</h3>';
-      html += '<div class="scheme-content" style="max-height:500px;overflow-y:auto;padding:16px;background:#f8fafc;border-radius:8px;">' + escapeHtml(up) + '</div>';
-      html += '<p style="color:var(--muted);margin-top:8px;">✅ 方案已自动更新并写入磁盘。可在 Reasonix 中继续讨论修改。</p>';
-    }
-
-    if (needsReview.length > 0 && !up) {
-      html += '<p style="color:var(--yellow);margin-top:12px;">⚠️ 部分修改未通过审查。修改建议后再提交，或直接用 /brainstorm 重新生成方案。</p>';
-    }
-    if (!autoApplied.length && !needsReview.length && result.feedback_matrix.length === 0) {
-      html += '<p>无修改提交。</p>';
-    }
+    html += '<div style="background:#f0f9ff;border:1px solid #bae6fd;border-radius:8px;padding:20px;margin-top:16px;">';
+    html += '<h4 style="margin:0 0 8px;">💬 在智能体中继续讨论</h4>';
+    html += '<p style="margin:0 0 12px;color:var(--muted);">关闭此页面，在智能体中输入：</p>';
+    html += '<pre style="background:#1e293b;color:#e2e8f0;padding:12px;border-radius:6px;font-size:0.9rem;cursor:pointer;margin:0;" onclick="copyCmd(this)" title="点击复制">/brainstorm-result ' + TASK_ID + '</pre>';
+    html += '</div>';
   }
 
   const div = document.getElementById('feedback-content');
   div.innerHTML = html;
   const matrix = document.getElementById('feedback-matrix');
   matrix.style.display = 'block';
-  document.getElementById('feedback-title').textContent = '🔍 审查结果';
+  document.getElementById('feedback-title').textContent = '🚀 提交完成';
   matrix.scrollIntoView({behavior: 'smooth'});
+}
+
+function copyCmd(el) {
+  navigator.clipboard.writeText(el.textContent).then(() => {
+    const orig = el.textContent;
+    el.textContent = '✅ 已复制！切换到智能体贴入';
+    setTimeout(() => { el.textContent = orig; }, 2000);
+  });
 }
 
 function escapeHtml(text) {
