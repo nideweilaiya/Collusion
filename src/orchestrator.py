@@ -146,7 +146,7 @@ class BrainstormOrchestrator:
             self._save_state(state)
 
             # Phase 7: 渲染双文件输出（v3.2 新增）
-            self._update_phase(state, "phase7_render")
+            state.phase = "phase7_render"
             try:
                 output_paths = self._render_outputs(state)
                 state.output_paths = output_paths
