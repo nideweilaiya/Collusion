@@ -147,13 +147,27 @@ async def call_tool(name: str, arguments: dict):
             return [TextContent(type="text", text=json.dumps(
                 {"error": f"任务不存在: {task_id}"}, ensure_ascii=False,
             ))]
+        # 提取各方案的设计内容（从 schemes 中取 integrated_content 或 step designs）
+        scheme_summaries = {}
+        for sid, scheme in result.get("schemes", {}).items():
+            integrated = scheme.get("integrated_content", "")
+            step_designs = scheme.get("steps", {})
+            scheme_summaries[sid] = {
+                "agent_role": scheme.get("agent_role", ""),
+                "object_name": scheme.get("object_name", ""),
+                "integrated_content": integrated,
+                "step_designs": step_designs,
+                "complexity_score": scheme.get("complexity_score", 0),
+            }
         return [TextContent(type="text", text=json.dumps({
             "task_id": result["task_id"],
             "task": result["original_task"],
             "phase": result["phase"],
+            "status": "completed" if result["phase"] == "done" else "running",
             "top3": result["top3"],
             "vote_results": result["vote_results"],
             "steps": result["step_list"],
+            "schemes": scheme_summaries,
             "cost": result["total_cost_rmb"],
             "tokens": result["total_tokens"],
             "error": result.get("error"),
