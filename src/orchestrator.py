@@ -489,12 +489,28 @@ class BrainstormOrchestrator:
             )
             plan.steps[step_id] = data.get("design_content", "")
 
+    @staticmethod
+    def _try_reasonix_key() -> str:
+        """自动读取 Reasonix 已配置的 API Key，实现零配置启动"""
+        reasonix_config = Path.home() / ".reasonix" / "config.json"
+        if reasonix_config.exists():
+            try:
+                with open(reasonix_config, "r", encoding="utf-8") as f:
+                    data = json.load(f)
+                return data.get("apiKey", "")
+            except Exception:
+                pass
+        return ""
+
     def _create_adapter(self, key: str) -> BaseLLMAdapter:
         cfg = self.config["llm"].get(key, self.config["llm"]["strong"])
         provider = cfg.get("provider", "deepseek")
         api_key = cfg.get("api_key", "")
         if not api_key:
             api_key = os.environ.get(cfg.get("api_key_env", "DEEPSEEK_API_KEY"), "")
+        # 零配置回退：自动读取 Reasonix 已存的 API Key
+        if not api_key:
+            api_key = self._try_reasonix_key()
         if provider == "deepseek":
             return DeepSeekAdapter(
                 api_key=api_key,
