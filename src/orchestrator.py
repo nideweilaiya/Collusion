@@ -751,6 +751,7 @@ class BrainstormOrchestrator:
         feedback_matrix = []
         auto_applied = []
         needs_review = []
+        modified_schemes = set()  # 追踪哪些方案被修改了
 
         for mod in modifications:
             step_name = mod.get("step_name", "")
@@ -781,18 +782,70 @@ class BrainstormOrchestrator:
                 "verdicts": agent_verdicts,
             })
 
-            # 全票通过 → 自动应用
             if all(v["verdict"] == "认可" for v in agent_verdicts):
                 auto_applied.append(step_name)
+                target_id = None
+                for s in state.step_list:
+                    if s.get("name") == step_name:
+                        target_id = s.get("id")
+                        break
+                if not target_id:
+                    # 步骤名不存在于方案中，无法合并
+                    continue
+                for sid, scheme in state.schemes.items():
+                    if target_id in scheme.get("steps", {}):
+                        scheme["steps"][target_id] = (
+                            scheme["steps"][target_id] +
+                            f"\n\n[用户修改（全票通过）]: {suggestion}"
+                        )
+                        modified_schemes.add(sid)
             else:
                 needs_review.append(step_name)
 
-        return {
+        # 重新整合：对改过的方案重跑 Owner 集成
+        updated_plan = ""
+        if modified_schemes:
+            steps = [Step.from_dict(s) for s in state.step_list]
+            for sid in modified_schemes:
+                scheme = state.schemes[sid]
+                owner = self._find_agent_by_id(scheme.get("owner_agent_id", ""))
+                if owner is None:
+                    owner = self.agents[0]
+                scheme_obj = PlanScheme(
+                    id=sid,
+                    agent_role=scheme.get("agent_role", ""),
+                    agent_name=scheme.get("agent_name", ""),
+                    object_name=scheme.get("object_name", ""),
+                    steps=scheme.get("steps", {}),
+                    owner_agent_id=scheme.get("owner_agent_id", ""),
+                )
+                integrated = owner.owner_integration(
+                    state.original_task, scheme_obj, steps,
+                )
+                scheme["integrated_content"] = integrated
+                updated_plan = integrated
+
+        # 重新渲染输出文件
+        output_paths = {}
+        try:
+            output_paths = self._render_outputs(state)
+            state.output_paths = output_paths
+            self._save_state(state)
+        except Exception as e:
+            output_paths = {"error": str(e)}
+            print(f"[refine] 渲染失败: {e}")
+
+        result = {
             "task_id": task_id,
             "feedback_matrix": feedback_matrix,
             "auto_applied": auto_applied,
             "needs_review": needs_review,
+            "output_files": output_paths,
         }
+        if updated_plan:
+            result["updated_plan"] = updated_plan[:3000]
+            result["note"] = "auto_applied 的修改已写入方案并重新渲染。updated_plan 为 Top1 方案的最新内容，可据此继续工作。"
+        return result
 
     @staticmethod
     def _try_reasonix_key() -> str:

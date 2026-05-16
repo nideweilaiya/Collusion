@@ -1,0 +1,19 @@
+phase: done
+tokens: 23882
+cost: Y0.0550
+html: 67424 bytes
+markdown: -
+<h1>: True  <h2>: True
+<code>: True  <ul>: True
+api/refine: True
+api/apply: True
+HTML preview: 1>CLI任务管理工具 - 完整技术方案（终审润色版）</h1>
+<h2>1. 需求分析与用户故事定义</h2>
+<h3>1.1 用户角色</h3>
+<ul>
+<li><strong>个人开发者</strong>：日常任务追踪，轻量级替代看板工具</li>
+<li><strong>团队协作成员</strong>：共享任务列表，快速同步状态</li>
+<li><strong>自动化脚本使用者</st
+
+refine: 1 条, auto_applied=['架构设计'], needs_review=[]
+  业务价值对象: 认可
