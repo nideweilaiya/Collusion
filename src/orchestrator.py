@@ -156,6 +156,7 @@ class BrainstormOrchestrator:
 
             self._update_phase(state, OrchestratorPhase.DONE)
             state.completed_at = time.time()
+            self._save_state(state)
 
         except Exception as e:
             self._update_phase(state, OrchestratorPhase.ERROR)
