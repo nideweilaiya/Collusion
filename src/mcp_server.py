@@ -49,6 +49,11 @@ async def list_tools():
                         "description": "Agent数量(1-3)。1=快速模式，3=完整多对象协作",
                         "default": 3,
                     },
+                    "format": {
+                        "type": "string",
+                        "description": "输出格式: md(默认，仅Markdown，~800 token增量) / html(可视化报告+Markdown，~2500 token增量) / both(同html)",
+                        "default": "md",
+                    },
                 },
                 "required": ["task"],
             },
@@ -122,6 +127,7 @@ async def call_tool(name: str, arguments: dict):
     elif name == "brainstorm_orchestrate":
         task = arguments["task"]
         agents = arguments.get("agents", 3)
+        fmt = arguments.get("format", "md")
         _orchestrator.num_agents = agents
 
         # 预生成 task_id，立即注册状态（避免轮询时找不到）
@@ -135,7 +141,7 @@ async def call_tool(name: str, arguments: dict):
 
         # 后台异步执行编排（2-4分钟），立即返回 task_id
         def _run():
-            _orchestrator.orchestrate(task=task, task_id=task_id)
+            _orchestrator.orchestrate(task=task, task_id=task_id, output_format=fmt)
 
         _executor.submit(_run)
 
@@ -145,8 +151,11 @@ async def call_tool(name: str, arguments: dict):
                 "task_id": task_id,
                 "status": "queued",
                 "agents": agents,
+                "format": fmt,
+                "format_note": "md=仅Markdown(~800 token增量) / html=可视化报告+MD(~2500 token增量)",
                 "message": (
-                    f"编排已异步启动({agents}个Agent)，预计2-4分钟。\n"
+                    f"编排已异步启动({agents}个Agent, 输出格式={fmt})，预计2-4分钟。\n"
+                    f"Token 预估: md≈800增量, html≈2500增量。\n"
                     f"使用 brainstorm_status(task_id=\"{task_id}\") 查询进度。\n"
                     f"完成后使用 brainstorm_result(task_id=\"{task_id}\") 获取Top3方案。"
                 ),
@@ -262,31 +271,122 @@ async def run_sse(port: int = 8020):
     )
     sse = SseServerTransport("/messages/", security_settings=security)
 
-    # 纯 ASGI 应用：手动路由到 SSE transport
+    # ====== REST 工具函数 ======
+    async def _http_response(send, status: int, body: bytes, content_type: str = "application/json"):
+        await send({
+            "type": "http.response.start",
+            "status": status,
+            "headers": [
+                (b"content-type", content_type.encode()),
+                (b"access-control-allow-origin", b"*"),
+                (b"access-control-allow-methods", b"GET, POST, OPTIONS"),
+                (b"access-control-allow-headers", b"Content-Type"),
+            ],
+        })
+        await send({"type": "http.response.body", "body": body})
+
+    async def _read_body(receive) -> bytes:
+        body = b""
+        more_body = True
+        while more_body:
+            msg = await receive()
+            if msg["type"] == "http.request":
+                body += msg.get("body", b"")
+                more_body = msg.get("more_body", False)
+        return body
+
+    # 纯 ASGI 应用：路由分发
     async def app(scope, receive, send):
         if scope["type"] != "http":
             return
 
         path = scope["path"]
-        if path == "/sse" and scope["method"] == "GET":
+        method = scope["method"]
+
+        # CORS preflight
+        if method == "OPTIONS":
+            await _http_response(send, 204, b"")
+            return
+
+        # === MCP 端点 ===
+        if path == "/sse" and method == "GET":
             async with sse.connect_sse(scope, receive, send) as streams:
                 await server.run(streams[0], streams[1],
                                  server.create_initialization_options())
-        elif path == "/messages/" and scope["method"] == "POST":
+        elif path == "/messages/" and method == "POST":
             await sse.handle_post_message(scope, receive, send)
+
+        # === 静态文件：生成的报告 ===
+        elif path.startswith("/outputs/") and method == "GET":
+            import os as _os
+            rel = path[len("/outputs/"):]
+            file_path = _os.path.join("data/outputs", rel.replace("\\", "/"))
+            if _os.path.isfile(file_path):
+                ct = "text/html" if file_path.endswith(".html") else "text/markdown"
+                with open(file_path, "rb") as f:
+                    await _http_response(send, 200, f.read(), ct)
+            else:
+                await _http_response(send, 404, b'{"error":"file not found"}')
+
+        # === 反馈回路 REST API ===
+        elif path == "/api/refine" and method == "POST":
+            body = await _read_body(receive)
+            try:
+                data = json.loads(body)
+                result = _orchestrator.refine(
+                    data.get("task_id", ""),
+                    data.get("modifications", []),
+                )
+                await _http_response(send, 200,
+                    json.dumps(result, ensure_ascii=False).encode("utf-8"))
+            except Exception as e:
+                await _http_response(send, 400,
+                    json.dumps({"error": str(e)}, ensure_ascii=False).encode("utf-8"))
+
+        # === 应用修改并重新生成 ===
+        elif path.startswith("/api/apply/") and method == "POST":
+            task_id = path[len("/api/apply/"):]
+            body = await _read_body(receive)
+            try:
+                data = json.loads(body)
+                # 重新渲染输出文件（已应用修改的新方案）
+                state = _orchestrator._load_state(task_id)
+                if state is None and task_id in _orchestrator._states:
+                    state = _orchestrator._states[task_id]
+                if state is None:
+                    await _http_response(send, 404, b'{"error":"task not found"}')
+                else:
+                    # 将修改合并到 scheme 中
+                    applied = data.get("applied", [])
+                    schemes = state.schemes
+                    for mod in applied:
+                        step_name = mod.get("step_name", "")
+                        suggestion = mod.get("suggestion", "")
+                        for sid, scheme in schemes.items():
+                            for step_id, content in scheme.get("steps", {}).items():
+                                for s in state.step_list:
+                                    if s.get("name") == step_name and s.get("id") == step_id:
+                                        scheme["steps"][step_id] = content + f"\n\n[用户修改（已通过Agent审查）]: {suggestion}"
+                                        break
+                    # 重新渲染
+                    fmt = state.output_paths.get("format", "md")
+                    _orchestrator._states[task_id] = state
+                    paths = _orchestrator._render_outputs(state)
+                    state.output_paths = paths
+                    _orchestrator._save_state(state)
+                    await _http_response(send, 200,
+                        json.dumps({"output_files": paths}, ensure_ascii=False).encode("utf-8"))
+            except Exception as e:
+                await _http_response(send, 400,
+                    json.dumps({"error": str(e)}, ensure_ascii=False).encode("utf-8"))
+
         else:
-            await send({
-                "type": "http.response.start",
-                "status": 404,
-                "headers": [(b"content-type", b"text/plain")],
-            })
-            await send({
-                "type": "http.response.body",
-                "body": b"Not Found",
-            })
+            await _http_response(send, 404, b'{"error":"not found"}')
 
     print(f"MCP Server (SSE) 启动: http://localhost:{port}/sse")
-    print(f"消息端点: http://localhost:{port}/messages/")
+    print(f"消息端点:     http://localhost:{port}/messages/")
+    print(f"反馈 API:    http://localhost:{port}/api/refine")
+    print(f"报告文件:    http://localhost:{port}/outputs/{{task_id}}/report.html")
     config = uvicorn.Config(app, host="0.0.0.0", port=port, log_level="info")
     server_uvicorn = uvicorn.Server(config)
     await server_uvicorn.serve()

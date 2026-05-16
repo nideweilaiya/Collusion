@@ -113,7 +113,7 @@ td.win { color: var(--green); font-weight: 700; }
   <h2>🏆 推荐方案：{{ top_scheme.id }} — {{ top_scheme.object_name }}</h2>
   <p style="margin-bottom:12px;"><strong>综合得分：{{ "%.2f"|format(top_scheme.total_score) }}/10 | 排名：#1</strong></p>
   <p style="color:var(--muted);">评委评语：{{ top_scheme.comment }}</p>
-  <div class="scheme-content">{{ top_scheme.integrated_content | replace('\n', '<br>') | safe }}</div>
+  <div class="scheme-content">{{ top_scheme.integrated_html | safe }}</div>
 </div>
 {% endif %}
 
@@ -217,7 +217,7 @@ td.win { color: var(--green); font-weight: 700; }
 <div class="card">
   <details>
     <summary><strong>方案 {{ scheme.id }}：{{ scheme.object_name }}（{{ scheme.agent_role }}）— 得分 {{ "%.2f"|format(scheme.total_score) }}</strong></summary>
-    <div class="scheme-content" style="margin-top:12px;">{{ scheme.integrated_content | replace('\n', '<br>') | safe }}</div>
+    <div class="scheme-content" style="margin-top:12px;">{{ scheme.integrated_html | safe }}</div>
   </details>
 </div>
 {% endfor %}
@@ -274,28 +274,86 @@ function submitMods() {
     return;
   }
 
-  const payload = JSON.stringify({
-    task_id: TASK_ID,
-    modifications: mods
-  }, null, 2);
+  const btn = document.querySelector('.btn-submit');
+  btn.textContent = '提交中...';
+  btn.disabled = true;
 
-  // 生成复制文本 — 用户复制后在 Reasonix/Claude Code 中粘贴调用
-  const cmd = `collusion_refine ${payload}`;
+  fetch('http://localhost:8020/api/refine', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({task_id: TASK_ID, modifications: mods})
+  })
+  .then(r => r.json())
+  .then(result => {
+    btn.textContent = '🚀 提交修改（Agent 审查）';
+    btn.disabled = false;
+    showFeedbackMatrix(result);
+  })
+  .catch(err => {
+    btn.textContent = '🚀 提交修改（Agent 审查）';
+    btn.disabled = false;
+    alert('提交失败: ' + err.message + '\n请确认 MCP 服务器已启动 (http://localhost:8020)');
+  });
+}
+
+function showFeedbackMatrix(result) {
+  let html = '';
+  if (result.error) {
+    html = '<p style="color:var(--red);">错误: ' + escapeHtml(result.error) + '</p>';
+  } else {
+    const autoApplied = result.auto_applied || [];
+    const needsReview = result.needs_review || [];
+    html += '<p><strong>自动应用:</strong> ' + (autoApplied.length ? autoApplied.join(', ') : '无') + '</p>';
+    html += '<p><strong>需审核:</strong> ' + (needsReview.length ? needsReview.join(', ') : '无') + '</p><hr>';
+
+    for (const item of result.feedback_matrix || []) {
+      html += '<h4 style="margin:12px 0 4px;">' + escapeHtml(item.step_name) + ': ' + escapeHtml(item.suggestion) + '</h4>';
+      for (const v of item.verdicts || []) {
+        let cls = v.verdict === '认可' ? 'verdict-approved' : (v.verdict === '有隐患' ? 'verdict-risky' : 'verdict-innovative');
+        let emoji = v.verdict === '认可' ? '✅' : (v.verdict === '有隐患' ? '⚠️' : '💡');
+        html += '<div class="verdict ' + cls + '"><strong>' + emoji + ' ' + escapeHtml(v.agent) + ':</strong> ' + escapeHtml(v.verdict) + ' — ' + escapeHtml(v.reason) + '</div>';
+      }
+    }
+
+    if (autoApplied.length > 0) {
+      html += '<button class="btn btn-submit" style="margin-top:16px;" onclick="applyMods()">✅ 应用已通过的修改并更新报告</button>';
+    }
+  }
 
   const div = document.getElementById('feedback-content');
-  div.innerHTML = `
-    <p style="margin-bottom:12px;">请在 AI 编码助手中执行以下调用：</p>
-    <pre style="background:#1e293b;color:#e2e8f0;padding:16px;border-radius:6px;overflow-x:auto;font-size:0.8rem;">${escapeHtml(cmd)}</pre>
-    <p style="margin-top:8px;color:var(--muted);">或直接将下方 JSON 复制给 AI 编码助手中的 Collusion MCP 工具。</p>
-  `;
+  div.innerHTML = html;
   const matrix = document.getElementById('feedback-matrix');
   matrix.style.display = 'block';
-  document.getElementById('feedback-title').textContent = '🚀 提交修改';
+  document.getElementById('feedback-title').textContent = '🔍 Agent 审查反馈';
   matrix.scrollIntoView({behavior: 'smooth'});
 }
 
+function applyMods() {
+  const data = getStorage();
+  const mods = [];
+  {% for step in steps %}
+  if (data[{{ step.index }}] && data[{{ step.index }}].trim()) {
+    mods.push({step_name: "{{ step.name }}", suggestion: data[{{ step.index }}].trim()});
+  }
+  {% endfor %}
+
+  fetch('http://localhost:8020/api/apply/' + TASK_ID, {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({applied: mods})
+  })
+  .then(r => r.json())
+  .then(result => {
+    if (result.output_files) {
+      alert('✅ 报告已更新！\nHTML: ' + (result.output_files.html || '') + '\nMD: ' + (result.output_files.markdown || ''));
+      location.reload();
+    }
+  })
+  .catch(err => alert('应用失败: ' + err.message));
+}
+
 function escapeHtml(text) {
-  return text.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  return (text || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 }
 
 // 页面加载时恢复草稿

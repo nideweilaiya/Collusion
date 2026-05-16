@@ -83,9 +83,19 @@ class BrainstormOrchestrator:
 
     # ==================== 公共 API ====================
 
-    def orchestrate(self, task: str, task_id: str = None) -> str:
-        """主入口：执行 v3.1 完整编排"""
+    def orchestrate(self, task: str, task_id: str = None, output_format: str = "md") -> str:
+        """主入口：执行完整编排
+
+        Args:
+            task: 技术任务描述
+            task_id: 预设任务 ID（异步模式用）
+            output_format: 输出格式 — \"md\"(默认) / \"html\" / \"both\"
+                md: 仅 Markdown（~800 token 增量）
+                html: HTML 可视化报告 + Markdown（~2500 token 增量）
+                both: 同 html
+        """
         state = OrchestratorState(original_task=task)
+        state.output_paths = {"format": output_format}
         if task_id:
             state.task_id = task_id
         self._states[state.task_id] = state
@@ -570,31 +580,37 @@ class BrainstormOrchestrator:
         return self._template_env
 
     def _render_outputs(self, state: OrchestratorState) -> dict:
-        """渲染 HTML + Markdown 输出，保存到 data/outputs/{task_id}/"""
-        data = self._build_template_data(state)
+        """渲染输出，保存到 data/outputs/{task_id}/"""
+        fmt = state.output_paths.get("format", "md")
+        data = self._build_template_data(state, fmt)
         env = self._get_template_env()
         output_dir = self.data_dir / "outputs" / state.task_id
         output_dir.mkdir(parents=True, exist_ok=True)
 
-        paths = {}
-        # Markdown
-        md_template = env.get_template("report.md")
-        md_content = md_template.render(**data)
-        md_path = output_dir / "report.md"
-        md_path.write_text(md_content, encoding="utf-8")
-        paths["markdown"] = str(md_path)
+        paths = {"format": fmt}
 
-        # HTML
-        html_template = env.get_template("report.html")
-        html_content = html_template.render(**data)
-        html_path = output_dir / "report.html"
-        html_path.write_text(html_content, encoding="utf-8")
-        paths["html"] = str(html_path)
+        # Markdown（md 和 both 模式都生成）
+        if fmt in ("md", "both"):
+            md_template = env.get_template("report.md")
+            md_content = md_template.render(**data)
+            md_path = output_dir / "report.md"
+            md_path.write_text(md_content, encoding="utf-8")
+            paths["markdown"] = str(md_path)
+
+        # HTML（html 和 both 模式生成）
+        if fmt in ("html", "both"):
+            html_template = env.get_template("report.html")
+            html_content = html_template.render(**data)
+            html_path = output_dir / "report.html"
+            html_path.write_text(html_content, encoding="utf-8")
+            paths["html"] = str(html_path)
 
         return paths
 
-    def _build_template_data(self, state: OrchestratorState) -> dict:
+    def _build_template_data(self, state: OrchestratorState, fmt: str = "md") -> dict:
         """将编排状态转换为模板可用的数据结构"""
+        import mistune
+        md_renderer = mistune.create_markdown()
         schemes = state.schemes
         steps = state.step_list
         vote_results = state.vote_results
@@ -617,11 +633,13 @@ class BrainstormOrchestrator:
         for vr in sorted(vote_results, key=lambda x: x.get("rank", 99)):
             sid = vr.get("plan_id", "")
             s = schemes.get(sid, {})
+            raw_content = s.get("integrated_content", "")
             scheme_list.append({
                 "id": sid,
                 "object_name": s.get("object_name", ""),
                 "agent_role": s.get("agent_role", ""),
-                "integrated_content": s.get("integrated_content", ""),
+                "integrated_content": raw_content,
+                "integrated_html": md_renderer(raw_content) if fmt in ("html", "both") else "",
                 "total_score": vr.get("total_score", 0),
                 "comment": vr.get("comment", ""),
                 "scores": {
