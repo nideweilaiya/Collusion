@@ -272,9 +272,12 @@ class TestVoting:
 
         steps = [Step.from_dict(s) for s in DECOMPOSE_RESPONSE["steps"]]
         schemes = {
-            "A": PlanScheme(agent_role="UX/产品专家", object_name="业务价值对象"),
-            "B": PlanScheme(agent_role="性能架构师", object_name="技术架构对象"),
-            "C": PlanScheme(agent_role="安全专家", object_name="安全与合规对象"),
+            "A": PlanScheme(agent_role="UX/产品专家", object_name="业务价值对象",
+                steps={s.id: f"方案A对{s.name}的详细设计内容——包含具体技术选型和实现要点" for s in steps}),
+            "B": PlanScheme(agent_role="性能架构师", object_name="技术架构对象",
+                steps={s.id: f"方案B对{s.name}的设计——从性能角度优化，包括缓存和异步处理" for s in steps}),
+            "C": PlanScheme(agent_role="安全专家", object_name="安全与合规对象",
+                steps={s.id: f"方案C对{s.name}的安全设计——包括威胁建模和防护措施" for s in steps}),
         }
         state = OrchestratorState(original_task="测试任务")
 

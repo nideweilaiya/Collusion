@@ -32,6 +32,21 @@ class Scorer:
         Returns:
             按总分降序排列的评分结果列表
         """
+        # 防御：检查方案内容是否为空（API Key 缺失等异常场景）
+        empty_plans = []
+        for plan in plans:
+            has_content = any(
+                v and len(v.strip()) > 20
+                for v in plan.steps.values()
+            )
+            if not has_content:
+                empty_plans.append(plan.id)
+        if empty_plans and len(empty_plans) == len(plans):
+            return [VoteResult(
+                plan_id=pid, total_score=0, rank=0,
+                comment="方案内容为空，无法评分。请检查 API Key 是否正确配置。",
+            ) for pid in empty_plans]
+
         plans_text = self._format_all_plans(plans, steps)
         ctx = (
             f"行动: 独立评委投票评分\n"
@@ -85,7 +100,9 @@ class Scorer:
         for plan in plans:
             lines = [f"### 方案 {plan.id}（来自{plan.agent_role}）"]
             for s in steps:
-                content = plan.steps.get(s.id, "（未覆盖）")
+                content = plan.steps.get(s.id, "")
+                if not content or len(content.strip()) < 10:
+                    content = "⚠️ 此步骤内容缺失（LLM 调用可能失败）"
                 lines.append(f"\n#### {s.index}. {s.name}\n{content}")
             # 附加修改历史
             if plan.modification_history:

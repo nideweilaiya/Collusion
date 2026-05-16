@@ -35,9 +35,12 @@ class TestScorePlans:
             Step(index=2, name="数据存储", description=""),
         ]
         plans = [
-            PlanScheme(agent_role="UX/产品专家", object_name="业务价值对象", id="A"),
-            PlanScheme(agent_role="性能架构师", object_name="技术架构对象", id="B"),
-            PlanScheme(agent_role="安全专家", object_name="安全与合规对象", id="C"),
+            PlanScheme(agent_role="UX/产品专家", object_name="业务价值对象", id="A",
+                steps={steps[0].id: "详细设计：RESTful API + GraphQL 双协议支持，OpenAPI 3.0 文档自动生成"}),
+            PlanScheme(agent_role="性能架构师", object_name="技术架构对象", id="B",
+                steps={steps[0].id: "详细设计：异步非阻塞架构 + Redis 多级缓存 + CDN 加速"}),
+            PlanScheme(agent_role="安全专家", object_name="安全与合规对象", id="C",
+                steps={steps[0].id: "详细设计：JWT + OAuth2.0 + RBAC + 审计日志 + WAF 防护"}),
         ]
 
         results = mock_scorer.score_plans("测试任务", plans, steps)
@@ -48,7 +51,8 @@ class TestScorePlans:
     def test_total_score_calculation(self, mock_scorer):
         """验证加权总分计算逻辑"""
         steps = [Step(index=1, name="接口设计", description="")]
-        plans = [PlanScheme(agent_role="UX/产品专家", id="A")]
+        plans = [PlanScheme(agent_role="UX/产品专家", id="A",
+            steps={steps[0].id: "RESTful API 设计，包含版本化端点、限流和 API Key 管理"})]
 
         results = mock_scorer.score_plans("测试任务", plans, steps)
         r = results[0]
@@ -65,7 +69,8 @@ class TestScorePlans:
     def test_plan_ids_are_single_letters(self, mock_scorer):
         """验证 plan_id 被清理为单个字母"""
         steps = [Step(index=1, name="接口设计", description="")]
-        plans = [PlanScheme(agent_role="UX/产品专家", id="A")]
+        plans = [PlanScheme(agent_role="UX/产品专家", id="A",
+            steps={steps[0].id: "完整的技术方案设计，包含 API 版本管理和认证机制"})]
 
         results = mock_scorer.score_plans("测试任务", plans, steps)
         for r in results:
@@ -78,6 +83,22 @@ class TestScorePlans:
         scorer = Scorer(mock_llm)
         results = scorer.score_plans("测试任务", [], [])
         assert len(results) == 0
+
+    def test_empty_content_guard(self):
+        """方案内容为空时，拒绝评分并给出明确提示"""
+        steps = [Step(index=1, name="接口设计", description="")]
+        plans = [
+            PlanScheme(agent_role="安全专家", id="A"),  # 无 steps 内容
+            PlanScheme(agent_role="性能架构师", id="B"),  # 无 steps 内容
+        ]
+        mock_llm = MockLLMAdapter([])
+        scorer = Scorer(mock_llm)
+        results = scorer.score_plans("测试任务", plans, steps)
+        assert len(results) == 2
+        for r in results:
+            assert r.total_score == 0
+            assert r.rank == 0
+            assert "API Key" in r.comment or "为空" in r.comment
 
 
 class TestVoteResult:
