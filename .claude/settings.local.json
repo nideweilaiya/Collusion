@@ -22,7 +22,8 @@
       "Bash(python verify_content.py)",
       "Bash(xargs python -c ' *)",
       "Bash(git rm *)",
-      "Bash(rm -f test_refine_result.txt test_summary.txt test_output.json test_refine.json e2e_result.txt)"
+      "Bash(rm -f test_refine_result.txt test_summary.txt test_output.json test_refine.json e2e_result.txt)",
+      "Bash(rm -f quick_test.txt refine_cycle.txt refine_final.txt latest_task.txt)"
     ]
   },
   "enableAllProjectMcpServers": true,

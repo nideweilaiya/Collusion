@@ -1,4 +1,0 @@
-auto_applied: ['接口设计']
-needs_review: []
-has updated_plan: False
-output_files: ['format', 'html']
