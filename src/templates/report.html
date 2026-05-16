@@ -7,47 +7,64 @@
 <style>
 /* ====== 全局 ====== */
 :root {
-  --bg: #f8f9fa; --card: #fff; --text: #212529; --muted: #6c757d;
-  --border: #dee2e6; --accent: #4f46e5; --red: #dc2626;
-  --yellow: #d97706; --green: #059669; --radius: 8px;
+  --bg: #f1f5f9; --card: #fff; --text: #1e293b; --muted: #64748b;
+  --border: #e2e8f0; --accent: #4f46e5; --red: #dc2626;
+  --yellow: #d97706; --green: #059669; --radius: 10px;
 }
 * { box-sizing: border-box; margin: 0; padding: 0; }
-body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: var(--bg); color: var(--text); line-height: 1.6; padding: 20px; }
+body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Microsoft YaHei", sans-serif; background: var(--bg); color: var(--text); line-height: 1.75; padding: 24px; font-size: 16px; }
 .container { max-width: 1100px; margin: 0 auto; }
-.card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 24px; margin-bottom: 20px; }
+.card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 28px; margin-bottom: 24px; box-shadow: 0 1px 3px rgba(0,0,0,0.04); }
+h2 { font-size: 1.35rem; margin-bottom: 16px; padding-bottom: 8px; border-bottom: 2px solid var(--border); }
+h3 { font-size: 1.15rem; margin: 20px 0 10px; color: #334155; }
+h4 { font-size: 1.05rem; margin: 16px 0 8px; }
 
 /* ====== 头部 ====== */
-.header { background: linear-gradient(135deg, #1e1b4b, #312e81); color: #fff; padding: 32px 36px; border-radius: var(--radius); margin-bottom: 24px; }
-.header h1 { font-size: 1.5rem; margin-bottom: 8px; }
-.header p { color: #c7d2fe; font-size: 0.9rem; }
-.meta-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; margin-top: 16px; }
-.meta-item { background: rgba(255,255,255,0.1); border-radius: 6px; padding: 10px; text-align: center; }
-.meta-item .label { font-size: 0.7rem; color: #a5b4fc; text-transform: uppercase; }
-.meta-item .value { font-size: 1.1rem; font-weight: 700; }
+.header { background: linear-gradient(135deg, #1e1b4b, #3730a3); color: #fff; padding: 36px 40px; border-radius: var(--radius); margin-bottom: 28px; }
+.header h1 { font-size: 1.6rem; margin-bottom: 8px; font-weight: 800; }
+.header p { color: #c7d2fe; font-size: 0.95rem; }
+.meta-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 14px; margin-top: 20px; }
+.meta-item { background: rgba(255,255,255,0.12); border-radius: 8px; padding: 12px; text-align: center; }
+.meta-item .label { font-size: 0.75rem; color: #a5b4fc; text-transform: uppercase; letter-spacing: 0.5px; }
+.meta-item .value { font-size: 1.2rem; font-weight: 700; }
 
 /* ====== 雷达图 ====== */
 .radar-container { display: flex; justify-content: center; padding: 16px; }
 .radar-svg { max-width: 480px; }
 
 /* ====== 方案卡片 ====== */
-.scheme-top { border-left: 4px solid var(--accent); }
-.scheme-top h2 { color: var(--accent); margin-bottom: 12px; }
-.scheme-content { white-space: pre-wrap; font-size: 0.9rem; }
-.scheme-content h1, .scheme-content h2, .scheme-content h3 { margin: 16px 0 8px; }
-.scheme-content code { background: #f1f5f9; padding: 2px 6px; border-radius: 3px; font-size: 0.85rem; }
-.scheme-content pre { background: #1e293b; color: #e2e8f0; padding: 16px; border-radius: 6px; overflow-x: auto; }
+.scheme-top { border-left: 5px solid var(--accent); }
+.scheme-top h2 { color: var(--accent); margin-bottom: 14px; border: none; }
+.scheme-content { font-size: 0.95rem; line-height: 1.8; }
+.scheme-content h1 { font-size: 1.4rem; color: #1e293b; margin: 24px 0 12px; padding-bottom: 6px; border-bottom: 1px solid var(--border); }
+.scheme-content h2 { font-size: 1.2rem; color: #334155; margin: 20px 0 10px; border: none; }
+.scheme-content h3 { font-size: 1.05rem; color: #475569; margin: 16px 0 8px; }
+.scheme-content p { margin-bottom: 10px; }
+.scheme-content strong { color: #0f172a; }
+/* 内联代码 */
+.scheme-content code { background: #fef3c7; color: #92400e; padding: 2px 7px; border-radius: 4px; font-size: 0.9rem; font-weight: 500; }
+/* 代码块 */
+.scheme-content pre { background: #1e293b; color: #e2e8f0; padding: 20px 24px; border-radius: 8px; overflow-x: auto; margin: 14px 0; font-size: 0.88rem; line-height: 1.7; border: 1px solid #334155; }
+.scheme-content pre code { background: none; color: inherit; padding: 0; font-size: inherit; font-weight: 400; }
+/* 列表 */
+.scheme-content ul, .scheme-content ol { margin: 8px 0 12px 24px; }
+.scheme-content li { margin-bottom: 4px; }
+/* 表格 */
+.scheme-content table { margin: 12px 0; font-size: 0.9rem; }
+.scheme-content th { background: #f1f5f9; font-weight: 700; padding: 10px 14px; border: 1px solid var(--border); }
+.scheme-content td { padding: 8px 14px; border: 1px solid var(--border); }
 
 /* ====== 对比表 ====== */
-table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
-thead th { background: #f1f5f9; padding: 12px; text-align: left; border-bottom: 2px solid var(--border); }
-td { padding: 8px 12px; border-bottom: 1px solid var(--border); }
+table { width: 100%; border-collapse: collapse; font-size: 0.95rem; }
+thead th { background: #f1f5f9; padding: 12px 16px; text-align: left; border-bottom: 2px solid #cbd5e1; font-weight: 700; }
+td { padding: 10px 16px; border-bottom: 1px solid var(--border); }
 td.win { color: var(--green); font-weight: 700; }
 
 /* ====== 风险卡片 ====== */
-.risk-high { border-left: 4px solid var(--red); background: #fef2f2; }
-.risk-mid { border-left: 4px solid var(--yellow); background: #fffbeb; }
-.risk-low { border-left: 4px solid var(--green); background: #ecfdf5; }
-.risk-label { font-size: 0.75rem; font-weight: 700; text-transform: uppercase; }
+.risk-high { border-left: 5px solid var(--red); background: #fef2f2; }
+.risk-mid { border-left: 5px solid var(--yellow); background: #fffbeb; }
+.risk-low { border-left: 5px solid var(--green); background: #ecfdf5; }
+.risk-label { font-size: 0.8rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; }
 
 /* ====== 折叠面板 ====== */
 .accordion { border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; margin-bottom: 12px; }
