@@ -1,0 +1,29 @@
+{
+  "num_agents": 3,
+  "max_consensus_rounds": 2,
+  "max_modification_rounds": 1,
+  "enable_second_round": false,
+  "similarity_threshold": 0.85,
+  "enable_feasibility_brake": true,
+  "enable_owner_integration": true,
+  "business_anchor_agent": "agent_2",
+  "complexity_threshold": 5,
+  "object_coverage_threshold": 0.5,
+  "llm": {
+    "strong": {
+      "provider": "deepseek",
+      "model": "deepseek-chat",
+      "api_key": "",
+      "api_key_env": "DEEPSEEK_API_KEY",
+      "base_url": "https://api.deepseek.com/v1"
+    },
+    "fast": {
+      "provider": "deepseek",
+      "model": "deepseek-chat",
+      "api_key": "",
+      "api_key_env": "DEEPSEEK_API_KEY",
+      "base_url": "https://api.deepseek.com/v1"
+    }
+  },
+  "data_dir": "data"
+}

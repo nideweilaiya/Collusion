@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "brainstorm": {
+      "command": "python",
+      "args": ["-m", "src.mcp_server"],
+      "cwd": "D:/BrainstormOrchestrator"
+    }
+  }
+}

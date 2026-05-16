@@ -1,0 +1,50 @@
+# ==================== 敏感文件 ====================
+config.json
+*.env
+*.env.local
+.env.*
+
+# ==================== Python ====================
+__pycache__/
+*.py[cod]
+*.pyc
+*.pyo
+*.egg-info/
+dist/
+build/
+*.egg
+.eggs/
+*.so
+*.dylib
+*.dll
+
+# venv
+venv/
+.venv/
+env/
+.env/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# ==================== 运行时数据 ====================
+data/states/*.json
+!data/states/.gitkeep
+
+# 测试和基准测试产物（可选择保留）
+# test_result.json
+# benchmark_result.json
+# blog_platform_result.json
+# vague_benchmark_brainstorm.json
+
+# ==================== MCP ====================
+.trae/
+
+# ==================== OS ====================
+.DS_Store
+Thumbs.db
+Desktop.ini
