@@ -23,7 +23,12 @@
       "Bash(xargs python -c ' *)",
       "Bash(git rm *)",
       "Bash(rm -f test_refine_result.txt test_summary.txt test_output.json test_refine.json e2e_result.txt)",
-      "Bash(rm -f quick_test.txt refine_cycle.txt refine_final.txt latest_task.txt)"
+      "Bash(rm -f quick_test.txt refine_cycle.txt refine_final.txt latest_task.txt)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:8020/sse)",
+      "Bash(curl -s -X POST http://localhost:8020/api/refine -d '{}')",
+      "Bash(curl -s -X POST http://localhost:8020/api/refine -H \"Content-Type: application/json\" -d \"{\\\\\"task_id\\\\\":\\\\\"task_e7674e8c4882\\\\\",\\\\\"modifications\\\\\":[{\\\\\"step_name\\\\\":\\\\\"API端点与路由规划\\\\\",\\\\\"suggestion\\\\\":\\\\\"统一使用RESTful规范，增加API版本号前缀\\\\\"}]}\")",
+      "Bash(curl *)",
+      "Bash(rm -f final_e2e.txt step_names_test.txt refine_api_test.txt refine_direct.txt step_name_check.txt step_check2.txt)"
     ]
   },
   "enableAllProjectMcpServers": true,
