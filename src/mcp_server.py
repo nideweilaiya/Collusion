@@ -1,13 +1,19 @@
-"""Brainstorm Orchestrator v3.1 — MCP Server (双传输)
+"""Brainstorm Orchestrator v3.1 — MCP Server (双传输 + 异步编排)
 
 支持两种启动方式：
   --stdio : 标准输入输出 (Claude Code 集成)
   --sse   : HTTP SSE 传输 (Trae Solo / Reasonix / 任意MCP客户端)
   --port  : SSE模式端口 (默认 8020)
+
+v3.1.1: brainstorm_orchestrate 改为异步模式，立即返回 task_id，
+避免 MCP 客户端（如 Reasonix）60s 超时。用户通过 brainstorm_status
+和 brainstorm_result 轮询进度和结果。
 """
 import json
 import sys
+import uuid
 from pathlib import Path
+from concurrent.futures import ThreadPoolExecutor
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
@@ -17,8 +23,10 @@ from mcp.server.sse import SseServerTransport
 from mcp.types import Tool, TextContent
 
 from src.orchestrator import BrainstormOrchestrator
+from src.models import OrchestratorState
 
 _orchestrator = BrainstormOrchestrator()
+_executor = ThreadPoolExecutor(max_workers=3)
 
 server = Server("brainstorm-orchestrator-v3.1")
 
@@ -83,16 +91,32 @@ async def call_tool(name: str, arguments: dict):
         agents = arguments.get("agents", 3)
         _orchestrator.num_agents = agents
 
-        task_id = _orchestrator.orchestrate(task=task)
-        state = _orchestrator.get_state(task_id)
+        # 预生成 task_id，立即注册状态（避免轮询时找不到）
+        task_id = f"task_{uuid.uuid4().hex[:12]}"
+        pre_state = OrchestratorState(
+            task_id=task_id,
+            original_task=task,
+            phase="queued",
+        )
+        _orchestrator._states[task_id] = pre_state
+
+        # 后台异步执行编排（2-4分钟），立即返回 task_id
+        def _run():
+            _orchestrator.orchestrate(task=task, task_id=task_id)
+
+        _executor.submit(_run)
 
         return [TextContent(
             type="text",
             text=json.dumps({
                 "task_id": task_id,
-                "status": state.get("phase", "running") if state else "running",
+                "status": "queued",
                 "agents": agents,
-                "message": f"编排已启动({agents}个Agent)。使用brainstorm_status查询进度。",
+                "message": (
+                    f"编排已异步启动({agents}个Agent)，预计2-4分钟。\n"
+                    f"使用 brainstorm_status(task_id=\"{task_id}\") 查询进度。\n"
+                    f"完成后使用 brainstorm_result(task_id=\"{task_id}\") 获取Top3方案。"
+                ),
             }, ensure_ascii=False, indent=2),
         )]
 
