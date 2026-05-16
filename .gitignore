@@ -34,6 +34,7 @@ env/
 # ==================== 运行时数据 ====================
 data/states/*.json
 !data/states/.gitkeep
+data/outputs/
 
 # 测试和基准测试产物（可选择保留）
 # test_result.json

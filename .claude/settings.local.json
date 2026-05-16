@@ -1,0 +1,30 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(pip install *)",
+      "Bash(python -m pytest tests/ -v)",
+      "Bash(git init *)",
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)",
+      "Bash(gh auth *)",
+      "Bash(git remote *)",
+      "Bash(git push *)",
+      "WebSearch",
+      "WebFetch(domain:api-docs.deepseek.com)",
+      "WebFetch(domain:github.com)",
+      "Read(//d/Reasonix/**)",
+      "Read(//d/Reasonix/.reasonix/**)",
+      "Bash(timeout 10 python src/mcp_server.py --stdio)",
+      "Bash(echo \"exit: $?\")",
+      "Bash(python -c \"import sys; sys.path.insert\\(0,'src'\\); from src.mcp_server import _orchestrator; print\\('OK: orchestrator initialized'\\); print\\('num_agents:', _orchestrator.num_agents\\); print\\('strong model:', _orchestrator.strong_llm.model_name\\)\")",
+      "Bash(python -c ' *)",
+      "Bash(python -m pytest tests/ -q)",
+      "Bash(python verify_content.py)",
+      "Bash(xargs python -c ' *)"
+    ]
+  },
+  "enableAllProjectMcpServers": true,
+  "enabledMcpjsonServers": [
+    "brainstorm"
+  ]
+}

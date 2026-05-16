@@ -81,12 +81,45 @@ async def list_tools():
                 "required": ["task_id"],
             },
         ),
+        Tool(
+            name="collusion_refine",
+            description="用户提交修改建议后，各Agent独立审查并给出反馈（认可/有隐患/高创新性）。全票通过的修改自动合并，有分歧的告知原因。",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "task_id": {
+                        "type": "string",
+                        "description": "已完成的编排任务ID",
+                    },
+                    "modifications": {
+                        "type": "array",
+                        "description": "修改建议列表",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "step_name": {"type": "string", "description": "要修改的环节名称"},
+                                "suggestion": {"type": "string", "description": "修改建议内容"},
+                            },
+                        },
+                    },
+                },
+                "required": ["task_id", "modifications"],
+            },
+        ),
     ]
 
 
 @server.call_tool()
 async def call_tool(name: str, arguments: dict):
-    if name == "brainstorm_orchestrate":
+    if name == "collusion_refine":
+        task_id = arguments["task_id"]
+        modifications = arguments.get("modifications", [])
+        result = _orchestrator.refine(task_id, modifications)
+        return [TextContent(type="text", text=json.dumps(
+            result, ensure_ascii=False, indent=2,
+        ))]
+
+    elif name == "brainstorm_orchestrate":
         task = arguments["task"]
         agents = arguments.get("agents", 3)
         _orchestrator.num_agents = agents
@@ -195,6 +228,7 @@ async def call_tool(name: str, arguments: dict):
             "vote_results": result["vote_results"],
             "steps": steps_with_designs,
             "schemes": scheme_details,
+            "output_files": result.get("output_files", {}),
             "cost": result["total_cost_rmb"],
             "tokens": result["total_tokens"],
             "error": result.get("error"),

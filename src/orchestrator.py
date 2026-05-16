@@ -1,7 +1,9 @@
-"""Brainstorm Orchestrator v3.1 — 核心编排引擎（对象化架构）"""
+"""Brainstorm Orchestrator v3.2 — 核心编排引擎（双文件输出 + 反馈回路）"""
 import json
 import os
 import time
+import math
+from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Optional
 from concurrent.futures import ThreadPoolExecutor
@@ -52,6 +54,7 @@ class BrainstormOrchestrator:
         self.scorer = Scorer(self.strong_llm)
         self._states: Dict[str, OrchestratorState] = {}
         self._executor = ThreadPoolExecutor(max_workers=self.num_agents)
+        self._template_env = None  # Jinja2 环境，延迟初始化
 
     @property
     def num_agents(self):
@@ -142,6 +145,15 @@ class BrainstormOrchestrator:
             state.top3_plans = [r.to_dict() for r in results[:3]]
             self._save_state(state)
 
+            # Phase 7: 渲染双文件输出（v3.2 新增）
+            self._update_phase(state, "phase7_render")
+            try:
+                output_paths = self._render_outputs(state)
+                state.output_paths = output_paths
+            except Exception as render_err:
+                state.output_paths = {"error": str(render_err)}
+            self._save_state(state)
+
             self._update_phase(state, OrchestratorPhase.DONE)
             state.completed_at = time.time()
 
@@ -177,6 +189,7 @@ class BrainstormOrchestrator:
             "scheme_complexity": state_dict.get("scheme_complexity", {}),
             "business_alignment_warnings": state_dict.get("business_alignment_warnings", []),
             "feasibility_brake_records": state_dict.get("feasibility_brake_records", []),
+            "output_files": state_dict.get("output_paths", {}),
             "total_cost_rmb": state_dict["total_cost_rmb"],
             "total_tokens": state_dict["total_tokens"],
             "error": state_dict.get("error_message"),
@@ -488,6 +501,279 @@ class BrainstormOrchestrator:
                 state.original_task, plan, missing, step_index,
             )
             plan.steps[step_id] = data.get("design_content", "")
+
+    @staticmethod
+    def _render_radar_svg(schemes: list, dimensions: list) -> str:
+        """生成雷达图 SVG（纯 Python 计算坐标，无 JS 依赖）"""
+        colors = {"A": "#dc2626", "B": "#2563eb", "C": "#059669"}
+        cx, cy, r = 250, 240, 180
+        n = len(dimensions)
+        parts = ['<svg viewBox="0 0 500 500" xmlns="http://www.w3.org/2000/svg">']
+
+        # 网格
+        for level in [0.2, 0.4, 0.6, 0.8, 1.0]:
+            pts = []
+            for i in range(n):
+                angle = (i * 360 / n - 90) * math.pi / 180
+                x = cx + r * level * math.cos(angle)
+                y = cy - r * level * math.sin(angle)
+                pts.append(f"{x:.0f},{y:.0f}")
+            parts.append(f'<polygon points="{" ".join(pts)}" fill="none" stroke="#e5e7eb" stroke-width="1"/>')
+
+        # 轴 + 标签
+        for i, dim in enumerate(dimensions):
+            angle = (i * 360 / n - 90) * math.pi / 180
+            x2 = cx + r * 1.05 * math.cos(angle)
+            y2 = cy - r * 1.05 * math.sin(angle)
+            tx = cx + r * 1.18 * math.cos(angle)
+            ty = cy - r * 1.18 * math.sin(angle) + 4
+            parts.append(f'<line x1="{cx}" y1="{cy}" x2="{x2:.0f}" y2="{y2:.0f}" stroke="#d1d5db" stroke-width="1"/>')
+            parts.append(f'<text x="{tx:.0f}" y="{ty:.0f}" text-anchor="middle" font-size="12" fill="#374151">{dim}</text>')
+
+        # 数据多边形 + 顶点
+        for scheme in schemes:
+            c = colors.get(scheme.get("id", ""), "#6b7280")
+            pts = []
+            for i, dim in enumerate(dimensions):
+                score = scheme.get("scores", {}).get(dim, 0) / 10.0
+                angle = (i * 360 / n - 90) * math.pi / 180
+                x = cx + r * score * math.cos(angle)
+                y = cy - r * score * math.sin(angle)
+                pts.append(f"{x:.0f},{y:.0f}")
+            parts.append(f'<polygon points="{" ".join(pts)}" fill="{c}" fill-opacity="0.1" stroke="{c}" stroke-width="2"/>')
+            for pt in pts:
+                px, py = pt.split(",")
+                parts.append(f'<circle cx="{px}" cy="{py}" r="4" fill="{c}"/>')
+
+        # 图例
+        for i, scheme in enumerate(schemes):
+            c = colors.get(scheme.get("id", ""), "#6b7280")
+            ly = 400 + i * 22
+            parts.append(f'<rect x="20" y="{ly}" width="14" height="14" fill="{c}" opacity="0.3" rx="2"/>')
+            parts.append(f'<rect x="20" y="{ly}" width="14" height="2" fill="{c}"/>')
+            parts.append(f'<text x="40" y="{ly + 12}" font-size="11" fill="#374151">方案 {scheme.get("id", "")} ({scheme.get("total_score", 0):.1f})</text>')
+
+        parts.append('</svg>')
+        return "\n".join(parts)
+
+    # ==================== v3.2: 双文件输出 ====================
+
+    def _get_template_env(self):
+        if self._template_env is None:
+            from jinja2 import Environment, FileSystemLoader
+            template_dir = Path(__file__).parent / "templates"
+            self._template_env = Environment(
+                loader=FileSystemLoader(str(template_dir)),
+                autoescape=False,
+            )
+        return self._template_env
+
+    def _render_outputs(self, state: OrchestratorState) -> dict:
+        """渲染 HTML + Markdown 输出，保存到 data/outputs/{task_id}/"""
+        data = self._build_template_data(state)
+        env = self._get_template_env()
+        output_dir = self.data_dir / "outputs" / state.task_id
+        output_dir.mkdir(parents=True, exist_ok=True)
+
+        paths = {}
+        # Markdown
+        md_template = env.get_template("report.md")
+        md_content = md_template.render(**data)
+        md_path = output_dir / "report.md"
+        md_path.write_text(md_content, encoding="utf-8")
+        paths["markdown"] = str(md_path)
+
+        # HTML
+        html_template = env.get_template("report.html")
+        html_content = html_template.render(**data)
+        html_path = output_dir / "report.html"
+        html_path.write_text(html_content, encoding="utf-8")
+        paths["html"] = str(html_path)
+
+        return paths
+
+    def _build_template_data(self, state: OrchestratorState) -> dict:
+        """将编排状态转换为模板可用的数据结构"""
+        schemes = state.schemes
+        steps = state.step_list
+        vote_results = state.vote_results
+
+        # 维度列表
+        dimensions = ["正确性", "完整性", "可行性", "创新性", "业务对齐"]
+
+        # 各维度最高分（用于标绿）
+        max_scores = {}
+        for dim in dimensions:
+            best = 0
+            for r in vote_results:
+                s = r.get(dim.lower(), r.get(dim, 0))
+                if s > best:
+                    best = s
+            max_scores[dim] = best
+
+        # 方案数据
+        scheme_list = []
+        for vr in sorted(vote_results, key=lambda x: x.get("rank", 99)):
+            sid = vr.get("plan_id", "")
+            s = schemes.get(sid, {})
+            scheme_list.append({
+                "id": sid,
+                "object_name": s.get("object_name", ""),
+                "agent_role": s.get("agent_role", ""),
+                "integrated_content": s.get("integrated_content", ""),
+                "total_score": vr.get("total_score", 0),
+                "comment": vr.get("comment", ""),
+                "scores": {
+                    "正确性": vr.get("correctness", 0),
+                    "完整性": vr.get("completeness", 0),
+                    "可行性": vr.get("feasibility", 0),
+                    "创新性": vr.get("innovation", 0),
+                    "业务对齐": vr.get("business_alignment", 0),
+                },
+            })
+
+        # Top 方案
+        top_scheme = scheme_list[0] if scheme_list else None
+
+        # 步骤 + 各方案设计
+        step_list = []
+        for step in steps:
+            designs = {}
+            for sid, scheme in schemes.items():
+                design = scheme.get("steps", {}).get(step.get("id", ""), "")
+                if design and len(design.strip()) > 10:
+                    designs[sid] = design[:300]
+            step_list.append({
+                "index": step.get("index", 0),
+                "name": step.get("name", ""),
+                "description": step.get("description", ""),
+                "designs": designs,
+            })
+
+        # 风险标注
+        risks = []
+        for record in state.feasibility_brake_records:
+            level = "low"
+            if not record.get("feasible", True):
+                level = "high"
+            elif record.get("mandatory_simplify"):
+                level = "mid"
+            if level != "low" or record.get("cost_estimate") == "高":
+                risks.append({
+                    "scheme_id": record.get("scheme_id", ""),
+                    "level": level,
+                    "description": record.get("cost_estimate", "") +
+                        (" 需强制简化" if record.get("mandatory_simplify") else ""),
+                })
+
+        # 修改历史
+        modifications = []
+        for sid, scheme in schemes.items():
+            for mod in scheme.get("modification_history", []):
+                modifications.append({
+                    "scheme_id": sid,
+                    "agent_role": mod.get("agent_role", ""),
+                    "target_step": mod.get("target_step", ""),
+                    "reason": mod.get("reason", ""),
+                    "content": mod.get("content", ""),
+                })
+
+        # 任务清单 (从步骤生成)
+        task_list = []
+        for step in steps:
+            task_list.append({
+                "id": step.get("index", 0),
+                "name": step.get("name", ""),
+                "description": step.get("description", ""),
+                "estimated_time": "1-2小时",
+                "priority": "高" if step.get("index", 0) <= 2 else "中",
+            })
+
+        # 雷达图 SVG
+        radar_svg = self._render_radar_svg(scheme_list, dimensions)
+
+        return {
+            "task_id": state.task_id,
+            "task": state.original_task,
+            "generated_at": datetime.now().strftime("%Y-%m-%d %H:%M"),
+            "radar_svg": radar_svg,
+            "cost": state.total_cost_rmb,
+            "tokens": state.total_tokens,
+            "agents": len(self.agents),
+            "top_scheme": top_scheme,
+            "schemes": scheme_list,
+            "steps": step_list,
+            "dimensions": dimensions,
+            "max_scores": max_scores,
+            "risks": risks,
+            "modifications": modifications,
+            "task_list": task_list,
+            "saved_mods": {},  # 用于 HTML 草稿恢复
+        }
+
+    # ==================== v3.2: 反馈回路 ====================
+
+    def refine(self, task_id: str, modifications: List[dict]) -> dict:
+        """用户提交修改建议后，各 Agent 独立审查并给出反馈
+
+        Args:
+            task_id: 已有任务 ID
+            modifications: [{"step_name": "...", "suggestion": "..."}, ...]
+
+        Returns:
+            {"feedback_matrix": [...], "auto_applied": [...], "needs_review": [...]}
+        """
+        state = self._load_state(task_id)
+        if state is None and task_id in self._states:
+            state = self._states[task_id]
+        if state is None:
+            return {"error": f"任务不存在: {task_id}"}
+
+        feedback_matrix = []
+        auto_applied = []
+        needs_review = []
+
+        for mod in modifications:
+            step_name = mod.get("step_name", "")
+            suggestion = mod.get("suggestion", "")
+            agent_verdicts = []
+
+            for agent in self.agents:
+                ctx = (
+                    f"角色: {agent.object_name}代言人\n"
+                    f"原任务: {state.original_task}\n"
+                    f"用户对环节「{step_name}」提出修改建议:\n"
+                    f"「{suggestion}」\n\n"
+                    f"请审查此建议并输出 JSON:\n"
+                    f'{{"verdict":"认可"|"有隐患"|"高创新性",'
+                    f'"reason":"具体理由(50字以内)"}}\n'
+                )
+                data = self.fast_llm.cached_call_json(
+                    ctx, temperature=0.1, max_tokens=512)
+                agent_verdicts.append({
+                    "agent": agent.object_name,
+                    "verdict": data.get("verdict", "有隐患"),
+                    "reason": data.get("reason", ""),
+                })
+
+            feedback_matrix.append({
+                "step_name": step_name,
+                "suggestion": suggestion,
+                "verdicts": agent_verdicts,
+            })
+
+            # 全票通过 → 自动应用
+            if all(v["verdict"] == "认可" for v in agent_verdicts):
+                auto_applied.append(step_name)
+            else:
+                needs_review.append(step_name)
+
+        return {
+            "task_id": task_id,
+            "feedback_matrix": feedback_matrix,
+            "auto_applied": auto_applied,
+            "needs_review": needs_review,
+        }
 
     @staticmethod
     def _try_reasonix_key() -> str:

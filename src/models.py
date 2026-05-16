@@ -143,6 +143,7 @@ class OrchestratorState:
     scheme_complexity: Dict[str, int] = field(default_factory=dict)
     business_alignment_warnings: List[Dict] = field(default_factory=list)
     feasibility_brake_records: List[Dict] = field(default_factory=list)
+    output_paths: Dict[str, str] = field(default_factory=dict)  # v3.2: HTML/MD 输出路径
 
     def to_dict(self) -> dict:
         return asdict(self)
