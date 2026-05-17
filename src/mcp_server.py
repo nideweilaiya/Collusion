@@ -30,6 +30,9 @@ from mcp.types import Tool, TextContent
 
 from src.orchestrator import BrainstormOrchestrator
 from src.models import OrchestratorState
+from src.blackboard import BlackboardOrchestrator
+
+_blackboard = BlackboardOrchestrator()
 
 _orchestrator = BrainstormOrchestrator()
 _executor = ThreadPoolExecutor(max_workers=3)
@@ -286,6 +289,70 @@ async def list_tools():
                     },
                 },
                 "required": ["options"],
+            },
+        ),
+        Tool(
+            name="collusion_blackboard_start",
+            description="启动黑板+顾问模式。3个子Agent在后台静默运行，独立设计方案，遇疑问询问主Agent。完成后自动合并输出最终方案。",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "task": {
+                        "type": "string",
+                        "description": "任务描述",
+                    },
+                    "steps": {
+                        "type": "array",
+                        "description": "环节清单（可选，不填则Agent自行判断）",
+                        "items": {"type": "string"},
+                        "default": [],
+                    },
+                    "model": {
+                        "type": "string",
+                        "description": "模型策略: hybrid(默认,架构R1+其余Flash) / full_flash / full_strong",
+                        "default": "hybrid",
+                    },
+                },
+                "required": ["task"],
+            },
+        ),
+        Tool(
+            name="collusion_blackboard_status",
+            description="查询黑板模式任务进度。返回各子Agent状态、待回答的询问、整体进度。",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "task_id": {
+                        "type": "string",
+                        "description": "黑板任务ID (bb_开头)",
+                    },
+                },
+                "required": ["task_id"],
+            },
+        ),
+        Tool(
+            name="collusion_blackboard_answer",
+            description="回答子Agent的询问。答案写回黑板后子Agent继续执行。",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "task_id": {"type": "string"},
+                    "role": {"type": "string", "description": "security/architecture/ux"},
+                    "query_index": {"type": "integer", "description": "询问索引（从0开始）"},
+                    "answer": {"type": "string", "description": "回答内容"},
+                },
+                "required": ["task_id", "role", "query_index", "answer"],
+            },
+        ),
+        Tool(
+            name="collusion_blackboard_merge",
+            description="强制合并子Agent的方案（即使未全部完成）。输出最终方案。",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "task_id": {"type": "string"},
+                },
+                "required": ["task_id"],
             },
         ),
         Tool(
@@ -558,6 +625,49 @@ async def call_tool(name: str, arguments: dict):
         options = arguments["options"]
         context = arguments.get("context", "")
         result = _orchestrator.evaluate_options(options, context)
+        return [TextContent(type="text", text=json.dumps(
+            result, ensure_ascii=False, indent=2,
+        ))]
+
+    if name == "collusion_blackboard_start":
+        task = arguments["task"]
+        steps_raw = arguments.get("steps", [])
+        model_strategy = arguments.get("model", "hybrid")
+        steps = [{"index": i+1, "name": s, "description": s}
+                 for i, s in enumerate(steps_raw)] if steps_raw else []
+        task_id = _blackboard.create_task(task, steps)
+        result = _blackboard.launch_agents(task_id)
+        result["model_strategy"] = model_strategy
+        result["note"] = (
+            "3 个子 Agent 已在后台启动（架构师=R1，安全/UX=Flash）。\n"
+            f"使用 collusion_blackboard_status(task_id=\"{task_id}\") 查询进度。\n"
+            "如有询问，用 collusion_blackboard_answer 回复。\n"
+            "完成后用 collusion_blackboard_merge 合并方案。"
+        )
+        return [TextContent(type="text", text=json.dumps(
+            result, ensure_ascii=False, indent=2,
+        ))]
+
+    if name == "collusion_blackboard_status":
+        task_id = arguments["task_id"]
+        result = _blackboard.get_status(task_id)
+        return [TextContent(type="text", text=json.dumps(
+            result, ensure_ascii=False, indent=2,
+        ))]
+
+    if name == "collusion_blackboard_answer":
+        task_id = arguments["task_id"]
+        role = arguments["role"]
+        idx = arguments["query_index"]
+        answer = arguments["answer"]
+        result = _blackboard.answer_query(task_id, role, idx, answer)
+        return [TextContent(type="text", text=json.dumps(
+            result, ensure_ascii=False, indent=2,
+        ))]
+
+    if name == "collusion_blackboard_merge":
+        task_id = arguments["task_id"]
+        result = _blackboard.merge_proposals(task_id)
         return [TextContent(type="text", text=json.dumps(
             result, ensure_ascii=False, indent=2,
         ))]
