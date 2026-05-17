@@ -7,7 +7,8 @@ name = "collusion-mcp"
 version = "0.4.0"
 description = "多视角协作引擎 — 通过多 Agent 并行提案、交叉审查、可行性强制收束，解决单 Agent 在方案设计阶段的意图丢失和过度设计问题"
 readme = "README.md"
-license = {text = "MIT"}
+license = "MIT"
+license-files = ["LICENSE"]
 authors = [
     {name = "Collusion Contributors"}
 ]
@@ -18,7 +19,6 @@ keywords = [
 classifiers = [
     "Development Status :: 4 - Beta",
     "Intended Audience :: Developers",
-    "License :: OSI Approved :: MIT License",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
