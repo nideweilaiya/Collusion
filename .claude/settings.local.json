@@ -50,7 +50,10 @@
       "Bash(python -c \"from src.child_agent import run_agent; print\\('child_agent import OK'\\)\")",
       "Bash(tasklist /FI \"IMAGENAME eq python.exe\")",
       "Bash(netstat -ano)",
-      "Bash(taskkill /PID 20108 /F)"
+      "Bash(taskkill /PID 20108 /F)",
+      "Bash(python *)",
+      "Bash(cp D:/BrainstormOrchestrator/skills/collusion/SKILL.md __TRACKED_VAR__/.claude/skills/collusion/SKILL.md)",
+      "Bash(cp D:/BrainstormOrchestrator/platforms/reasonix-skill-collusion.md \"D:/Reasonix/.reasonix/skills/collusion.md\")"
     ]
   },
   "enableAllProjectMcpServers": true,
