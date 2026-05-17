@@ -1,75 +1,39 @@
-# Collusion Skill
+# Collusion Skill for Reasonix
 
-当用户输入 `/collusion` 或 `/collusion scheme <任务>` 时触发。
+当用户提出**方案设计、技术选型、代码审查、任务拆解、问题诊断**等需求时，自动使用 Collusion MCP 工具。
 
-## 执行流程
+## 触发条件（任一满足即触发）
 
-MCP Server 已配置为 stdio 模式，Reasonix 启动时自动拉起，无需手动操作。
+- 用户说"设计一个XXX的方案"、"帮我设计XXX"
+- 用户说"审查这段代码"、"review一下"
+- 用户说"拆解这个任务"、"帮我规划XXX"
+- 用户说"诊断这个问题"、"排查XXX"
+- 用户说"A和B选哪个"、"技术选型"
+- 用户说"看看这个项目"、"侦察一下"
+- 用户说"用 Collusion"、"用共谋"
 
-### Step 1: 启动编排
+## 可用工具
 
-调用 `brainstorm_orchestrate(task="<用户任务>", agents=3, format="html")`
+| 工具 | 用途 | 何时用 |
+|------|------|--------|
+| brainstorm_orchestrate | 完整 7 阶段方案设计 | 用户需要从零设计方案 |
+| collusion_enhance | 增强已有方案 | 用户提供半成品方案 |
+| collusion_review | 多视角代码审查 | 用户贴代码要审查 |
+| collusion_plan | 任务拆解 | 用户需要任务清单 |
+| collusion_diagnose | 故障诊断 | 用户描述异常现象 |
+| collusion_choose | 技术选型 | 用户比较多个方案 |
+| collusion_scout | 项目侦察 | 用户要了解项目结构 |
+| brainstorm_status | 查询编排进度 | - |
+| brainstorm_result | 获取编排结果 | - |
+| collusion_refine | 修改方案 | 用户对方案有修改意见 |
+| collusion_blackboard_start | 黑板模式（3子Agent静默） | 复杂任务需要深度多视角 |
+| collusion_blackboard_status | 黑板进度 | - |
+| collusion_blackboard_merge | 黑板合并 | - |
 
-立即告知用户：**"3 个 Agent 并行提案中，预计 2-4 分钟。"**
+## 执行要点
 
-### Step 2: 等待并轮询
-
-等待至少 60 秒后首次查询，之后每 30 秒查询一次：
-
-调用 `brainstorm_status(task_id="...")`
-
-向用户展示进度：
-```
-⏳ Phase 3/7: 并行提案中... (方案A ✅ 方案B ⏳ 方案C ⏳)
-```
-
-如果有 `pending_questions`（引导问题），向用户展示并等待回答。
-
-### Step 3: 获取结果
-
-当 phase 为 "done" 时，调用 `brainstorm_result(task_id="...")`
-
-### Step 4: 展示结果
-
-展示 Top 3 排名 + 方案概要：
-
-```
-🏆 推荐方案: 方案X — X.X分 | 一句话评语
-📊 排名: 🥇X | 🥈Y | 🥉Z
-
-📄 HTML 报告: http://localhost:8020/outputs/{task_id}/report.html
-
-如需修改，直接告诉我具体要改的步骤即可。
-```
-
-## 子命令
-
-| 命令 | 工具 | 说明 |
-|------|------|------|
-| `/collusion scheme <任务>` | brainstorm_orchestrate | 方案设计 |
-| `/collusion status <id>` | brainstorm_status | 查询进度 |
-| `/collusion result <id>` | brainstorm_result | 获取结果 |
-| `/collusion enhance <方案>` | collusion_enhance | 增强已有方案 |
-| `/collusion review <代码>` | collusion_review | 代码审查 |
-| `/collusion plan <任务>` | collusion_plan | 任务拆解 |
-| `/collusion diagnose <问题>` | collusion_diagnose | 问题诊断 |
-| `/collusion choose A vs B` | collusion_choose | 技术选型 |
-| `/collusion scout` | collusion_scout | 项目侦察 |
-| `/collusion blackboard <任务>` | collusion_blackboard_start | 黑板+顾问模式 |
-
-## 黑板模式
-
-当用户输入 `/collusion blackboard <任务>` 时：
-
-1. 调用 `collusion_blackboard_start(task="<任务>", model="hybrid")`
-2. 告知用户：**"3 个子 Agent 在后台静默运行（架构师 R1 + 安全/UX Flash），预计 5-8 分钟"**
-3. 用 `collusion_blackboard_status` 轮询进度
-4. 如有 pending_queries，向用户展示并调用 `collusion_blackboard_answer` 回复
-5. 全部完成后调用 `collusion_blackboard_merge` 获取最终方案
-
-## 注意事项
-
-- agents=3 是默认值，不要主动降为 1
-- 如果用户说"快一点"或"--quick"，使用 agents=1 或 collusion_plan 工具
-- MCP Server 空闲 10 分钟后自动关闭（节省资源）
-- 所有工具调用错误时，检查 MCP Server 是否在运行
+1. **方案设计时 agents=3**，不要降为 1。除非用户明确说"快一点"
+2. **异步等待**：orchestrate 立即返回 task_id，用 status 轮询直到 phase=done
+3. **展示结果**：拿到 result 后展示 Top 3 排名 + Top1 方案概要
+4. **格式参数**：format="html" 生成可视化报告，format="md" 只生成文本（默认）
+5. **预设参数**：preset="auto" 自动检测任务复杂度分配 Agent
