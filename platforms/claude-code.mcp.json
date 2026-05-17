@@ -2,8 +2,7 @@
   "mcpServers": {
     "brainstorm": {
       "command": "collusion-mcp",
-      "args": ["--stdio"],
-      "cwd": "D:/BrainstormOrchestrator"
+      "args": ["--stdio"]
     }
   }
 }

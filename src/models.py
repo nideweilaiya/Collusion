@@ -120,6 +120,24 @@ class VoteResult:
 
 
 @dataclass
+class ElicitationQuestion:
+    """引导交互问题"""
+    id: str = ""
+    category: str = ""  # security/performance/ux/deployment/data/scale
+    question: str = ""
+    context: str = ""  # 为什么问这个问题
+    answer: str = ""   # 用户回答
+    answered: bool = False
+
+    def to_dict(self) -> dict:
+        return asdict(self)
+
+    @classmethod
+    def from_dict(cls, data: dict) -> "ElicitationQuestion":
+        return cls(**{k: v for k, v in data.items() if k in cls.__dataclass_fields__})
+
+
+@dataclass
 class OrchestratorState:
     """编排器完整状态（可序列化持久化）"""
     task_id: str = field(default_factory=lambda: f"task_{uuid.uuid4().hex[:12]}")
@@ -144,6 +162,9 @@ class OrchestratorState:
     business_alignment_warnings: List[Dict] = field(default_factory=list)
     feasibility_brake_records: List[Dict] = field(default_factory=list)
     output_paths: Dict[str, str] = field(default_factory=dict)  # v3.2: HTML/MD 输出路径
+    # v0.4.0 新增字段
+    elicitation_questions: List[Dict] = field(default_factory=list)  # 引导交互问题列表
+    elicitation_answered: bool = False  # 是否已全部回答
 
     def to_dict(self) -> dict:
         return asdict(self)

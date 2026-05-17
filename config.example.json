@@ -10,20 +10,23 @@
   "complexity_threshold": 5,
   "object_coverage_threshold": 0.5,
   "llm": {
+    "_key_resolution": "Key 解析优先级: 构造函数 → DEEPSEEK_API_KEY → OPENAI_API_KEY → LLM_API_KEY → Reasonix 配置",
     "strong": {
       "provider": "deepseek",
       "model": "deepseek-chat",
       "api_key": "",
-      "api_key_env": "DEEPSEEK_API_KEY",
       "base_url": "https://api.deepseek.com/v1"
     },
     "fast": {
       "provider": "deepseek",
       "model": "deepseek-chat",
       "api_key": "",
-      "api_key_env": "DEEPSEEK_API_KEY",
       "base_url": "https://api.deepseek.com/v1"
     }
   },
-  "data_dir": "data"
+  "data_dir": "data",
+  "sampling": {
+    "enabled": false,
+    "_comment": "设为 true 启用 MCP Sampling 委托模式。LLM 调用通过 sampling/createMessage 委托宿主执行，保留宿主缓存。Reasonix 用户推荐启用。也可通过环境变量 COLLUSION_SAMPLING_MODE=1 启用。"
+  }
 }

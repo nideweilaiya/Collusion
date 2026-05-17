@@ -68,11 +68,19 @@
 ## 📋 可执行任务清单
 
 > 可直接传递给 Claude Code Plan 模式、Superpowers writing-plans 等 AI 执行工具。
+> MVP 范围: 前 {{ mvp_count }} 个任务为最小可行产品。
 
 {% for task_item in task_list %}
-### Task {{ task_item.id }}: {{ task_item.name }}
+### Task {{ task_item.id }}: {{ task_item.name }}{% if task_item.is_mvp %} 🔴 MVP{% endif %}
 - [ ] {{ task_item.description }}
-- **预计耗时**: {{ task_item.estimated_time }} | **优先级**: {{ task_item.priority }}
+- **预计耗时**: {{ task_item.estimated_time }} | **优先级**: {{ task_item.priority }}{% if task_item.is_mvp %} | **MVP** ✅{% endif %}
+{% if task_item.code_anchors %}
+- **代码入口**: {% for anchor in task_item.code_anchors %}`{{ anchor }}` {% endfor %}
+{% endif %}
+{% if task_item.dependencies %}
+- **依赖**: {% for dep in task_item.dependencies %}Task {{ dep }} {% endfor %}
+{% endif %}
+
 {% endfor %}
 
 ---

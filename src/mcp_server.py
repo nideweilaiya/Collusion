@@ -1,17 +1,23 @@
-"""Brainstorm Orchestrator v3.1 — MCP Server (双传输 + 异步编排)
+"""Collusion MCP Server v0.4.0 — MCP Server (双传输 + 异步编排 + Sampling 委托)
 
 支持两种启动方式：
-  --stdio : 标准输入输出 (Claude Code 集成)
-  --sse   : HTTP SSE 传输 (Trae Solo / Reasonix / 任意MCP客户端)
+  --stdio : 标准输入输出 (Claude Code / Cursor 集成)
+  --sse   : HTTP SSE 传输 (Reasonix / Trae Solo / 任意MCP客户端)
   --port  : SSE模式端口 (默认 8020)
 
-v3.1.1: brainstorm_orchestrate 改为异步模式，立即返回 task_id，
-避免 MCP 客户端（如 Reasonix）60s 超时。用户通过 brainstorm_status
-和 brainstorm_result 轮询进度和结果。
+v0.4.0 新增:
+  - Mermaid 架构分层图（HTML 报告）
+  - 代码入口锚点 + MVP 自动检测
+  - Elicitation 引导交互（缺失信息补全）
+  - 废案资产库与语义检索（分支方案复用）
+  - 会话分支与合并 (collusion_branch / collusion_merge)
+  - MCP Sampling 委托调用（保留宿主缓存）
 """
 import json
+import os
 import sys
 import uuid
+import asyncio
 from pathlib import Path
 from concurrent.futures import ThreadPoolExecutor
 
@@ -28,7 +34,13 @@ from src.models import OrchestratorState
 _orchestrator = BrainstormOrchestrator()
 _executor = ThreadPoolExecutor(max_workers=3)
 
-server = Server("brainstorm-orchestrator-v3.1")
+# MCP Sampling 委托模式: 轮询队列中的 LLM 请求，通过宿主代为调用
+_sampling_enabled = (
+    os.environ.get("COLLUSION_SAMPLING_MODE") == "1"
+    or _orchestrator.config.get("sampling", {}).get("enabled", False)
+)
+
+server = Server("collusion-v0.4.0")
 
 
 @server.list_tools()
@@ -87,6 +99,85 @@ async def list_tools():
             },
         ),
         Tool(
+            name="collusion_branch",
+            description="从已有任务分叉出新分支，探索替代方案。可选择指定探索方向，或自动从废案中选取最优备选方案。",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "parent_task_id": {
+                        "type": "string",
+                        "description": "父任务ID（已完成的任务）",
+                    },
+                    "branch_point": {
+                        "type": "string",
+                        "description": "分叉点：步骤名称、'top1'（从Top1方案分叉）、'alternative'（从废案中选最优）",
+                    },
+                    "direction": {
+                        "type": "string",
+                        "description": "替代方向描述。留空则自动从废案中选最佳备选思路。例如'用Go重写后端'或'增加微服务拆分'",
+                    },
+                },
+                "required": ["parent_task_id", "branch_point"],
+            },
+        ),
+        Tool(
+            name="collusion_merge",
+            description="合并多个分支的方案，每个环节提取最高分设计，生成综合方案。",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "task_ids": {
+                        "type": "array",
+                        "description": "要合并的任务ID列表",
+                        "items": {"type": "string"},
+                    },
+                    "strategy": {
+                        "type": "string",
+                        "description": "合并策略: best_per_step(默认)/vote/combine",
+                        "default": "best_per_step",
+                    },
+                },
+                "required": ["task_ids"],
+            },
+        ),
+        Tool(
+            name="brainstorm_search_assets",
+            description="搜索历史方案资产库（含废案）。找到相似任务的历史方案以供参考复用。",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "query": {
+                        "type": "string",
+                        "description": "搜索关键词或任务描述，例如'高并发API设计'或'博客平台'",
+                    },
+                    "top_k": {
+                        "type": "integer",
+                        "description": "返回结果数量，默认5",
+                        "default": 5,
+                    },
+                },
+                "required": ["query"],
+            },
+        ),
+        Tool(
+            name="brainstorm_elicit",
+            description="回答编排引擎的引导问题。当 brainstorm_status 显示 pending_questions 时，用此工具回答缺失信息，帮助引擎产出更精准的方案。",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "task_id": {
+                        "type": "string",
+                        "description": "任务ID",
+                    },
+                    "answers": {
+                        "type": "object",
+                        "description": "回答映射，key为问题ID，value为答案。例如: {\"elicit_0\": \"需要支持10万并发用户\"}",
+                    },
+                },
+                "required": ["task_id", "answers"],
+            },
+        ),
+        Tool(
             name="collusion_refine",
             description="用户提交修改建议后，各Agent独立审查并给出反馈（认可/有隐患/高创新性）。全票通过的修改自动合并，有分歧的告知原因。",
             inputSchema={
@@ -116,6 +207,77 @@ async def list_tools():
 
 @server.call_tool()
 async def call_tool(name: str, arguments: dict):
+    if name == "collusion_branch":
+        parent_id = arguments["parent_task_id"]
+        branch_point = arguments.get("branch_point", "top1")
+        direction = arguments.get("direction", "")
+        branch_id = _orchestrator.branch(parent_id, branch_point, direction)
+        if not branch_id:
+            return [TextContent(type="text", text=json.dumps(
+                {"error": f"父任务不存在: {parent_id}"}, ensure_ascii=False,
+            ))]
+        return [TextContent(type="text", text=json.dumps({
+            "branch_task_id": branch_id,
+            "parent_task_id": parent_id,
+            "branch_point": branch_point,
+            "action": (
+                f"新分支已创建。使用 brainstorm_orchestrate("
+                f"task=\"新方向描述\""
+                f") 在新分支上启动编排。"
+                if not direction else
+                f"新分支已创建，方向: {direction}。"
+                f"使用 brainstorm_orchestrate 在新分支上启动编排。"
+            ),
+        }, ensure_ascii=False, indent=2))]
+
+    if name == "collusion_merge":
+        task_ids = arguments["task_ids"]
+        strategy = arguments.get("strategy", "best_per_step")
+        result = _orchestrator.merge_branches(task_ids, strategy)
+        return [TextContent(type="text", text=json.dumps(
+            result, ensure_ascii=False, indent=2,
+        ))]
+
+    if name == "brainstorm_search_assets":
+        query = arguments["query"]
+        top_k = arguments.get("top_k", 5)
+        results = _orchestrator.search_assets(query, top_k)
+        return [TextContent(type="text", text=json.dumps({
+            "query": query,
+            "count": len(results),
+            "results": results,
+            "tip": "可参考历史方案的思路和架构，避免从零设计。使用 task_id 获取完整方案内容。",
+        }, ensure_ascii=False, indent=2))]
+
+    if name == "brainstorm_elicit":
+        task_id = arguments["task_id"]
+        answers = arguments.get("answers", {})
+        state = _orchestrator.get_state(task_id)
+        if state is None:
+            return [TextContent(type="text", text=json.dumps(
+                {"error": f"任务不存在: {task_id}"}, ensure_ascii=False,
+            ))]
+        state_obj = _orchestrator._load_state(task_id)
+        if state_obj is None and task_id in _orchestrator._states:
+            state_obj = _orchestrator._states[task_id]
+        if state_obj is None:
+            return [TextContent(type="text", text=json.dumps(
+                {"error": f"任务状态无法加载: {task_id}"}, ensure_ascii=False,
+            ))]
+        state_obj = _orchestrator.apply_elicitation_answers(state_obj, answers)
+        _orchestrator._save_state(state_obj)
+        answered = sum(1 for q in state_obj.elicitation_questions if q.get("answered"))
+        total = len(state_obj.elicitation_questions)
+        return [TextContent(type="text", text=json.dumps({
+            "task_id": task_id,
+            "answered": f"{answered}/{total}",
+            "all_answered": state_obj.elicitation_answered,
+            "message": (f"已保存 {answered}/{total} 个回答。"
+                        f"方案将在下次编排时整合这些信息。"
+                        if not state_obj.elicitation_answered else
+                        "所有引导问题已回答，编排将继续进行。"),
+        }, ensure_ascii=False, indent=2))]
+
     if name == "collusion_refine":
         task_id = arguments["task_id"]
         modifications = arguments.get("modifications", [])
@@ -169,6 +331,10 @@ async def call_tool(name: str, arguments: dict):
             return [TextContent(type="text", text=json.dumps(
                 {"error": f"任务不存在: {task_id}"}, ensure_ascii=False,
             ))]
+        # Elicitation 引导问题
+        pending_questions = state.get("elicitation_questions", [])
+        unanswered = [q for q in pending_questions if not q.get("answered", False)]
+
         return [TextContent(type="text", text=json.dumps({
             "task_id": state["task_id"],
             "task": state["original_task"],
@@ -180,6 +346,11 @@ async def call_tool(name: str, arguments: dict):
             "tokens": state.get("total_tokens", 0),
             "complexity": state.get("scheme_complexity", {}),
             "coverage": state.get("object_coverage", {}),
+            "pending_questions": unanswered,
+            "elicitation_note": (
+                f"有 {len(unanswered)} 个引导问题待回答，使用 brainstorm_elicit 回复"
+                if unanswered else None
+            ),
         }, ensure_ascii=False, indent=2))]
 
     elif name == "brainstorm_result":
@@ -253,11 +424,72 @@ async def call_tool(name: str, arguments: dict):
 # ============================================================
 # 启动入口
 # ============================================================
+async def _run_sampling_bridge():
+    """MCP Sampling 桥接：从队列取出 LLM 请求，委托宿主执行"""
+    from src.llm.mcp_sampling import MCPSamplingAdapter
+    while True:
+        try:
+            # 非阻塞检查队列
+            try:
+                request = MCPSamplingAdapter._request_queue.get(timeout=1)
+            except Exception:
+                await asyncio.sleep(0.5)
+                continue
+
+            req_id = request["id"]
+            messages = request["messages"]
+            max_tokens = request["max_tokens"]
+
+            try:
+                result = await server.create_message(
+                    messages=messages,
+                    max_tokens=max_tokens,
+                )
+                # 提取响应
+                content = ""
+                if hasattr(result, 'content'):
+                    if isinstance(result.content, list):
+                        for block in result.content:
+                            if hasattr(block, 'text'):
+                                content += block.text
+                    elif hasattr(result.content, 'text'):
+                        content = result.content.text
+
+                response = {
+                    "text": content,
+                    "input_tokens": getattr(result, 'usage', None).input_tokens if hasattr(result, 'usage') and result.usage else 0,
+                    "output_tokens": getattr(result, 'usage', None).output_tokens if hasattr(result, 'usage') and result.usage else 0,
+                }
+            except Exception as e:
+                response = RuntimeError(f"Sampling 委托失败: {e}")
+
+            # 放回响应队列
+            resp_queue = MCPSamplingAdapter._response_queues.get(req_id)
+            if resp_queue:
+                resp_queue.put(response)
+
+        except asyncio.CancelledError:
+            break
+        except Exception:
+            await asyncio.sleep(0.5)
+
+
 async def run_stdio():
     """标准输入输出模式 (Claude Code)"""
     async with stdio_server() as (read_stream, write_stream):
-        await server.run(read_stream, write_stream,
-                         server.create_initialization_options())
+        # 启动 Sampling 桥接（如果启用）
+        bridge_task = None
+        if _sampling_enabled:
+            from src.llm.mcp_sampling import MCPSamplingAdapter
+            bridge_task = asyncio.create_task(_run_sampling_bridge())
+            print("[Sampling] MCP Sampling 委托模式已启用 — LLM 调用委托宿主执行")
+
+        try:
+            await server.run(read_stream, write_stream,
+                             server.create_initialization_options())
+        finally:
+            if bridge_task:
+                bridge_task.cancel()
 
 
 async def run_sse(port: int = 8020):
@@ -387,21 +619,34 @@ async def run_sse(port: int = 8020):
     print(f"消息端点:     http://localhost:{port}/messages/")
     print(f"反馈 API:    http://localhost:{port}/api/refine")
     print(f"报告文件:    http://localhost:{port}/outputs/{{task_id}}/report.html")
-    config = uvicorn.Config(app, host="0.0.0.0", port=port, log_level="info")
-    server_uvicorn = uvicorn.Server(config)
-    await server_uvicorn.serve()
+
+    # 启动 Sampling 桥接（如果启用）
+    bridge_task = None
+    if _sampling_enabled:
+        from src.llm.mcp_sampling import MCPSamplingAdapter
+        bridge_task = asyncio.create_task(_run_sampling_bridge())
+        print("[Sampling] MCP Sampling 委托模式已启用")
+
+    try:
+        config = uvicorn.Config(app, host="0.0.0.0", port=port, log_level="info")
+        server_uvicorn = uvicorn.Server(config)
+        await server_uvicorn.serve()
+    finally:
+        if bridge_task:
+            bridge_task.cancel()
 
 
-if __name__ == "__main__":
+def main():
+    """命令行入口 — collusion-mcp 命令"""
     import argparse
     import asyncio
 
     parser = argparse.ArgumentParser(
-        description="Brainstorm Orchestrator v3.1 MCP Server")
+        description="Collusion MCP Server v3.2 — 多视角协作技术方案编排引擎")
     parser.add_argument("--stdio", action="store_true",
-                        help="标准输入输出模式 (Claude Code)")
+                        help="标准输入输出模式 (Claude Code / Cursor)")
     parser.add_argument("--sse", action="store_true",
-                        help="HTTP SSE模式 (Trae Solo/Reasonix)")
+                        help="HTTP SSE模式 (Reasonix / Trae Solo)")
     parser.add_argument("--port", type=int, default=8020,
                         help="SSE模式端口 (默认8020)")
     args = parser.parse_args()
@@ -411,3 +656,7 @@ if __name__ == "__main__":
     else:
         # 默认 stdio
         asyncio.run(run_stdio())
+
+
+if __name__ == "__main__":
+    main()

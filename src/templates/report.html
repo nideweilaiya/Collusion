@@ -95,8 +95,15 @@ td.win { color: var(--green); font-weight: 700; }
   body { background: #fff; padding: 0; }
   .feedback-section, .footer-bar { display: none; }
   .card { box-shadow: none; border: 1px solid #ddd; break-inside: avoid; }
+	/* ====== Mermaid 图 ====== */
+	.mermaid-container { display: flex; justify-content: center; padding: 16px; overflow-x: auto; }
+	.mermaid-container .mermaid { max-width: 100%; }
 }
 </style>
+<script type="module">
+import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
+mermaid.initialize({ startOnLoad: false, theme: 'default', securityLevel: 'loose' });
+</script>
 </head>
 <body>
 <div class="container">
@@ -123,6 +130,31 @@ td.win { color: var(--green); font-weight: 700; }
   </div>
 </div>
 {% endif %}
+
+<!-- ====== 架构分层图 ====== -->
+{% if mermaid_diagram %}
+<div class="card">
+  <h3>🏗️ 架构分层图</h3>
+  <p style="color:var(--muted); margin-bottom:12px;">Collusion 协作流程与方案架构层级总览</p>
+  <div class="mermaid-container">
+    <pre class="mermaid">{{ mermaid_diagram | safe }}</pre>
+  </div>
+</div>
+{% endif %}
+
+<!-- ====== 各方案架构图 ====== -->
+{% for scheme in schemes %}
+{% if scheme.mermaid_arch %}
+<div class="card">
+  <details>
+    <summary><strong>🏗️ 方案 {{ scheme.id }} 架构图 — {{ scheme.object_name }}</strong></summary>
+    <div class="mermaid-container" style="margin-top:12px;">
+      <pre class="mermaid">{{ scheme.mermaid_arch | safe }}</pre>
+    </div>
+  </details>
+</div>
+{% endif %}
+{% endfor %}
 
 <!-- ====== 推荐方案 ====== -->
 {% if top_scheme %}
@@ -175,6 +207,40 @@ td.win { color: var(--green); font-weight: 700; }
 </div>
 {% endif %}
 
+<!-- ====== 可执行任务清单 ====== -->
+<div class="card">
+  <h3>📋 可执行任务清单</h3>
+  <p style="color:var(--muted); margin-bottom:12px;">可直接传递给 AI 执行工具（Plan 模式 / writing-plans）</p>
+  {% for task_item in task_list %}
+  <div style="padding:10px 0; border-bottom:1px solid var(--border);">
+    <strong>Task {{ task_item.id }}: {{ task_item.name }}</strong>
+    {% if task_item.is_mvp %}<span style="background:#fef3c7;color:#92400e;padding:2px 8px;border-radius:10px;font-size:0.7rem;">MVP</span>{% endif %}
+    <span style="color:var(--muted); font-size:0.85rem; float:right;">{{ task_item.estimated_time }} · {{ task_item.priority }}优先级</span>
+    <div style="margin:4px 0; font-size:0.9rem;">{{ task_item.description }}</div>
+    {% if task_item.code_anchors %}
+    <div style="font-size:0.8rem; color:var(--muted);">📁 {% for anchor in task_item.code_anchors %}<code style="background:#e2e8f0;padding:1px 5px;border-radius:3px;">{{ anchor }}</code> {% endfor %}</div>
+    {% endif %}
+  </div>
+  {% endfor %}
+</div>
+
+<!-- ====== MVP 摘要 ====== -->
+{% if mvp_count > 0 %}
+<div class="card" style="background:#fefce8; border:2px solid #eab308;">
+  <h3>🎯 MVP 最小可行产品</h3>
+  <p style="color:var(--muted); margin-bottom:12px;">以下 {{ mvp_count }} 个环节构成 MVP 范围，完成后即可上线验证核心假设：</p>
+  <div style="display:flex; gap:8px; flex-wrap:wrap;">
+    {% for step in steps %}
+    {% if step.is_mvp %}
+    <span style="background:#fef3c7; color:#92400e; padding:6px 14px; border-radius:20px; font-size:0.85rem; font-weight:600;">
+      {{ step.index }}. {{ step.name }}
+    </span>
+    {% endif %}
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+
 <!-- ====== 环节详情 + 反馈 ====== -->
 <div class="card feedback-section">
   <h3>📝 环节详细设计与修改建议</h3>
@@ -183,11 +249,17 @@ td.win { color: var(--green); font-weight: 700; }
   {% for step in steps %}
   <div class="accordion">
     <div class="accordion-header" onclick="this.nextElementSibling.classList.toggle('open')">
-      <span>{{ step.index }}. {{ step.name }}</span>
-      <span style="color:var(--muted);">▼</span>
+      <span>{{ step.index }}. {{ step.name }}{% if step.is_mvp %} <span style="background:#fef3c7;color:#92400e;padding:2px 8px;border-radius:10px;font-size:0.7rem;">MVP</span>{% endif %}</span>
+      <span style="color:var(--muted);">{{ step.priority }} · {{ step.estimated_time }} ▼</span>
     </div>
     <div class="accordion-body">
       <p style="color:var(--muted); margin-bottom:8px;"><strong>需求描述：</strong>{{ step.description }}</p>
+      {% if step.dependencies %}
+      <p style="color:#d97706; margin-bottom:8px;"><strong>依赖：</strong>{% for dep in step.dependencies %}Task {{ dep }} {% endfor %}</p>
+      {% endif %}
+      {% if step.code_anchors %}
+      <p style="margin-bottom:8px;"><strong>📁 代码入口：</strong>{% for anchor in step.code_anchors %}<code style="background:#e2e8f0;padding:2px 6px;border-radius:3px;font-size:0.8rem;">{{ anchor }}</code> {% endfor %}</p>
+      {% endif %}
       {% for sid, design in step.designs.items() %}
       <p style="margin-bottom:8px;"><strong>{{ sid }} 视角：</strong>{{ design[:300] }}{% if design|length > 300 %}...{% endif %}</p>
       {% endfor %}
@@ -373,6 +445,13 @@ function escapeHtml(text) {
     if (el) el.value = val;
   }
 })();
+
+// Mermaid 图渲染
+window.addEventListener('load', async () => {
+  if (window.mermaid) {
+    await mermaid.run({ querySelector: '.mermaid' });
+  }
+});
 </script>
 
 </body>

@@ -110,20 +110,23 @@
 ### 安装
 
 ```bash
-# 克隆仓库
-git clone https://github.com/your-username/Collusion.git
+# 方式一：pip 安装（推荐）
+pip install collusion-mcp
+
+# 方式二：从源码安装
+git clone https://github.com/anthropics/Collusion.git
 cd Collusion
+pip install -e .
 
-# 安装依赖
-pip install -r requirements.txt
-
-# 配置 API Key（二选一）
+# 配置 API Key（三选一）
 # 方式一：环境变量（推荐）
 export DEEPSEEK_API_KEY="sk-xxxxxxxxxxxxxxxx"
 
 # 方式二：复制示例配置并填入 Key
 cp config.example.json config.json
 # 编辑 config.json，填入 api_key
+
+# 方式三：零配置（Reasonix 用户无需额外配置，自动读取已保存的 Key）
 ```
 
 ### MCP 客户端接入

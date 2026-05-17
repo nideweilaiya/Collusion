@@ -81,6 +81,58 @@ class BrainstormOrchestrator:
         self.business_agent = self._find_agent(AgentRole.UX)
         self.engineering_agent = self._find_agent(AgentRole.PERFORMANCE)
 
+    # ==================== v0.4.0: Elicitation 引导交互 ====================
+
+    ELICITATION_CATEGORIES = {
+        "security": "安全与合规",
+        "performance": "性能与扩展",
+        "ux": "用户体验",
+        "deployment": "部署与运维",
+        "data": "数据与存储",
+        "scale": "规模与预期",
+    }
+
+    def detect_elicitation_questions(self, task: str, steps: list) -> list:
+        """检测用户需求中缺失的关键信息，生成引导问题"""
+        ctx = (
+            f"用户的任务描述:\n{task}\n\n"
+            f"当前已识别的环节: {len(steps)} 个\n"
+            f"请分析上述任务描述，判断以下6个维度是否有信息缺失，"
+            f"对每个真正缺失的维度生成1个具体的引导问题。\n\n"
+            f"安全保障 / 性能扩展 / 用户体验 / 部署运维 / 数据存储 / 规模预期\n\n"
+            f"仅对真正缺失的维度生成问题，不要编造。"
+            f"输出严格JSON格式:\n"
+            f'{{"questions":[{{"category":"security","question":"...",'
+            f'"context":"为什么需要了解这个"}}, ...]}}\n'
+        )
+        try:
+            data = self.fast_llm.cached_call_json(ctx, temperature=0.1, max_tokens=1024)
+            questions = []
+            for i, q in enumerate(data.get("questions", [])):
+                questions.append({
+                    "id": f"elicit_{i}",
+                    "category": q.get("category", ""),
+                    "question": q.get("question", ""),
+                    "context": q.get("context", ""),
+                    "answer": "",
+                    "answered": False,
+                })
+            return questions
+        except Exception:
+            return []
+
+    def apply_elicitation_answers(self, state: OrchestratorState,
+                                   answers: dict) -> OrchestratorState:
+        """将用户的引导问题答案应用到方案中"""
+        for q in state.elicitation_questions:
+            if q["id"] in answers:
+                q["answer"] = answers[q["id"]]
+                q["answered"] = True
+        state.elicitation_answered = all(
+            q.get("answered", False) for q in state.elicitation_questions
+        )
+        return state
+
     # ==================== 公共 API ====================
 
     def orchestrate(self, task: str, task_id: str = None, output_format: str = "md") -> str:
@@ -112,6 +164,17 @@ class BrainstormOrchestrator:
             steps = self._consensus(state, steps)
             state.step_list = [s.to_dict() for s in steps]
             self._save_state(state)
+
+            # Phase 2.5: Elicitation 引导交互检测
+            if len(steps) < 3:
+                questions = self.detect_elicitation_questions(task, steps)
+                if questions:
+                    state.elicitation_questions = questions
+                    state.phase = "phase2.5_elicitation"
+                    self._save_state(state)
+                    # 不阻塞编排——继续执行，用户可异步回答问题
+                    print(f"  [Elicitation] 检测到 {len(questions)} 个引导问题，"
+                          f"用户可通过 brainstorm_elicit 回答")
 
             # Phase 3: 并行提案
             self._update_phase(state, OrchestratorPhase.PROPOSAL)
@@ -154,6 +217,12 @@ class BrainstormOrchestrator:
             state.vote_results = [r.to_dict() for r in results]
             state.top3_plans = [r.to_dict() for r in results[:3]]
             self._save_state(state)
+
+            # Phase 6.5: 资产库索引（所有方案，含未选中方案）
+            try:
+                self._index_scheme_assets(state)
+            except Exception as e:
+                print(f"  [资产库] 索引失败（不阻塞主流程）: {e}")
 
             # Phase 7: 渲染双文件输出（v3.2 新增）
             state.phase = "phase7_render"
@@ -514,6 +583,96 @@ class BrainstormOrchestrator:
             plan.steps[step_id] = data.get("design_content", "")
 
     @staticmethod
+    def _generate_mermaid_flow(task: str, steps: list) -> str:
+        """生成 Collusion 编排流程 Mermaid 图"""
+        lines = ["graph TD"]
+        lines.append("  A[用户输入任务] --> B[Phase1: 任务解构]")
+        lines.append("  B --> C[Phase2: 环节共识]")
+        for i, step in enumerate(steps[:8], 1):
+            step_name = step.get("name", f"步骤{i}")[:20]
+            lines.append(f"  C --> D{i}[{step_name}]")
+        lines.append("  D1 --> E[Phase3: 并行提案]")
+        lines.append("  E --> F[Phase4: 交叉审查]")
+        lines.append("  F --> G[可行性强制收束]")
+        lines.append("  G --> H[Owner 整合]")
+        lines.append("  H --> I[5维投票评分]")
+        lines.append("  I --> J[输出 Top3 方案]")
+        lines.append("  style A fill:#dbeafe")
+        lines.append("  style J fill:#d1fae5")
+        lines.append("  style G fill:#fee2e2")
+        return "\n".join(lines)
+
+    @staticmethod
+    def _generate_scheme_mermaid(scheme_id: str, role: str,
+                                  content: str) -> str:
+        """从方案内容中提取/生成架构分层图"""
+        lines = ["graph TB"]
+        lines.append("  subgraph 方案架构")
+
+        # 根据方案内容智能判断架构层级
+        has_frontend = any(kw in content.lower() for kw in
+                         ["前端", "frontend", "ui", "界面", "react", "vue",
+                          "component", "page", "组件", "页面"])
+        has_backend = any(kw in content.lower() for kw in
+                        ["后端", "backend", "api", "server", "服务", "接口",
+                         "controller", "handler", "route"])
+        has_database = any(kw in content.lower() for kw in
+                         ["数据库", "database", "sql", "mysql", "postgres",
+                          "sqlite", "mongo", "redis", "cache", "缓存", "存储",
+                          "storage", "持久化"])
+        has_deploy = any(kw in content.lower() for kw in
+                       ["部署", "deploy", "docker", "ci/cd", "kubernetes",
+                        "k8s", "运维", "发布", "release"])
+        has_security = any(kw in content.lower() for kw in
+                        ["安全", "security", "认证", "auth", "授权",
+                         "encrypt", "加密", "token", "jwt", "权限"])
+
+        # 默认至少显示三层架构
+        if not any([has_frontend, has_backend, has_database]):
+            has_frontend = has_backend = has_database = True
+
+        if has_frontend:
+            lines.append('    FRONT["前端层<br/>UI / 交互 / 状态"]')
+        if has_backend:
+            lines.append('    BACK["后端服务层<br/>API / 业务逻辑 / 消息"]')
+        if has_database:
+            lines.append('    DB["数据层<br/>存储 / 缓存 / 持久化"]')
+        if has_deploy:
+            lines.append('    OPS["部署运维层<br/>CI/CD / 监控 / 日志"]')
+        if has_security:
+            lines.append('    SEC["安全层<br/>认证 / 加密 / 审计"]')
+
+        # 连接层级
+        if has_frontend and has_backend:
+            lines.append("    FRONT --> BACK")
+        if has_backend and has_database:
+            lines.append("    BACK --> DB")
+        if has_deploy:
+            if has_frontend:
+                lines.append(f"    OPS --> FRONT")
+            if has_backend:
+                lines.append(f"    OPS --> BACK")
+            if has_database:
+                lines.append(f"    OPS --> DB")
+        if has_security:
+            if has_frontend:
+                lines.append(f"    SEC -.-> FRONT")
+            if has_backend:
+                lines.append(f"    SEC -.-> BACK")
+            if has_database:
+                lines.append(f"    SEC -.-> DB")
+
+        lines.append("  end")
+        lines.append(f'  style FRONT fill:#dbeafe')
+        lines.append(f'  style BACK fill:#e9d5ff')
+        lines.append(f'  style DB fill:#d1fae5')
+        if has_deploy:
+            lines.append(f'  style OPS fill:#fef3c7')
+        if has_security:
+            lines.append(f'  style SEC fill:#fee2e2')
+        return "\n".join(lines)
+
+    @staticmethod
     def _render_radar_svg(schemes: list, dimensions: list) -> str:
         """生成雷达图 SVG（纯 Python 计算坐标，无 JS 依赖）"""
         colors = {"A": "#dc2626", "B": "#2563eb", "C": "#059669"}
@@ -634,10 +793,12 @@ class BrainstormOrchestrator:
             sid = vr.get("plan_id", "")
             s = schemes.get(sid, {})
             raw_content = s.get("integrated_content", "")
+            obj_name = s.get("object_name", "")
+            role = s.get("agent_role", "")
             scheme_list.append({
                 "id": sid,
-                "object_name": s.get("object_name", ""),
-                "agent_role": s.get("agent_role", ""),
+                "object_name": obj_name,
+                "agent_role": role,
                 "integrated_content": raw_content,
                 "integrated_html": md_renderer(raw_content) if fmt in ("html", "both") else "",
                 "total_score": vr.get("total_score", 0),
@@ -649,24 +810,85 @@ class BrainstormOrchestrator:
                     "创新性": vr.get("innovation", 0),
                     "业务对齐": vr.get("business_alignment", 0),
                 },
+                "mermaid_arch": self._generate_scheme_mermaid(
+                    sid, role, raw_content,
+                ) if fmt in ("html", "both") else "",
             })
 
         # Top 方案
         top_scheme = scheme_list[0] if scheme_list else None
 
-        # 步骤 + 各方案设计
+        # 步骤 + 各方案设计（含代码锚点和 MVP 检测所需数据）
+        all_step_ids_map = {s.get("id", ""): s for s in steps}
         step_list = []
         for step in steps:
+            step_id = step.get("id", "")
+            step_idx = step.get("index", 0)
             designs = {}
             for sid, scheme in schemes.items():
-                design = scheme.get("steps", {}).get(step.get("id", ""), "")
+                design = scheme.get("steps", {}).get(step_id, "")
                 if design and len(design.strip()) > 10:
                     designs[sid] = design[:300]
+            # 代码入口锚点：从整合正文 + 步骤设计中提取
+            code_anchors = []
+            import re as _re2
+            for sid, scheme in schemes.items():
+                # 优先从整合正文提取（含完整架构描述）
+                integrated = scheme.get("integrated_content", "")
+                paths = _re2.findall(
+                    r'(?:(?:src|app|lib|components|pages|api|'
+                    r'routes|middleware|utils|config|'
+                    r'models|services|controllers|handlers|'
+                    r'tests|docs|public|static|data|bin)/[\w/.-]+|'
+                    r'[\w/.-]+\.(?:tsx?|jsx?|py|rs|go|java|'
+                    r'yml|yaml|json|toml|sql|css|html|sh|md|'
+                    r'dockerfile|env|cfg|ini|xml))',
+                    integrated,
+                )
+                code_anchors.extend(paths[:5])
+                # 也检查步骤级设计
+                design = scheme.get("steps", {}).get(step_id, "")
+                if design:
+                    paths = _re2.findall(
+                        r'(?:(?:src|app|lib|components|pages|api|'
+                        r'routes|middleware|utils|config|'
+                        r'models|services|controllers|handlers|'
+                        r'tests|docs|public|static|data|bin)/[\w/.-]+|'
+                        r'[\w/.-]+\.(?:tsx?|jsx?|py|rs|go|java|'
+                        r'yml|yaml|json|toml|sql|css|html|sh|md|'
+                        r'dockerfile|env|cfg|ini|xml))',
+                        design,
+                    )
+                    code_anchors.extend(paths[:3])
+            seen_p = set()
+            unique_anchors = []
+            for p in code_anchors:
+                if p not in seen_p and len(unique_anchors) < 5:
+                    seen_p.add(p)
+                    unique_anchors.append(p)
+            # MVP 检测
+            deps = step.get("dependencies", [])
+            has_deps = len(deps) > 0 and any(
+                d in all_step_ids_map for d in deps
+            )
+            is_mvp = (not has_deps) and step_idx <= 3
+            # 优先级
+            priority = "高"
+            if step_idx >= 5:
+                priority = "中"
+            if step_idx >= 8:
+                priority = "低"
+            est_time = "2-3小时" if step_idx <= 2 else ("3-4小时" if step_idx >= 5 else "1-2小时")
             step_list.append({
-                "index": step.get("index", 0),
+                "index": step_idx,
                 "name": step.get("name", ""),
                 "description": step.get("description", ""),
                 "designs": designs,
+                "code_anchors": unique_anchors,
+                "dependencies": deps,
+                "is_mvp": is_mvp,
+                "priority": priority,
+                "estimated_time": est_time,
             })
 
         # 风险标注
@@ -697,25 +919,90 @@ class BrainstormOrchestrator:
                     "content": mod.get("content", ""),
                 })
 
-        # 任务清单 (从步骤生成)
+        # 任务清单 (从步骤生成) + 代码入口锚点 + MVP 检测
         task_list = []
+        mvp_steps = []
+        all_step_ids = {s.get("id", ""): s for s in steps}
         for step in steps:
+            step_id = step.get("id", "")
+            step_idx = step.get("index", 0)
+            deps = step.get("dependencies", [])
+
+            # ---- 代码入口锚点：从方案内容中提取文件路径 ----
+            code_anchors = []
+            for sid, scheme in schemes.items():
+                design = scheme.get("steps", {}).get(step_id, "")
+                if design:
+                    # 提取文件名/路径模式
+                    import re as _re
+                    paths = _re.findall(
+                        r'(?:(?:src|app|lib|components|pages|api|'
+                        r'routes|middleware|utils|config|'
+                        r'models|services|controllers|handlers|'
+                        r'tests|docs|public|static|data|bin)/[\w/.-]+|'
+                        r'[\w/.-]+\.(?:tsx?|jsx?|py|rs|go|java|'
+                        r'yml|yaml|json|toml|sql|css|html|sh|md|'
+                        r'dockerfile|env|cfg|ini|xml))',
+                        design,
+                    )
+                    code_anchors.extend(paths[:3])  # 每方案每步骤最多3个
+            # 去重并限制数量
+            seen = set()
+            unique_anchors = []
+            for p in code_anchors:
+                if p not in seen and len(unique_anchors) < 5:
+                    seen.add(p)
+                    unique_anchors.append(p)
+
+            # ---- MVP 自动检测 ----
+            has_deps = len(deps) > 0 and any(
+                d in all_step_ids for d in deps
+            )
+            # 规则: 无依赖 + 前3步 → MVP
+            is_mvp = (not has_deps) and step_idx <= 3
+            if is_mvp:
+                mvp_steps.append(str(step_idx))
+
+            # 耗时和优先级推断
+            est_time = "1-2小时"
+            if step_idx <= 2:
+                est_time = "2-3小时"
+            elif step_idx >= 5:
+                est_time = "3-4小时"
+
+            priority = "高"
+            if step_idx >= 5:
+                priority = "中"
+            if step_idx >= 8:
+                priority = "低"
+
             task_list.append({
-                "id": step.get("index", 0),
+                "id": step_idx,
                 "name": step.get("name", ""),
                 "description": step.get("description", ""),
-                "estimated_time": "1-2小时",
-                "priority": "高" if step.get("index", 0) <= 2 else "中",
+                "dependencies": deps,
+                "estimated_time": est_time,
+                "priority": priority,
+                "is_mvp": is_mvp,
+                "code_anchors": unique_anchors,
             })
 
         # 雷达图 SVG
         radar_svg = self._render_radar_svg(scheme_list, dimensions)
+
+        # Mermaid 架构图
+        mermaid_diagram = ""
+        if fmt in ("html", "both"):
+            mermaid_diagram = self._generate_mermaid_flow(
+                state.original_task, steps,
+            )
 
         return {
             "task_id": state.task_id,
             "task": state.original_task,
             "generated_at": datetime.now().strftime("%Y-%m-%d %H:%M"),
             "radar_svg": radar_svg,
+            "mermaid_diagram": mermaid_diagram,
             "cost": state.total_cost_rmb,
             "tokens": state.total_tokens,
             "agents": len(self.agents),
@@ -727,8 +1014,284 @@ class BrainstormOrchestrator:
             "risks": risks,
             "modifications": modifications,
             "task_list": task_list,
+            "mvp_steps": mvp_steps,
+            "mvp_count": len(mvp_steps),
             "saved_mods": {},  # 用于 HTML 草稿恢复
         }
+
+    # ==================== v0.4.0: 会话分支与合并 ====================
+
+    def branch(self, parent_task_id: str, branch_point: str,
+               direction: str = "") -> str:
+        """从现有任务分叉出一个新分支，探索替代方案
+
+        Args:
+            parent_task_id: 父任务ID
+            branch_point: 分叉点（步骤名或 'top1' / 'alternative'）
+            direction: 替代方向描述。为空时自动从废案中选择最优废案
+
+        Returns:
+            新分支的 task_id
+        """
+        parent = self._load_state(parent_task_id)
+        if parent is None and parent_task_id in self._states:
+            parent = self._states[parent_task_id]
+        if parent is None:
+            return ""
+
+        import uuid as _uuid
+        branch_id = f"task_{_uuid.uuid4().hex[:12]}"
+
+        # 复制父任务的核心结构
+        branch_state = OrchestratorState(
+            task_id=branch_id,
+            original_task=parent.original_task,
+            step_list=parent.step_list,
+            max_rounds=parent.max_rounds,
+        )
+
+        # 如果指定了方向，用该方向；否则从未选中的方案中找最佳废案
+        alt_task = parent.original_task
+        if direction:
+            alt_task = f"{parent.original_task}\n\n[分支探索方向]: {direction}"
+        else:
+            # 找非 Top1 中得分最高的方案
+            non_top1 = [
+                v for v in parent.vote_results
+                if v.get("rank", 99) > 1
+            ]
+            non_top1.sort(key=lambda x: x.get("total_score", 0), reverse=True)
+            if non_top1:
+                best_alt = non_top1[0]
+                alt_sid = best_alt.get("plan_id", "")
+                alt_scheme = parent.schemes.get(alt_sid, {})
+                alt_summary = alt_scheme.get("integrated_content", "")[:300]
+                alt_task = (
+                    f"{parent.original_task}\n\n"
+                    f"[分支探索]: 以下为之前被淘汰的备选方案思路，"
+                    f"请以此为基础重新设计:\n{alt_summary}"
+                )
+
+        branch_state.original_task = alt_task
+        branch_state.phase = "branched"
+        self._states[branch_id] = branch_state
+        self._save_state(branch_state)
+
+        # 记录分支关系
+        branch_meta_path = self.data_dir / "states" / f"{branch_id}_meta.json"
+        with open(branch_meta_path, "w", encoding="utf-8") as f:
+            json.dump({
+                "parent_task_id": parent_task_id,
+                "branch_point": branch_point,
+                "direction": direction,
+                "created_at": datetime.now().isoformat(),
+            }, f, ensure_ascii=False, indent=2)
+
+        return branch_id
+
+    def merge_branches(self, task_ids: list, strategy: str = "best_per_step") -> dict:
+        """合并多个分支的方案，提取每个环节的最优设计
+
+        Args:
+            task_ids: 要合并的任务ID列表
+            strategy: 合并策略
+                - "best_per_step": 每个步骤选最高分方案的设计
+                - "vote": 让 Agent 投票决定每个步骤选哪个方案
+                - "combine": 将所有方案的设计拼接在一起
+
+        Returns:
+            合并后的方案数据
+        """
+        all_states = []
+        for tid in task_ids:
+            state = self._load_state(tid)
+            if state is None and tid in self._states:
+                state = self._states[tid]
+            if state:
+                all_states.append(state)
+
+        if len(all_states) < 2:
+            return {"error": "需要至少2个有效任务进行合并", "merged_steps": []}
+
+        # 收集所有步骤和方案
+        merged_steps = []
+        all_steps_map = {}
+        for state in all_states:
+            for step in state.step_list:
+                name = step.get("name", "")
+                if name not in all_steps_map:
+                    all_steps_map[name] = []
+                for sid, scheme in state.schemes.items():
+                    design = scheme.get("steps", {}).get(step.get("id", ""), "")
+                    if design:
+                        score = 0
+                        for v in state.vote_results:
+                            if v.get("plan_id") == sid:
+                                score = v.get("total_score", 0)
+                                break
+                        all_steps_map[name].append({
+                            "task_id": state.task_id,
+                            "scheme_id": sid,
+                            "object_name": scheme.get("object_name", ""),
+                            "design": design[:500],
+                            "score": score,
+                        })
+
+        for step_name, options in all_steps_map.items():
+            options.sort(key=lambda x: x["score"], reverse=True)
+            best = options[0]
+            merged_steps.append({
+                "name": step_name,
+                "best_design": best["design"],
+                "source_scheme": f"{best['scheme_id']} ({best['object_name']})",
+                "source_task": best["task_id"],
+                "score": best["score"],
+                "alternatives": len(options) - 1,
+            })
+
+        return {
+            "strategy": strategy,
+            "source_tasks": task_ids,
+            "merged_steps": merged_steps,
+            "summary": (
+                f"合并了 {len(task_ids)} 个分支的 {len(merged_steps)} 个环节，"
+                f"每个环节选取得分最高的方案设计。"
+            ),
+        }
+
+    # ==================== v0.4.0: 废案资产库与语义检索 ====================
+
+    def _index_scheme_assets(self, state: OrchestratorState):
+        """编排完成后，将所有方案按关键词索引到资产库"""
+        asset_dir = self.data_dir / "asset_library"
+        asset_dir.mkdir(parents=True, exist_ok=True)
+        index_path = asset_dir / "index.json"
+
+        # 加载现有索引
+        index = {}
+        if index_path.exists():
+            try:
+                with open(index_path, "r", encoding="utf-8") as f:
+                    index = json.load(f)
+            except Exception:
+                index = {}
+
+        # 提取关键词
+        task_lower = state.original_task.lower()
+        keywords = []
+        kw_patterns = [
+            ("api", "API设计"), ("微服务", "微服务"), ("microservice", "微服务"),
+            ("数据库", "数据库"), ("database", "数据库"), ("sql", "SQL"),
+            ("安全", "安全"), ("security", "安全"), ("前端", "前端"),
+            ("frontend", "前端"), ("部署", "部署"), ("deploy", "部署"),
+            ("docker", "Docker"), ("缓存", "缓存"), ("cache", "缓存"),
+            ("redis", "Redis"), ("消息", "消息队列"), ("queue", "消息队列"),
+            ("认证", "认证"), ("auth", "认证"), ("扩展", "扩展性"),
+            ("scale", "扩展性"), ("高并发", "高并发"), ("博客", "博客"),
+            ("blog", "博客"), ("后台", "后台管理"), ("admin", "后台管理"),
+            ("移动", "移动端"), ("mobile", "移动端"), ("实时", "实时"),
+            ("realtime", "实时"), ("搜索", "搜索"), ("search", "搜索"),
+            ("支付", "支付"), ("payment", "支付"), ("短链接", "短链接"),
+            ("cdn", "CDN"), ("监控", "监控"), ("monitoring", "监控"),
+            ("文件", "文件处理"), ("上传", "文件上传"), ("upload", "文件上传"),
+            ("分享", "分享服务"), ("share", "分享服务"), ("下载", "文件下载"),
+            ("download", "文件下载"), ("存储", "存储"), ("storage", "存储"),
+            ("链接", "链接管理"), ("待办", "待办事项"), ("todo", "待办事项"),
+            ("crud", "CRUD"), ("增删改查", "CRUD"),
+        ]
+        for pattern, tag in kw_patterns:
+            if pattern in task_lower and tag not in keywords:
+                keywords.append(tag)
+
+        # 为每个方案创建资产条目
+        for sid, scheme in state.schemes.items():
+            entry_key = f"{state.task_id}_{sid}"
+            vote = next(
+                (v for v in state.vote_results if v.get("plan_id") == sid),
+                None,
+            )
+            entry = {
+                "task_id": state.task_id,
+                "scheme_id": sid,
+                "task": state.original_task[:200],
+                "keywords": keywords,
+                "object_name": scheme.get("object_name", ""),
+                "agent_role": scheme.get("agent_role", ""),
+                "total_score": vote.get("total_score", 0) if vote else 0,
+                "is_top1": (vote.get("rank", 99) == 1) if vote else False,
+                "summary": scheme.get("integrated_content", "")[:500],
+                "created_at": datetime.now().isoformat(),
+            }
+            index[entry_key] = entry
+
+        # 保存索引
+        with open(index_path, "w", encoding="utf-8") as f:
+            json.dump(index, f, ensure_ascii=False, indent=2)
+
+        # 保存完整方案副本
+        for sid, scheme in state.schemes.items():
+            scheme_path = asset_dir / f"{state.task_id}_{sid}.json"
+            scheme_data = {
+                "task_id": state.task_id,
+                "scheme_id": sid,
+                "task": state.original_task,
+                "keywords": keywords,
+                "scheme": scheme,
+                "vote": next(
+                    (v for v in state.vote_results if v.get("plan_id") == sid),
+                    None,
+                ),
+                "steps": state.step_list,
+            }
+            with open(scheme_path, "w", encoding="utf-8") as f:
+                json.dump(scheme_data, f, ensure_ascii=False, indent=2)
+
+        print(f"  [资产库] 索引了 {len(state.schemes)} 个方案 (关键词: {keywords})")
+        return keywords
+
+    def search_assets(self, query: str, top_k: int = 5) -> list:
+        """语义检索资产库中的历史方案"""
+        asset_dir = self.data_dir / "asset_library"
+        index_path = asset_dir / "index.json"
+        if not index_path.exists():
+            return []
+
+        with open(index_path, "r", encoding="utf-8") as f:
+            index = json.load(f)
+
+        query_lower = query.lower()
+        results = []
+        for key, entry in index.items():
+            # 关键词匹配 + 任务描述匹配
+            kw_match = sum(
+                1 for kw in entry.get("keywords", [])
+                if kw.lower() in query_lower
+            )
+            task_match = sum(
+                1 for word in query_lower.split()
+                if word in entry.get("task", "").lower()
+            )
+            summary_match = sum(
+                1 for word in query_lower.split()
+                if word in entry.get("summary", "").lower()
+            )
+            score = kw_match * 3 + task_match * 2 + summary_match * 1
+            if score > 0:
+                results.append({
+                    "key": key,
+                    "score": score,
+                    "task": entry.get("task", ""),
+                    "scheme_id": entry.get("scheme_id", ""),
+                    "object_name": entry.get("object_name", ""),
+                    "keywords": entry.get("keywords", []),
+                    "total_score": entry.get("total_score", 0),
+                    "is_top1": entry.get("is_top1", False),
+                    "summary": entry.get("summary", "")[:200],
+                    "created_at": entry.get("created_at", ""),
+                })
+
+        results.sort(key=lambda x: x["score"], reverse=True)
+        return results[:top_k]
 
     # ==================== v3.2: 反馈回路 ====================
 
@@ -863,15 +1426,31 @@ class BrainstormOrchestrator:
     def _create_adapter(self, key: str) -> BaseLLMAdapter:
         cfg = self.config["llm"].get(key, self.config["llm"]["strong"])
         provider = cfg.get("provider", "deepseek")
+
+        # MCP Sampling 委托模式：LLM 调用委托宿主
+        if (provider == "mcp_sampling"
+                or os.environ.get("COLLUSION_SAMPLING_MODE") == "1"
+                or self.config.get("sampling", {}).get("enabled", False)):
+            from src.llm.mcp_sampling import MCPSamplingAdapter
+            return MCPSamplingAdapter(
+                model=cfg.get("model", "host-default"),
+                base_url=cfg.get("base_url", ""),
+            )
+
+        # Key 解析链: config.json → 多环境变量 → Reasonix 配置 → 到 DeepSeekAdapter 内部再解析
         api_key = cfg.get("api_key", "")
         if not api_key:
-            api_key = os.environ.get(cfg.get("api_key_env", "DEEPSEEK_API_KEY"), "")
+            # 按优先级检查多个环境变量名
+            for env_name in ["DEEPSEEK_API_KEY", "OPENAI_API_KEY", "LLM_API_KEY"]:
+                api_key = os.environ.get(env_name, "")
+                if api_key:
+                    break
         # 零配置回退：自动读取 Reasonix 已存的 API Key
         if not api_key:
             api_key = self._try_reasonix_key()
         if provider == "deepseek":
             return DeepSeekAdapter(
-                api_key=api_key,
+                api_key=api_key,  # 允许为空，DeepSeekAdapter 内部还会再查一次
                 model=cfg.get("model", "deepseek-chat"),
                 base_url=cfg.get("base_url", "https://api.deepseek.com/v1"),
             )

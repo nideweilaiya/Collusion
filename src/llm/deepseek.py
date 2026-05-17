@@ -11,6 +11,13 @@ class DeepSeekAdapter(BaseLLMAdapter):
     支持 DeepSeek V4 Pro (deepseek-chat) 和 DeepSeek Flash。
     OpenAI 兼容协议，base_url = https://api.deepseek.com/v1
 
+    Key 解析优先级（零配置理念）：
+      1. 构造函数传入的 api_key
+      2. DEEPSEEK_API_KEY 环境变量
+      3. OPENAI_API_KEY 环境变量（兼容通用配置）
+      4. LLM_API_KEY 环境变量
+      5. 以上都没有 → 抛出明确错误提示
+
     缓存策略：
     - cached_call(): 使用全局固定 PREFIX 作为 system prompt
     - 每次调用只发送 PREFIX + minimal user context
@@ -18,9 +25,29 @@ class DeepSeekAdapter(BaseLLMAdapter):
     - 无对话历史累积 → 每次调用是干净的单轮
     """
 
+    # 环境变量查找顺序（从高到低优先级）
+    _ENV_KEY_NAMES = ["DEEPSEEK_API_KEY", "OPENAI_API_KEY", "LLM_API_KEY"]
+
+    @classmethod
+    def resolve_api_key(cls, explicit_key: str = None) -> str:
+        """解析 API Key，按优先级查找多个来源"""
+        if explicit_key:
+            return explicit_key
+        for name in cls._ENV_KEY_NAMES:
+            val = os.environ.get(name, "")
+            if val:
+                return val
+        return ""
+
     def __init__(self, api_key: str = None, model: str = "deepseek-chat",
                  base_url: str = "https://api.deepseek.com/v1"):
-        self._api_key = api_key or os.environ.get("DEEPSEEK_API_KEY", "")
+        self._api_key = self.resolve_api_key(api_key)
+        if not self._api_key:
+            raise ValueError(
+                "未找到 API Key。请设置环境变量 DEEPSEEK_API_KEY 或 OPENAI_API_KEY，"
+                "或在 config.json 中提供 api_key。\n"
+                "免费注册: https://platform.deepseek.com"
+            )
         self._model = model
         self._base_url = base_url.rstrip("/")
         self._client = None
