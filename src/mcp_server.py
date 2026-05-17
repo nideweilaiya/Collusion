@@ -636,17 +636,23 @@ async def call_tool(name: str, arguments: dict):
         steps = [{"index": i+1, "name": s, "description": s}
                  for i, s in enumerate(steps_raw)] if steps_raw else []
         task_id = _blackboard.create_task(task, steps)
-        result = _blackboard.launch_agents(task_id)
-        result["model_strategy"] = model_strategy
-        result["note"] = (
-            "3 个子 Agent 已在后台启动（架构师=R1，安全/UX=Flash）。\n"
-            f"使用 collusion_blackboard_status(task_id=\"{task_id}\") 查询进度。\n"
-            "如有询问，用 collusion_blackboard_answer 回复。\n"
-            "完成后用 collusion_blackboard_merge 合并方案。"
-        )
-        return [TextContent(type="text", text=json.dumps(
-            result, ensure_ascii=False, indent=2,
-        ))]
+
+        # 后台执行完整 7 阶段编排
+        def _run_full():
+            _blackboard.orchestrate_full(task_id)
+
+        _executor.submit(_run_full)
+
+        return [TextContent(type="text", text=json.dumps({
+            "task_id": task_id,
+            "model_strategy": model_strategy,
+            "phases": ["proposal", "review", "brake", "integrate", "vote", "merge"],
+            "note": (
+                "完整 7 阶段编排已在后台启动。\n"
+                f"使用 collusion_blackboard_status(task_id=\"{task_id}\") 查询进度。\n"
+                "无需手动 collusion_blackboard_merge，编排完成后自动合并。"
+            ),
+        }, ensure_ascii=False, indent=2))]
 
     if name == "collusion_blackboard_status":
         task_id = arguments["task_id"]

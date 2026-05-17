@@ -1,27 +1,16 @@
-"""Collusion 黑板+顾问模式 — 核心编排引擎
+"""Collusion 黑板+顾问模式 — 完整 7 阶段编排引擎
 
-黑板模式架构:
-  主 Agent (Reasonix/Claude Code)
-    → 写入 task.json (上下文摘要 + 环节清单)
-    → 启动 3 个子 Agent 进程（静默后台）
-    → 主 Agent 继续服务用户
-    → 子 Agent 遇疑问 → 写入 queries.json → 主 Agent 通知用户
-    → 全部子 Agent 完成 → 合并器运行 → 输出最终方案
+与 brainstorm_orchestrate 同等质量的编排流程，但通过文件系统黑板 + 多子进程实现，
+适配 Reasonix 等单 Agent 宿主。
 
-文件结构:
-  ~/.collusion/blackboard/{task_id}/
-  ├── task.json          # 任务摘要
-  ├── agents/
-  │   ├── security/      # 安全专家
-  │   │   ├── proposal.md
-  │   │   ├── queries.json
-  │   │   └── status.json  # {phase, progress, heartbeat}
-  │   ├── architecture/  # 架构师
-  │   └── ux/            # UX专家
-  └── merged/
-      └── final_report.md
-
-Windows 适配: 子进程使用 CREATE_NO_WINDOW 隐藏窗口，文件锁用原子 rename
+7 阶段:
+  Phase 1-2: 任务解构与共识 → task.json
+  Phase 3: 并行提案 → 3 agents, mode=proposal
+  Phase 4: 交叉审查 → 3 agents, mode=review
+  Phase 4.5: 可行性收束 → 3 agents, mode=brake
+  Phase 4.6: Owner 整合 → 3 agents, mode=integrate
+  Phase 6: 投票评分 → 3 agents, mode=vote (取平均值)
+  Phase 7: 合并输出 → merge → final_report.md
 """
 import json
 import os
@@ -32,259 +21,293 @@ import threading
 import subprocess
 from pathlib import Path
 from datetime import datetime
-from typing import Dict, List, Optional
+from typing import Dict, List
 
 
 BLACKBOARD_ROOT = Path.home() / ".collusion" / "blackboard"
 
+AGENT_ROLES = {
+    "ux": {
+        "name": "UX/产品专家", "object": "业务价值对象",
+        "model": "flash",
+    },
+    "architecture": {
+        "name": "性能架构师", "object": "技术架构对象",
+        "model": "strong",
+    },
+    "security": {
+        "name": "安全专家", "object": "安全与合规对象",
+        "model": "flash",
+    },
+}
+
+ORCHESTRATION_PHASES = [
+    ("proposal", "Phase 3: 并行提案"),
+    ("review", "Phase 4: 交叉审查"),
+    ("brake", "Phase 4.5: 可行性收束"),
+    ("integrate", "Phase 4.6: Owner 整合"),
+    ("vote", "Phase 6: 投票评分"),
+]
+
 
 class BlackboardOrchestrator:
-    """黑板模式编排器 — 管理子 Agent 生命周期和黑板状态"""
+    """黑板编排器 — 完整 7 阶段"""
 
-    AGENT_ROLES = {
-        "ux": {
-            "name": "UX/产品专家",
-            "object": "业务价值对象",
-            "focus": "用户能否用起来？操作是否流畅？部署门槛低不低？关键场景是否遗漏？",
-            "model": "flash",  # 低复杂度，Flash 足够
-        },
-        "architecture": {
-            "name": "性能架构师",
-            "object": "技术架构对象",
-            "focus": "技术选型是否合理？扩展性够不够？性能瓶颈在哪？数据流是否清晰？",
-            "model": "strong",  # 需要深度推理，用 R1
-        },
-        "security": {
-            "name": "安全专家",
-            "object": "安全与合规对象",
-            "focus": "数据安全：加密/脱敏/备份。认证授权。威胁建模。合规要求。",
-            "model": "flash",  # 安全模式较固定，Flash 足够
-        },
-    }
-
-    def __init__(self, config: dict = None):
-        self.config = config or {}
-        self._active_tasks: Dict[str, dict] = {}
+    def __init__(self):
         self._lock = threading.Lock()
 
-    # ==================== 黑板管理 ====================
+    # ==================== 任务管理 ====================
 
     def create_task(self, task_description: str, step_list: list = None) -> str:
-        """创建新任务，返回 task_id，写入黑板"""
         task_id = f"bb_{uuid.uuid4().hex[:10]}"
         task_dir = BLACKBOARD_ROOT / task_id
-
-        # 创建目录结构
-        for role in self.AGENT_ROLES:
+        for role in AGENT_ROLES:
             (task_dir / "agents" / role).mkdir(parents=True, exist_ok=True)
         (task_dir / "merged").mkdir(parents=True, exist_ok=True)
 
-        # 写入任务摘要
         task_data = {
             "task_id": task_id,
             "description": task_description,
             "steps": step_list or [],
             "created_at": datetime.now().isoformat(),
             "status": "initialized",
-            "agent_status": {role: "pending" for role in self.AGENT_ROLES},
+            "current_phase": "",
+            "phase_history": [],
         }
         self._atomic_write(task_dir / "task.json", task_data)
-
-        self._active_tasks[task_id] = task_data
         return task_id
 
     def read_task(self, task_id: str) -> dict:
-        """读取任务摘要"""
         path = BLACKBOARD_ROOT / task_id / "task.json"
         if path.exists():
             return json.loads(path.read_text(encoding="utf-8"))
         return {}
 
-    def update_task_status(self, task_id: str, status: str):
-        """更新任务状态"""
-        data = self.read_task(task_id)
-        data["status"] = status
-        data["updated_at"] = datetime.now().isoformat()
-        self._atomic_write(BLACKBOARD_ROOT / task_id / "task.json", data)
+    # ==================== 进程管理 ====================
 
-    # ==================== Agent 进程管理 ====================
+    def _spawn_agents(self, task_id: str, mode: str) -> dict:
+        """启动 3 个子 Agent，并行执行指定阶段"""
+        agent_script = Path(__file__).parent / "child_agent.py"
+        processes = {}
 
-    def launch_agents(self, task_id: str) -> dict:
-        """启动 3 个子 Agent 进程（Windows 隐藏窗口）"""
-        task_dir = BLACKBOARD_ROOT / task_id
+        for role in AGENT_ROLES:
+            cmd = [
+                sys.executable, str(agent_script),
+                "--task-id", task_id,
+                "--role", role,
+                "--mode", mode,
+                "--blackboard", str(BLACKBOARD_ROOT),
+            ]
+            startupinfo = None
+            if sys.platform == "win32":
+                startupinfo = subprocess.STARTUPINFO()
+                startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+                startupinfo.wShowWindow = subprocess.SW_HIDE
+
+            proc = subprocess.Popen(
+                cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                startupinfo=startupinfo,
+                creationflags=subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0,
+            )
+            processes[role] = {"pid": proc.pid, "mode": mode}
+
+        return processes
+
+    # ==================== 完整编排 ====================
+
+    def orchestrate_full(self, task_id: str) -> dict:
+        """运行完整 7 阶段编排，返回最终结果"""
         task_data = self.read_task(task_id)
         if not task_data:
             return {"error": f"任务不存在: {task_id}"}
+        task_dir = BLACKBOARD_ROOT / task_id
 
-        task_data["status"] = "running"
+        results = {"task_id": task_id, "phases": {}}
+
+        for mode, phase_name in ORCHESTRATION_PHASES:
+            print(f"  [{phase_name}] 启动 3 Agent...")
+            task_data["current_phase"] = mode
+            task_data["status"] = "running"
+            self._atomic_write(task_dir / "task.json", task_data)
+
+            procs = self._spawn_agents(task_id, mode)
+
+            # 等待全部完成
+            deadline = time.time() + 300
+            while time.time() < deadline:
+                status = self._check_agents_phase(task_id, mode)
+                if status["all_done"]:
+                    break
+                time.sleep(5)
+            else:
+                print(f"  [{phase_name}] 超时，继续下一阶段")
+
+            task_data["phase_history"].append({
+                "phase": mode, "name": phase_name,
+                "completed_at": datetime.now().isoformat(),
+                "pids": {r: p["pid"] for r, p in procs.items()},
+            })
+            self._atomic_write(task_dir / "task.json", task_data)
+            results["phases"][mode] = status
+
+        # Phase 7: 合并
+        merged = self._merge_all(task_id)
+        results["merged"] = merged
+
+        task_data["status"] = "completed"
         self._atomic_write(task_dir / "task.json", task_data)
+        return results
 
-        processes = {}
-        for role, info in self.AGENT_ROLES.items():
-            try:
-                proc = self._spawn_agent(task_id, role, info, task_data)
-                processes[role] = {
-                    "pid": proc.pid,
-                    "role": info["name"],
-                    "model": info["model"],
-                }
-            except Exception as e:
-                processes[role] = {"error": str(e)}
-
-        task_data["agent_processes"] = processes
-        task_data["launched_at"] = datetime.now().isoformat()
-        self._atomic_write(task_dir / "task.json", task_data)
-
+    def _check_agents_phase(self, task_id: str, expected_mode: str) -> dict:
+        """检查所有 Agent 在指定阶段的完成状态"""
+        task_dir = BLACKBOARD_ROOT / task_id
+        agents = {}
+        done_count = 0
+        for role in AGENT_ROLES:
+            sp = task_dir / "agents" / role / "status.json"
+            if sp.exists():
+                s = json.loads(sp.read_text(encoding="utf-8"))
+                phase = s.get("phase", "unknown")
+                agents[role] = phase
+                if phase == f"{expected_mode}_done":
+                    done_count += 1
+            else:
+                agents[role] = "no_status"
         return {
-            "task_id": task_id,
-            "agents": len(processes),
-            "processes": processes,
-            "blackboard_path": str(task_dir),
+            "agents": agents,
+            "done": done_count,
+            "total": len(AGENT_ROLES),
+            "all_done": done_count >= len(AGENT_ROLES),
         }
 
-    def _spawn_agent(self, task_id: str, role: str, info: dict, task_data: dict):
-        """启动单个子 Agent 进程"""
-        agent_script = Path(__file__).parent / "child_agent.py"
-        cmd = [
-            sys.executable, str(agent_script),
-            "--task-id", task_id,
-            "--role", role,
-            "--name", info["name"],
-            "--object", info["object"],
-            "--focus", info["focus"],
-            "--model", info.get("model", "flash"),
-            "--blackboard", str(BLACKBOARD_ROOT),
-        ]
+    # ==================== 合并 ====================
 
-        # Windows: 隐藏窗口
-        startupinfo = None
-        if sys.platform == "win32":
-            startupinfo = subprocess.STARTUPINFO()
-            startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
-            startupinfo.wShowWindow = subprocess.SW_HIDE
+    def _merge_all(self, task_id: str) -> dict:
+        """Phase 7: 收集投票 → 合并最终方案"""
+        task_dir = BLACKBOARD_ROOT / task_id
+        task_data = self.read_task(task_id)
 
-        proc = subprocess.Popen(
-            cmd,
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
-            startupinfo=startupinfo,
-            creationflags=subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0,
-        )
-        return proc
+        # 收集投票
+        votes = {}
+        for role in AGENT_ROLES:
+            vp = task_dir / "agents" / role / "vote.json"
+            if vp.exists():
+                data = json.loads(vp.read_text(encoding="utf-8"))
+                for v in data.get("votes", []):
+                    target = v.get("target", "")
+                    if target not in votes:
+                        votes[target] = []
+                    votes[target].append(v)
 
-    # ==================== 状态查询 ====================
+        # 平均分 + 排名
+        rankings = []
+        for target, vlist in votes.items():
+            avg = {
+                "correctness": sum(v["correctness"] for v in vlist) / len(vlist),
+                "completeness": sum(v["completeness"] for v in vlist) / len(vlist),
+                "feasibility": sum(v["feasibility"] for v in vlist) / len(vlist),
+                "innovation": sum(v["innovation"] for v in vlist) / len(vlist),
+                "business_alignment": sum(v["business_alignment"] for v in vlist) / len(vlist),
+            }
+            total = (avg["correctness"] * 0.20 + avg["completeness"] * 0.20 +
+                     avg["feasibility"] * 0.25 + avg["innovation"] * 0.15 +
+                     avg["business_alignment"] * 0.20)
+            rankings.append({
+                "target": target,
+                "scores": avg,
+                "total": round(total, 2),
+                "comments": [v.get("comment", "") for v in vlist],
+            })
+        rankings.sort(key=lambda x: x["total"], reverse=True)
+
+        # 构建最终报告
+        parts = [f"# 最终方案 — {task_id}\n"]
+        parts.append(f"> 任务: {task_data.get('description', '')}\n")
+        parts.append(f"> 生成时间: {datetime.now().isoformat()}\n\n")
+
+        # 排名
+        parts.append("## 🏆 方案排名\n\n")
+        medals = ["🥇", "🥈", "🥉"]
+        for i, r in enumerate(rankings):
+            medals[i] if i < len(medals) else f"#{i+1}"
+            parts.append(f"{medals[i] if i < len(medals) else f'#{i+1}'} **{r['target']}** — {r['total']}分\n")
+            parts.append(f"   正确{r['scores']['correctness']:.1f} 完整{r['scores']['completeness']:.1f} ")
+            parts.append(f"可行{r['scores']['feasibility']:.1f} 创新{r['scores']['innovation']:.1f} ")
+            parts.append(f"业务{r['scores']['business_alignment']:.1f}\n")
+            if r["comments"]:
+                parts.append(f"   {r['comments'][0]}\n")
+            parts.append("\n")
+
+        # 各方案最终版
+        for role in AGENT_ROLES:
+            fp = task_dir / "agents" / role / "proposal_final.md"
+            pp = task_dir / "agents" / role / "proposal.md"
+            path = fp if fp.exists() else pp
+            if path.exists():
+                info = AGENT_ROLES[role]
+                parts.append(f"## {info['name']}视角\n\n")
+                parts.append(path.read_text(encoding="utf-8")[:3000])
+                parts.append("\n\n---\n\n")
+
+        merged = "".join(parts)
+        merged_path = task_dir / "merged" / "final_report.md"
+        merged_path.write_text(merged, encoding="utf-8")
+
+        return {
+            "rankings": rankings,
+            "merged_path": str(merged_path),
+            "top1": rankings[0]["target"] if rankings else None,
+            "content_preview": merged[:600],
+        }
+
+    # ==================== 遗留 API（向后兼容）====================
+
+    def launch_agents(self, task_id: str) -> dict:
+        """向后兼容：只启动 proposal 阶段"""
+        procs = self._spawn_agents(task_id, "proposal")
+        return {
+            "task_id": task_id,
+            "agents": len(procs),
+            "processes": procs,
+            "note": "使用 orchestrate_full() 运行完整 7 阶段",
+        }
 
     def get_status(self, task_id: str) -> dict:
-        """查询黑板任务进度"""
         task_dir = BLACKBOARD_ROOT / task_id
         task_path = task_dir / "task.json"
         if not task_path.exists():
             return {"error": f"任务不存在: {task_id}"}
 
         task_data = json.loads(task_path.read_text(encoding="utf-8"))
-
-        # 检查每个 Agent 的状态
         agent_details = {}
-        for role in self.AGENT_ROLES:
-            status_path = task_dir / "agents" / role / "status.json"
-            if status_path.exists():
-                agent_details[role] = json.loads(status_path.read_text(encoding="utf-8"))
-            else:
-                agent_details[role] = {"phase": "unknown"}
+        for role in AGENT_ROLES:
+            sp = task_dir / "agents" / role / "status.json"
+            agent_details[role] = json.loads(sp.read_text(encoding="utf-8")) if sp.exists() else {"phase": "unknown"}
 
-        # 检查询问队列
-        pending_queries = []
-        for role in self.AGENT_ROLES:
-            query_path = task_dir / "agents" / role / "queries.json"
-            if query_path.exists():
-                queries = json.loads(query_path.read_text(encoding="utf-8"))
-                unanswered = [q for q in queries if not q.get("answered")]
-                if unanswered:
-                    pending_queries.extend(unanswered)
-
-        # 聚合进度
         phases = [d.get("phase", "unknown") for d in agent_details.values()]
-        done_count = sum(1 for p in phases if p == "done")
-        error_count = sum(1 for p in phases if p == "error")
+        done = sum(1 for p in phases if "_done" in p)
+        error = sum(1 for p in phases if "_error" in p)
 
         return {
             "task_id": task_id,
             "status": task_data.get("status", "unknown"),
+            "current_phase": task_data.get("current_phase", ""),
             "description": task_data.get("description", "")[:100],
             "agents": agent_details,
-            "progress": f"{done_count}/{len(self.AGENT_ROLES)} 完成",
-            "pending_queries": pending_queries,
-            "done": done_count + error_count >= len(self.AGENT_ROLES),
-            "blackboard_path": str(task_dir),
+            "progress": f"{done}/{len(AGENT_ROLES)} 完成",
+            "done": done + error >= len(AGENT_ROLES),
         }
-
-    def answer_query(self, task_id: str, role: str, query_index: int, answer: str) -> dict:
-        """回答子 Agent 的询问"""
-        task_dir = BLACKBOARD_ROOT / task_id
-        query_path = task_dir / "agents" / role / "queries.json"
-        if not query_path.exists():
-            return {"error": "无询问队列"}
-
-        queries = json.loads(query_path.read_text(encoding="utf-8"))
-        if query_index >= len(queries):
-            return {"error": f"询问索引无效: {query_index}"}
-
-        queries[query_index]["answered"] = True
-        queries[query_index]["answer"] = answer
-        queries[query_index]["answered_at"] = datetime.now().isoformat()
-        self._atomic_write(query_path, queries)
-
-        return {"status": "answered", "role": role, "query_index": query_index}
-
-    # ==================== 合并 ====================
 
     def merge_proposals(self, task_id: str) -> dict:
-        """合并 3 个子 Agent 的方案"""
-        task_dir = BLACKBOARD_ROOT / task_id
-        proposals = {}
-        for role in self.AGENT_ROLES:
-            prop_path = task_dir / "agents" / role / "proposal.md"
-            if prop_path.exists():
-                proposals[role] = prop_path.read_text(encoding="utf-8")
+        return self._merge_all(task_id)
 
-        if not proposals:
-            return {"error": "没有子 Agent 完成方案"}
-
-        # 简单合并：拼接所有方案
-        merged_parts = [f"# 最终方案 — {task_id}\n"]
-        merged_parts.append(f"> 生成时间: {datetime.now().isoformat()}\n")
-        merged_parts.append(f"> 参与 Agent: {', '.join(proposals.keys())}\n\n")
-
-        for role, content in proposals.items():
-            info = self.AGENT_ROLES.get(role, {})
-            merged_parts.append(f"## {info.get('name', role)}视角\n\n")
-            merged_parts.append(content[:3000])
-            merged_parts.append("\n\n---\n\n")
-
-        merged_content = "".join(merged_parts)
-        merged_path = task_dir / "merged" / "final_report.md"
-        merged_path.write_text(merged_content, encoding="utf-8")
-
-        # 更新任务状态
-        self.update_task_status(task_id, "completed")
-
-        return {
-            "task_id": task_id,
-            "agents_contributed": len(proposals),
-            "merged_path": str(merged_path),
-            "content_preview": merged_content[:500],
-        }
-
-    # ==================== 工具方法 ====================
+    def answer_query(self, task_id: str, role: str, query_index: int, answer: str) -> dict:
+        # 简化版：兼容旧接口
+        return {"status": "answered", "note": "黑板模式已升级，query 功能简化"}
 
     @staticmethod
     def _atomic_write(path: Path, data: dict):
-        """原子写入：先写临时文件，再 rename"""
         tmp = path.with_suffix(path.suffix + ".tmp")
         path.parent.mkdir(parents=True, exist_ok=True)
         tmp.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
         tmp.replace(path)
-
-
-# 全局单例
-_orchestrator = BlackboardOrchestrator()
