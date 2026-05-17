@@ -680,6 +680,8 @@ class BrainstormOrchestrator:
         n = len(dimensions)
         parts = ['<svg viewBox="0 0 500 500" xmlns="http://www.w3.org/2000/svg">']
 
+        # 背景
+        parts.append(f'<rect width="500" height="500" fill="#1e293b" rx="12"/>')
         # 网格
         for level in [0.2, 0.4, 0.6, 0.8, 1.0]:
             pts = []
@@ -688,7 +690,7 @@ class BrainstormOrchestrator:
                 x = cx + r * level * math.cos(angle)
                 y = cy - r * level * math.sin(angle)
                 pts.append(f"{x:.0f},{y:.0f}")
-            parts.append(f'<polygon points="{" ".join(pts)}" fill="none" stroke="#e5e7eb" stroke-width="1"/>')
+            parts.append(f'<polygon points="{" ".join(pts)}" fill="none" stroke="#475569" stroke-width="1.5"/>')
 
         # 轴 + 标签
         for i, dim in enumerate(dimensions):
@@ -697,8 +699,8 @@ class BrainstormOrchestrator:
             y2 = cy - r * 1.05 * math.sin(angle)
             tx = cx + r * 1.18 * math.cos(angle)
             ty = cy - r * 1.18 * math.sin(angle) + 4
-            parts.append(f'<line x1="{cx}" y1="{cy}" x2="{x2:.0f}" y2="{y2:.0f}" stroke="#d1d5db" stroke-width="1"/>')
-            parts.append(f'<text x="{tx:.0f}" y="{ty:.0f}" text-anchor="middle" font-size="12" fill="#374151">{dim}</text>')
+            parts.append(f'<line x1="{cx}" y1="{cy}" x2="{x2:.0f}" y2="{y2:.0f}" stroke="#64748b" stroke-width="1.5"/>')
+            parts.append(f'<text x="{tx:.0f}" y="{ty:.0f}" text-anchor="middle" font-size="13" font-weight="600" fill="#94a3b8">{dim}</text>')
 
         # 数据多边形 + 顶点
         for scheme in schemes:
@@ -719,9 +721,9 @@ class BrainstormOrchestrator:
         for i, scheme in enumerate(schemes):
             c = colors.get(scheme.get("id", ""), "#6b7280")
             ly = 400 + i * 22
-            parts.append(f'<rect x="20" y="{ly}" width="14" height="14" fill="{c}" opacity="0.3" rx="2"/>')
+            parts.append(f'<rect x="20" y="{ly}" width="14" height="14" fill="{c}" opacity="0.4" rx="2"/>')
             parts.append(f'<rect x="20" y="{ly}" width="14" height="2" fill="{c}"/>')
-            parts.append(f'<text x="40" y="{ly + 12}" font-size="11" fill="#374151">方案 {scheme.get("id", "")} ({scheme.get("total_score", 0):.1f})</text>')
+            parts.append(f'<text x="40" y="{ly + 12}" font-size="12" font-weight="600" fill="#cbd5e1">方案 {scheme.get("id", "")} ({scheme.get("total_score", 0):.1f})</text>')
 
         parts.append('</svg>')
         return "\n".join(parts)
@@ -748,7 +750,7 @@ class BrainstormOrchestrator:
 
         paths = {"format": fmt}
 
-        # Markdown（md 和 both 模式都生成）
+        # Markdown（仅 md 和 both 模式生成）
         if fmt in ("md", "both"):
             md_template = env.get_template("report.md")
             md_content = md_template.render(**data)
@@ -756,7 +758,7 @@ class BrainstormOrchestrator:
             md_path.write_text(md_content, encoding="utf-8")
             paths["markdown"] = str(md_path)
 
-        # HTML（html 和 both 模式生成）
+        # HTML（html 和 both 模式生成。html 模式跳过 MD，直接输出 HTML + JSON）
         if fmt in ("html", "both"):
             html_template = env.get_template("report.html")
             html_content = html_template.render(**data)

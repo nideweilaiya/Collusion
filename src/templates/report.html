@@ -3,314 +3,459 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>方案设计报告 — {{ task[:50] }}</title>
+<title>{{ task[:60] }} — Collusion 方案报告</title>
 <style>
-/* ====== 全局 ====== */
 :root {
-  --bg: #f1f5f9; --card: #fff; --text: #1e293b; --muted: #64748b;
-  --border: #e2e8f0; --accent: #4f46e5; --red: #dc2626;
-  --yellow: #d97706; --green: #059669; --radius: 10px;
+  --bg: #0f172a;
+  --surface: #1e293b;
+  --surface2: #334155;
+  --border: #475569;
+  --text: #f1f5f9;
+  --text2: #cbd5e1;
+  --text3: #94a3b8;
+  --accent: #6366f1;
+  --accent2: #818cf8;
+  --green: #10b981; --green-bg: #064e3b;
+  --red: #ef4444; --red-bg: #7f1d1d;
+  --yellow: #f59e0b; --yellow-bg: #78350f;
+  --blue: #3b82f6; --blue-bg: #1e3a5f;
+  --purple: #a855f7; --purple-bg: #4c1d95;
+  --radius: 12px; --radius-sm: 8px;
+  --shadow: 0 4px 24px rgba(0,0,0,0.3);
 }
-* { box-sizing: border-box; margin: 0; padding: 0; }
-body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Microsoft YaHei", sans-serif; background: var(--bg); color: var(--text); line-height: 1.75; padding: 24px; font-size: 16px; }
-.container { max-width: 1100px; margin: 0 auto; }
-.card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 28px; margin-bottom: 24px; box-shadow: 0 1px 3px rgba(0,0,0,0.04); }
-h2 { font-size: 1.35rem; margin-bottom: 16px; padding-bottom: 8px; border-bottom: 2px solid var(--border); }
-h3 { font-size: 1.15rem; margin: 20px 0 10px; color: #334155; }
-h4 { font-size: 1.05rem; margin: 16px 0 8px; }
+* { margin:0; padding:0; box-sizing:border-box; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Microsoft YaHei", sans-serif;
+  background: var(--bg); color: var(--text); line-height:1.7; font-size:15px;
+  min-height:100vh;
+}
 
-/* ====== 头部 ====== */
-.header { background: linear-gradient(135deg, #1e1b4b, #3730a3); color: #fff; padding: 36px 40px; border-radius: var(--radius); margin-bottom: 28px; }
-.header h1 { font-size: 1.6rem; margin-bottom: 8px; font-weight: 800; }
-.header p { color: #c7d2fe; font-size: 0.95rem; }
-.meta-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 14px; margin-top: 20px; }
-.meta-item { background: rgba(255,255,255,0.12); border-radius: 8px; padding: 12px; text-align: center; }
-.meta-item .label { font-size: 0.75rem; color: #a5b4fc; text-transform: uppercase; letter-spacing: 0.5px; }
-.meta-item .value { font-size: 1.2rem; font-weight: 700; }
+/* ====== Header ====== */
+.hero {
+  background: linear-gradient(135deg, #1e1b4b 0%, #3730a3 40%, #4f46e5 100%);
+  padding: 48px 24px 40px; text-align: center;
+  border-bottom: 3px solid var(--accent2);
+}
+.hero h1 { font-size: 2rem; font-weight: 800; margin-bottom:8px; letter-spacing: -0.5px; }
+.hero .subtitle { color: #c7d2fe; font-size:1.05rem; max-width:700px; margin:0 auto 24px; }
+.hero .meta {
+  display:flex; gap:24px; justify-content:center; flex-wrap:wrap;
+}
+.hero .meta-item {
+  background: rgba(255,255,255,0.1); backdrop-filter: blur(8px);
+  border-radius: var(--radius-sm); padding:12px 20px; text-align:center;
+  border:1px solid rgba(255,255,255,0.15);
+}
+.hero .meta-label { font-size:0.7rem; color:#a5b4fc; text-transform:uppercase; letter-spacing:1.5px; margin-bottom:4px; }
+.hero .meta-value { font-size:1.3rem; font-weight:700; }
 
-/* ====== 雷达图 ====== */
-.radar-container { display: flex; justify-content: center; padding: 16px; }
-.radar-svg { max-width: 480px; }
+/* ====== Container ====== */
+.container { max-width:960px; margin:0 auto; padding:24px; }
 
-/* ====== 方案卡片 ====== */
-.scheme-top { border-left: 5px solid var(--accent); }
-.scheme-top h2 { color: var(--accent); margin-bottom: 14px; border: none; }
-.scheme-content { font-size: 0.95rem; line-height: 1.8; }
-.scheme-content h1 { font-size: 1.4rem; color: #1e293b; margin: 24px 0 12px; padding-bottom: 6px; border-bottom: 1px solid var(--border); }
-.scheme-content h2 { font-size: 1.2rem; color: #334155; margin: 20px 0 10px; border: none; }
-.scheme-content h3 { font-size: 1.05rem; color: #475569; margin: 16px 0 8px; }
-.scheme-content p { margin-bottom: 10px; }
-.scheme-content strong { color: #0f172a; }
-/* 内联代码 */
-.scheme-content code { background: #fef3c7; color: #92400e; padding: 2px 7px; border-radius: 4px; font-size: 0.9rem; font-weight: 500; }
-/* 代码块 */
-.scheme-content pre { background: #1e293b; color: #e2e8f0; padding: 20px 24px; border-radius: 8px; overflow-x: auto; margin: 14px 0; font-size: 0.88rem; line-height: 1.7; border: 1px solid #334155; }
-.scheme-content pre code { background: none; color: inherit; padding: 0; font-size: inherit; font-weight: 400; }
-/* 列表 */
-.scheme-content ul, .scheme-content ol { margin: 8px 0 12px 24px; }
-.scheme-content li { margin-bottom: 4px; }
-/* 表格 */
-.scheme-content table { margin: 12px 0; font-size: 0.9rem; }
-.scheme-content th { background: #f1f5f9; font-weight: 700; padding: 10px 14px; border: 1px solid var(--border); }
-.scheme-content td { padding: 8px 14px; border: 1px solid var(--border); }
+/* ====== Card ====== */
+.card {
+  background: var(--surface); border:1px solid var(--border);
+  border-radius: var(--radius); padding:28px; margin-bottom:20px;
+  box-shadow: var(--shadow);
+}
+.card h2 { font-size:1.25rem; margin-bottom:16px; padding-bottom:10px; border-bottom:2px solid var(--border); color:var(--accent2); }
+.card h3 { font-size:1.05rem; color:var(--text2); margin:20px 0 10px; }
 
-/* ====== 对比表 ====== */
-table { width: 100%; border-collapse: collapse; font-size: 0.95rem; }
-thead th { background: #f1f5f9; padding: 12px 16px; text-align: left; border-bottom: 2px solid #cbd5e1; font-weight: 700; }
-td { padding: 10px 16px; border-bottom: 1px solid var(--border); }
-td.win { color: var(--green); font-weight: 700; }
+/* ====== Winner Card ====== */
+.winner {
+  border:2px solid var(--accent); position:relative; overflow:hidden;
+}
+.winner::before {
+  content:"#1 推荐方案";
+  position:absolute; top:14px; right:-28px;
+  background: var(--accent); color:#fff;
+  font-size:0.75rem; font-weight:700; padding:4px 36px;
+  transform:rotate(45deg);
+}
 
-/* ====== 风险卡片 ====== */
-.risk-high { border-left: 5px solid var(--red); background: #fef2f2; }
-.risk-mid { border-left: 5px solid var(--yellow); background: #fffbeb; }
-.risk-low { border-left: 5px solid var(--green); background: #ecfdf5; }
-.risk-label { font-size: 0.8rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; }
+/* ====== Score Badge ====== */
+.score-badge {
+  display:inline-flex; align-items:center; gap:6px;
+  background: var(--accent); color:#fff;
+  border-radius:20px; padding:4px 14px; font-weight:700; font-size:0.9rem;
+}
 
-/* ====== 折叠面板 ====== */
-.accordion { border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; margin-bottom: 12px; }
-.accordion-header { background: #f8fafc; padding: 14px 18px; cursor: pointer; font-weight: 600; display: flex; justify-content: space-between; user-select: none; }
-.accordion-header:hover { background: #f1f5f9; }
-.accordion-body { padding: 0 18px; max-height: 0; overflow: hidden; transition: max-height 0.3s, padding 0.3s; }
-.accordion-body.open { max-height: 2000px; padding: 18px; }
+/* ====== Score Bars ====== */
+.score-bars { margin:16px 0; }
+.score-row {
+  display:flex; align-items:center; gap:12px; margin-bottom:6px;
+}
+.score-label { width:70px; font-size:0.8rem; color:var(--text2); text-align:right; }
+.score-bar-wrap { flex:1; height:18px; background:var(--surface2); border-radius:9px; overflow:hidden; }
+.score-bar { height:100%; border-radius:9px; transition:width 0.6s; }
+.score-num { width:32px; font-size:0.8rem; font-weight:700; text-align:left; }
 
-/* ====== 反馈UI ====== */
-.feedback-section { margin-top: 20px; }
-.feedback-section textarea { width: 100%; min-height: 80px; padding: 12px; border: 1px solid var(--border); border-radius: 6px; font-family: inherit; font-size: 0.9rem; resize: vertical; }
-.btn-row { display: flex; gap: 8px; margin: 8px 0 20px; }
-.btn { padding: 8px 20px; border: none; border-radius: 6px; font-size: 0.85rem; cursor: pointer; font-weight: 600; transition: opacity 0.2s; }
-.btn:hover { opacity: 0.85; }
-.btn-save { background: #e2e8f0; color: var(--text); }
-.btn-clear { background: #fee2e2; color: var(--red); }
-.btn-draft { background: #dbeafe; color: #1e40af; padding: 12px 32px; font-size: 1rem; }
-.btn-submit { background: var(--accent); color: #fff; padding: 12px 32px; font-size: 1rem; }
-.footer-bar { position: sticky; bottom: 20px; background: var(--card); border: 2px solid var(--accent); border-radius: var(--radius); padding: 16px 24px; display: flex; gap: 12px; justify-content: center; align-items: center; box-shadow: 0 -4px 12px rgba(0,0,0,0.1); }
-.feedback-matrix { margin-top: 20px; }
-.verdict { padding: 12px 16px; border-radius: 6px; margin: 6px 0; }
-.verdict-approved { background: #ecfdf5; border-left: 4px solid var(--green); }
-.verdict-risky { background: #fffbeb; border-left: 4px solid var(--yellow); }
-.verdict-innovative { background: #ede9fe; border-left: 4px solid var(--accent); }
+/* ====== Top3 Cards ====== */
+.top3-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:16px; }
+.top3-card {
+  background: var(--surface); border:1px solid var(--border);
+  border-radius: var(--radius); padding:20px; text-align:center;
+  position:relative;
+}
+.top3-card.rank1 { border-color: var(--accent); box-shadow: 0 0 20px rgba(99,102,241,0.2); }
+.top3-card .rank-badge {
+  display:inline-block; width:32px; height:32px; line-height:32px;
+  border-radius:50%; font-weight:800; font-size:0.9rem; margin-bottom:8px;
+}
+.rank1 .rank-badge { background:var(--accent); color:#fff; }
+.rank2 .rank-badge { background:var(--surface2); color:var(--text); }
+.rank3 .rank-badge { background:var(--surface2); color:var(--text3); }
+.top3-card .scheme-name { font-weight:700; margin-bottom:4px; }
+.top3-card .scheme-role { font-size:0.8rem; color:var(--text3); margin-bottom:8px; }
+.top3-card .big-score { font-size:2rem; font-weight:800; color:var(--accent2); }
+.top3-card .comment { font-size:0.8rem; color:var(--text3); margin-top:8px; line-height:1.5; }
 
-/* ====== 打印 ====== */
+/* ====== Dimension Badge ====== */
+.dim-badges { display:flex; gap:6px; flex-wrap:wrap; margin:8px 0; }
+.dim-badge {
+  font-size:0.7rem; padding:3px 10px; border-radius:12px; font-weight:600;
+}
+.dim-high { background:var(--green-bg); color:var(--green); }
+.dim-mid { background:var(--yellow-bg); color:var(--yellow); }
+.dim-low { background:var(--red-bg); color:var(--red); }
+
+/* ====== Step List ====== */
+.step-list { list-style:none; }
+.step-item {
+  display:flex; gap:14px; padding:14px 0; border-bottom:1px solid var(--border);
+}
+.step-num {
+  width:32px; height:32px; line-height:32px; text-align:center;
+  background:var(--surface2); border-radius:50%; font-weight:700; font-size:0.85rem;
+  flex-shrink:0;
+}
+.step-num.mvp { background:var(--yellow-bg); color:var(--yellow); }
+.step-info { flex:1; }
+.step-name { font-weight:600; margin-bottom:2px; }
+.step-desc { font-size:0.85rem; color:var(--text3); }
+.step-designs { margin-top:6px; }
+.step-designs summary { font-size:0.8rem; color:var(--accent2); cursor:pointer; }
+.step-designs p { font-size:0.85rem; color:var(--text2); margin:4px 0 4px 12px; }
+.step-anchors { margin-top:4px; }
+.step-anchors code {
+  background:var(--surface2); color:var(--text2);
+  padding:2px 8px; border-radius:4px; font-size:0.75rem; margin-right:4px;
+}
+
+/* ====== Risk Cards ====== */
+.risk { padding:12px 16px; border-radius:var(--radius-sm); margin-bottom:8px; border-left:4px solid; }
+.risk-high { background:var(--red-bg); border-color:var(--red); }
+.risk-mid { background:var(--yellow-bg); border-color:var(--yellow); }
+.risk-low { background:var(--green-bg); border-color:var(--green); }
+.risk-label { font-size:0.7rem; font-weight:700; text-transform:uppercase; letter-spacing:1px; margin-bottom:4px; }
+
+/* ====== Task Checklist ====== */
+.task-item {
+  display:flex; align-items:flex-start; gap:12px; padding:10px 0;
+  border-bottom:1px solid var(--border);
+}
+.task-checkbox { color:var(--text3); font-size:1.1rem; }
+.task-badge {
+  font-size:0.65rem; padding:2px 8px; border-radius:10px; font-weight:700;
+  flex-shrink:0;
+}
+.task-badge.mvp { background:var(--yellow-bg); color:var(--yellow); }
+.task-badge.high { background:var(--red-bg); color:var(--red); }
+.task-badge.mid { background:var(--surface2); color:var(--text2); }
+
+/* ====== Mermaid ====== */
+.mermaid-wrap { display:flex; justify-content:center; padding:16px; overflow-x:auto; }
+.mermaid-wrap .mermaid { max-width:100%; }
+
+/* ====== Radar SVG ====== */
+.radar-wrap { display:flex; justify-content:center; padding:16px; }
+
+/* ====== Accordion ====== */
+.accordion { border:1px solid var(--border); border-radius:var(--radius-sm); overflow:hidden; margin-bottom:10px; }
+.accordion-header {
+  background:var(--surface2); padding:12px 16px; cursor:pointer;
+  font-weight:600; display:flex; justify-content:space-between; user-select:none;
+  font-size:0.9rem;
+}
+.accordion-header:hover { background:var(--border); }
+.accordion-body { padding:0 16px; max-height:0; overflow:hidden; transition:max-height 0.3s; }
+.accordion-body.open { max-height:3000px; padding:16px; }
+
+/* ====== Feedback UI ====== */
+textarea {
+  width:100%; min-height:80px; padding:12px; background:var(--bg);
+  border:1px solid var(--border); border-radius:var(--radius-sm);
+  color:var(--text); font-family:inherit; font-size:0.85rem; resize:vertical;
+}
+.btn {
+  padding:8px 20px; border:none; border-radius:6px; font-size:0.85rem;
+  cursor:pointer; font-weight:600; transition:opacity 0.2s;
+}
+.btn:hover { opacity:0.85; }
+.btn-save { background:var(--surface2); color:var(--text); }
+.btn-clear { background:var(--red-bg); color:var(--red); }
+.btn-submit { background:var(--accent); color:#fff; padding:12px 28px; font-size:0.95rem; }
+.feedback-bar {
+  position:sticky; bottom:20px; background:var(--surface);
+  border:2px solid var(--accent); border-radius:var(--radius);
+  padding:16px 24px; display:flex; gap:12px; justify-content:center;
+  align-items:center; box-shadow:0 -8px 32px rgba(0,0,0,0.5);
+}
+
+/* ====== Footer ====== */
+.footer {
+  text-align:center; padding:32px; color:var(--text3); font-size:0.8rem;
+}
+
+/* ====== Responsive ====== */
+@media (max-width:768px) {
+  .top3-grid { grid-template-columns:1fr; }
+  .hero .meta { flex-direction:column; gap:8px; }
+}
 @media print {
-  body { background: #fff; padding: 0; }
-  .feedback-section, .footer-bar { display: none; }
-  .card { box-shadow: none; border: 1px solid #ddd; break-inside: avoid; }
-	/* ====== Mermaid 图 ====== */
-	.mermaid-container { display: flex; justify-content: center; padding: 16px; overflow-x: auto; }
-	.mermaid-container .mermaid { max-width: 100%; }
+  body { background:#fff; color:#000; }
+  .card { box-shadow:none; border:1px solid #ddd; }
+  textarea,.feedback-bar { display:none; }
 }
 </style>
 <script type="module">
 import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
-mermaid.initialize({ startOnLoad: false, theme: 'default', securityLevel: 'loose' });
+mermaid.initialize({ startOnLoad:false, theme:'dark', securityLevel:'loose' });
 </script>
 </head>
 <body>
-<div class="container">
 
-<!-- ====== 头部 ====== -->
-<div class="header">
+<!-- ====== Hero ====== -->
+<div class="hero">
   <h1>方案设计报告</h1>
-  <p>{{ task }}</p>
-  <div class="meta-grid">
-    <div class="meta-item"><div class="label">生成时间</div><div class="value">{{ generated_at[:10] }}</div></div>
-    <div class="meta-item"><div class="label">成本</div><div class="value">¥{{ "%.4f"|format(cost) }}</div></div>
-    <div class="meta-item"><div class="label">Token</div><div class="value">{{ tokens }}</div></div>
-    <div class="meta-item"><div class="label">Agent</div><div class="value">{{ agents }}</div></div>
-    <div class="meta-item"><div class="label">环节</div><div class="value">{{ steps|length }}</div></div>
+  <p class="subtitle">{{ task }}</p>
+  <div class="meta">
+    <div class="meta-item"><div class="meta-label">生成时间</div><div class="meta-value">{{ generated_at[:10] }}</div></div>
+    <div class="meta-item"><div class="meta-label">成本</div><div class="meta-value">¥{{ "%.4f"|format(cost) }}</div></div>
+    <div class="meta-item"><div class="meta-label">Token</div><div class="meta-value">{{ tokens }}</div></div>
+    <div class="meta-item"><div class="meta-label">Agent</div><div class="meta-value">{{ agents }}</div></div>
+    <div class="meta-item"><div class="meta-label">环节</div><div class="meta-value">{{ steps|length }}</div></div>
   </div>
 </div>
+
+<div class="container">
+
+<!-- ====== MVP 摘要 ====== -->
+{% if mvp_count > 0 %}
+<div class="card" style="border-color:var(--yellow);">
+  <h2 style="color:var(--yellow);border-color:var(--yellow);">🎯 最小可行产品 (MVP)</h2>
+  <p style="color:var(--text3);margin-bottom:12px;">以下 {{ mvp_count }} 个环节构成 MVP 范围，完成后即可上线验证核心假设：</p>
+  <div style="display:flex;gap:8px;flex-wrap:wrap;">
+    {% for step in steps %}{% if step.is_mvp %}
+    <span style="background:var(--yellow-bg);color:var(--yellow);padding:6px 16px;border-radius:20px;font-size:0.85rem;font-weight:600;">{{ step.index }}. {{ step.name }}</span>
+    {% endif %}{% endfor %}
+  </div>
+</div>
+{% endif %}
+
+<!-- ====== Top 3 快速对比 ====== -->
+<div class="card">
+  <h2>🏆 方案排名</h2>
+  <div class="top3-grid">
+  {% for scheme in schemes[:3] %}
+    <div class="top3-card {% if loop.index == 1 %}rank1{% elif loop.index == 2 %}rank2{% else %}rank3{% endif %}">
+      <div class="rank-badge">{{ loop.index }}</div>
+      <div class="scheme-name">方案 {{ scheme.id }}</div>
+      <div class="scheme-role">{{ scheme.object_name }}</div>
+      <div class="big-score">{{ "%.1f"|format(scheme.total_score) }}</div>
+      <div style="color:var(--text3);font-size:0.8rem;">/ 10</div>
+      <div class="comment">{{ scheme.comment }}</div>
+    </div>
+  {% endfor %}
+  </div>
+</div>
+
+<!-- ====== Top 1 完整方案 ====== -->
+{% if top_scheme %}
+<div class="card winner">
+  <h2>📖 方案 {{ top_scheme.id }} — {{ top_scheme.object_name }}</h2>
+  <div style="margin-bottom:16px;">
+    <span class="score-badge">{{ "%.1f"|format(top_scheme.total_score) }}/10</span>
+    <span style="color:var(--text3);margin-left:8px;">{{ top_scheme.comment }}</span>
+  </div>
+  <div class="score-bars">
+    {% for dim in dimensions %}
+    {% set s = top_scheme.scores.get(dim, 0) %}
+    <div class="score-row">
+      <span class="score-label">{{ dim }}</span>
+      <div class="score-bar-wrap">
+        <div class="score-bar" style="width:{{ s*10 }}%;background:{% if s>=9 %}var(--green){% elif s>=7 %}var(--accent){% elif s>=5 %}var(--yellow){% else %}var(--red){% endif %};"></div>
+      </div>
+      <span class="score-num">{{ "%.1f"|format(s) }}</span>
+    </div>
+    {% endfor %}
+  </div>
+  <div style="color:var(--text2);font-size:0.95rem;line-height:1.8;margin-top:16px;">
+    {{ top_scheme.integrated_html | safe }}
+  </div>
+</div>
+{% endif %}
 
 <!-- ====== 雷达图 ====== -->
 {% if schemes|length >= 2 %}
 <div class="card">
-  <h3>📊 方案多维对比（雷达图）</h3>
-  <div class="radar-container">
-    {{ radar_svg | safe }}
-  </div>
+  <h2>📊 多维对比</h2>
+  <div class="radar-wrap">{{ radar_svg | safe }}</div>
 </div>
 {% endif %}
 
-<!-- ====== 架构分层图 ====== -->
+<!-- ====== 方案详细对比 ====== -->
+<div class="card">
+  <h2>📋 5 维评分对比</h2>
+  <div style="overflow-x:auto;">
+    <table style="width:100%;border-collapse:collapse;font-size:0.9rem;">
+      <thead>
+        <tr style="border-bottom:2px solid var(--border);">
+          <th style="padding:10px 12px;text-align:left;">维度</th>
+          {% for s in schemes %}
+          <th style="padding:10px 12px;text-align:center;">方案 {{ s.id }}<br><span style="font-weight:400;font-size:0.75rem;color:var(--text3);">{{ s.object_name }}</span></th>
+          {% endfor %}
+        </tr>
+      </thead>
+      <tbody>
+        {% for dim in dimensions %}
+        <tr style="border-bottom:1px solid var(--border);">
+          <td style="padding:10px 12px;font-weight:600;">{{ dim }}</td>
+          {% for s in schemes %}
+          {% set v = s.scores.get(dim, 0) %}
+          <td style="padding:10px 12px;text-align:center;{% if v == max_scores.get(dim) %}color:var(--green);font-weight:700;{% endif %}">
+            {{ "%.1f"|format(v) }}
+          </td>
+          {% endfor %}
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ====== 架构图 ====== -->
 {% if mermaid_diagram %}
 <div class="card">
-  <h3>🏗️ 架构分层图</h3>
-  <p style="color:var(--muted); margin-bottom:12px;">Collusion 协作流程与方案架构层级总览</p>
-  <div class="mermaid-container">
-    <pre class="mermaid">{{ mermaid_diagram | safe }}</pre>
-  </div>
+  <h2>🏗️ 编排流程</h2>
+  <div class="mermaid-wrap"><pre class="mermaid">{{ mermaid_diagram | safe }}</pre></div>
 </div>
 {% endif %}
-
-<!-- ====== 各方案架构图 ====== -->
-{% for scheme in schemes %}
-{% if scheme.mermaid_arch %}
+{% for scheme in schemes %}{% if scheme.mermaid_arch %}
 <div class="card">
-  <details>
-    <summary><strong>🏗️ 方案 {{ scheme.id }} 架构图 — {{ scheme.object_name }}</strong></summary>
-    <div class="mermaid-container" style="margin-top:12px;">
-      <pre class="mermaid">{{ scheme.mermaid_arch | safe }}</pre>
-    </div>
+  <details><summary style="cursor:pointer;font-weight:700;color:var(--accent2);">🏗️ 方案 {{ scheme.id }} 架构图 — {{ scheme.object_name }}</summary>
+  <div class="mermaid-wrap" style="margin-top:12px;"><pre class="mermaid">{{ scheme.mermaid_arch | safe }}</pre></div>
   </details>
 </div>
-{% endif %}
-{% endfor %}
-
-<!-- ====== 推荐方案 ====== -->
-{% if top_scheme %}
-<div class="card scheme-top">
-  <h2>🏆 推荐方案：{{ top_scheme.id }} — {{ top_scheme.object_name }}</h2>
-  <p style="margin-bottom:12px;"><strong>综合得分：{{ "%.2f"|format(top_scheme.total_score) }}/10 | 排名：#1</strong></p>
-  <p style="color:var(--muted);">评委评语：{{ top_scheme.comment }}</p>
-  <div class="scheme-content">{{ top_scheme.integrated_html | safe }}</div>
-</div>
-{% endif %}
-
-<!-- ====== 方案对比表 ====== -->
-<div class="card">
-  <h3>📋 备选方案对比</h3>
-  <table>
-    <thead>
-      <tr>
-        <th>维度</th>
-        {% for scheme in schemes %}<th>方案 {{ scheme.id }}<br>{{ scheme.object_name }}</th>{% endfor %}
-      </tr>
-    </thead>
-    <tbody>
-      {% for dim in dimensions %}
-      <tr>
-        <td><strong>{{ dim }}</strong></td>
-        {% for scheme in schemes %}
-        {% set score = scheme.scores.get(dim) %}
-        <td class="{% if score == max_scores.get(dim) %}win{% endif %}">{{ "%.1f"|format(score) if score else "-" }}</td>
-        {% endfor %}
-      </tr>
-      {% endfor %}
-      <tr style="font-weight:700; background:#f8fafc;">
-        <td>总分</td>
-        {% for scheme in schemes %}<td>{{ "%.2f"|format(scheme.total_score) }}</td>{% endfor %}
-      </tr>
-    </tbody>
-  </table>
-</div>
+{% endif %}{% endfor %}
 
 <!-- ====== 风险标注 ====== -->
 {% if risks %}
 <div class="card">
-  <h3>⚠️ 风险标注</h3>
+  <h2>⚠️ 风险标注</h2>
   {% for risk in risks %}
-  <div class="card {% if risk.level == 'high' %}risk-high{% elif risk.level == 'mid' %}risk-mid{% else %}risk-low{% endif %}" style="margin-bottom:8px;">
-    <span class="risk-label" style="color:{% if risk.level == 'high' %}var(--red){% elif risk.level == 'mid' %}var(--yellow){% else %}var(--green){% endif %};">{{ risk.level }} 风险</span>
-    <strong>{{ risk.scheme_id }}</strong>：{{ risk.description }}
+  <div class="risk risk-{{ risk.level }}">
+    <div class="risk-label" style="color:{% if risk.level=='high' %}var(--red){% elif risk.level=='mid' %}var(--yellow){% else %}var(--green){% endif %};">{{ risk.level }} 风险</div>
+    <strong>{{ risk.scheme_id }}</strong> — {{ risk.description }}
   </div>
   {% endfor %}
 </div>
 {% endif %}
 
-<!-- ====== 可执行任务清单 ====== -->
+<!-- ====== 修改历史 ====== -->
+{% if modifications %}
 <div class="card">
-  <h3>📋 可执行任务清单</h3>
-  <p style="color:var(--muted); margin-bottom:12px;">可直接传递给 AI 执行工具（Plan 模式 / writing-plans）</p>
-  {% for task_item in task_list %}
-  <div style="padding:10px 0; border-bottom:1px solid var(--border);">
-    <strong>Task {{ task_item.id }}: {{ task_item.name }}</strong>
-    {% if task_item.is_mvp %}<span style="background:#fef3c7;color:#92400e;padding:2px 8px;border-radius:10px;font-size:0.7rem;">MVP</span>{% endif %}
-    <span style="color:var(--muted); font-size:0.85rem; float:right;">{{ task_item.estimated_time }} · {{ task_item.priority }}优先级</span>
-    <div style="margin:4px 0; font-size:0.9rem;">{{ task_item.description }}</div>
-    {% if task_item.code_anchors %}
-    <div style="font-size:0.8rem; color:var(--muted);">📁 {% for anchor in task_item.code_anchors %}<code style="background:#e2e8f0;padding:1px 5px;border-radius:3px;">{{ anchor }}</code> {% endfor %}</div>
-    {% endif %}
+  <h2>📜 交叉审查记录</h2>
+  {% for mod in modifications %}
+  <div style="padding:8px 12px;margin:6px 0;background:var(--surface2);border-radius:var(--radius-sm);font-size:0.85rem;">
+    <strong style="color:var(--accent2);">[{{ mod.agent_role }}]</strong>
+    {{ mod.target_step }}: {{ mod.reason }}
+    <span style="color:var(--text3);">— {{ mod.content[:100] }}</span>
   </div>
   {% endfor %}
-</div>
-
-<!-- ====== MVP 摘要 ====== -->
-{% if mvp_count > 0 %}
-<div class="card" style="background:#fefce8; border:2px solid #eab308;">
-  <h3>🎯 MVP 最小可行产品</h3>
-  <p style="color:var(--muted); margin-bottom:12px;">以下 {{ mvp_count }} 个环节构成 MVP 范围，完成后即可上线验证核心假设：</p>
-  <div style="display:flex; gap:8px; flex-wrap:wrap;">
-    {% for step in steps %}
-    {% if step.is_mvp %}
-    <span style="background:#fef3c7; color:#92400e; padding:6px 14px; border-radius:20px; font-size:0.85rem; font-weight:600;">
-      {{ step.index }}. {{ step.name }}
-    </span>
-    {% endif %}
-    {% endfor %}
-  </div>
 </div>
 {% endif %}
 
 <!-- ====== 环节详情 + 反馈 ====== -->
-<div class="card feedback-section">
-  <h3>📝 环节详细设计与修改建议</h3>
-  <p style="color:var(--muted); margin-bottom:16px;">在下方输入修改建议，点「保存」暂存，完成后点「提交修改」让各 Agent 审查。</p>
-
+<div class="card">
+  <h2>📝 环节详情与反馈</h2>
+  <p style="color:var(--text3);margin-bottom:6px;">展开每个环节查看各视角的设计内容。</p>
+  <p style="color:var(--yellow);font-size:0.85rem;margin-bottom:16px;">💡 点击环节标题展开后，可在下方的输入框中写入修改建议。</p>
   {% for step in steps %}
   <div class="accordion">
     <div class="accordion-header" onclick="this.nextElementSibling.classList.toggle('open')">
-      <span>{{ step.index }}. {{ step.name }}{% if step.is_mvp %} <span style="background:#fef3c7;color:#92400e;padding:2px 8px;border-radius:10px;font-size:0.7rem;">MVP</span>{% endif %}</span>
-      <span style="color:var(--muted);">{{ step.priority }} · {{ step.estimated_time }} ▼</span>
+      <span>{{ step.index }}. {{ step.name }}{% if step.is_mvp %} <span style="background:var(--yellow-bg);color:var(--yellow);padding:2px 8px;border-radius:10px;font-size:0.7rem;">MVP</span>{% endif %}</span>
+      <span style="color:var(--text3);">{{ step.priority }} · {{ step.estimated_time }}</span>
     </div>
     <div class="accordion-body">
-      <p style="color:var(--muted); margin-bottom:8px;"><strong>需求描述：</strong>{{ step.description }}</p>
-      {% if step.dependencies %}
-      <p style="color:#d97706; margin-bottom:8px;"><strong>依赖：</strong>{% for dep in step.dependencies %}Task {{ dep }} {% endfor %}</p>
-      {% endif %}
+      <p style="color:var(--text3);margin-bottom:8px;">{{ step.description }}</p>
       {% if step.code_anchors %}
-      <p style="margin-bottom:8px;"><strong>📁 代码入口：</strong>{% for anchor in step.code_anchors %}<code style="background:#e2e8f0;padding:2px 6px;border-radius:3px;font-size:0.8rem;">{{ anchor }}</code> {% endfor %}</p>
+      <div class="step-anchors">📁 {% for a in step.code_anchors %}<code>{{ a }}</code>{% endfor %}</div>
       {% endif %}
       {% for sid, design in step.designs.items() %}
-      <p style="margin-bottom:8px;"><strong>{{ sid }} 视角：</strong>{{ design[:300] }}{% if design|length > 300 %}...{% endif %}</p>
+      <details style="margin:8px 0;"><summary style="color:var(--accent2);cursor:pointer;font-size:0.85rem;">{{ sid }} 视角</summary>
+      <p style="color:var(--text2);font-size:0.85rem;margin:4px 0 4px 12px;">{{ design[:400] }}{% if design|length > 400 %}...{% endif %}</p>
+      </details>
       {% endfor %}
-      <textarea id="step-{{ step.index }}" placeholder="输入你对这个环节的修改建议...">{{ saved_mods.get(step.index, '') }}</textarea>
-      <div class="btn-row">
-        <button class="btn btn-save" onclick="saveStep({{ step.index }})">💾 保存</button>
-        <button class="btn btn-clear" onclick="clearStep({{ step.index }})">🗑️ 清空</button>
+      <textarea id="step-{{ step.index }}" placeholder="输入修改建议..." style="margin-top:8px;">{{ saved_mods.get(step.index, '') }}</textarea>
+      <div style="display:flex;gap:8px;margin-top:8px;">
+        <button class="btn btn-save" onclick="saveStep({{ step.index }})">保存</button>
+        <button class="btn btn-clear" onclick="clearStep({{ step.index }})">清空</button>
       </div>
     </div>
   </div>
   {% endfor %}
 </div>
 
-<!-- ====== 修改历史 ====== -->
-{% if modifications %}
+<!-- ====== 可执行任务清单 ====== -->
 <div class="card">
-  <h3>📜 交叉审查修改记录</h3>
-  {% for mod in modifications %}
-  <div class="verdict verdict-approved">
-    <strong>[{{ mod.agent_role }}]</strong> {{ mod.target_step }}:<br>
-    {{ mod.reason }} — <em>{{ mod.content[:100] }}</em>
+  <h2>📋 可执行任务清单</h2>
+  <p style="color:var(--text3);margin-bottom:12px;">可直接传递给 AI 执行工具</p>
+  {% for task_item in task_list %}
+  <div class="task-item">
+    <span class="task-checkbox">☐</span>
+    <div style="flex:1;">
+      <strong>Task {{ task_item.id }}: {{ task_item.name }}</strong>
+      {% if task_item.is_mvp %}<span class="task-badge mvp">MVP</span>{% endif %}
+      <span class="task-badge {% if task_item.priority == '高' %}high{% else %}mid{% endif %}" style="margin-left:4px;">{{ task_item.priority }}</span>
+      <div style="font-size:0.85rem;color:var(--text3);">{{ task_item.description }}</div>
+      <div style="font-size:0.75rem;color:var(--text3);">⏱ {{ task_item.estimated_time }}</div>
+      {% if task_item.code_anchors %}
+      <div style="font-size:0.75rem;">📁 {% for a in task_item.code_anchors %}<code style="background:var(--surface2);padding:1px 6px;border-radius:3px;color:var(--text2);">{{ a }}</code> {% endfor %}</div>
+      {% endif %}
+    </div>
   </div>
   {% endfor %}
-</div>
-{% endif %}
-
-<!-- ====== 底部操作栏 ====== -->
-<div class="footer-bar">
-  <button class="btn btn-draft" onclick="saveDraft()">💾 保存草稿</button>
-  <span style="color:var(--muted); font-size:0.85rem;">所有修改暂存到本地，不会提交</span>
-  <button class="btn btn-submit" onclick="submitMods()">🚀 提交修改（Agent 审查）</button>
-</div>
-
-<!-- ====== 反馈矩阵（提交后动态填充） ====== -->
-<div id="feedback-matrix" class="feedback-matrix" style="display:none;">
-  <div class="card">
-    <h3 id="feedback-title">🔍 Agent 审查反馈</h3>
-    <div id="feedback-content"></div>
-  </div>
 </div>
 
 <!-- ====== 备选方案详情 ====== -->
 {% for scheme in schemes %}
 <div class="card">
   <details>
-    <summary><strong>方案 {{ scheme.id }}：{{ scheme.object_name }}（{{ scheme.agent_role }}）— 得分 {{ "%.2f"|format(scheme.total_score) }}</strong></summary>
-    <div class="scheme-content" style="margin-top:12px;">{{ scheme.integrated_html | safe }}</div>
+    <summary style="cursor:pointer;font-weight:700;color:var(--accent2);">
+      方案 {{ scheme.id }}: {{ scheme.object_name }} ({{ scheme.agent_role }}) — {{ "%.1f"|format(scheme.total_score) }}分
+    </summary>
+    <div style="color:var(--text2);font-size:0.9rem;line-height:1.8;margin-top:12px;">
+      {{ scheme.integrated_html | safe }}
+    </div>
   </details>
 </div>
 {% endfor %}
 
+<!-- ====== 反馈提交栏 ====== -->
+<div class="feedback-bar">
+  <button class="btn btn-save" onclick="saveDraft()">💾 保存草稿</button>
+  <span style="color:var(--text3);font-size:0.8rem;">所有修改暂存本地</span>
+  <button class="btn btn-submit" onclick="submitMods()">🚀 提交修改（Agent 审查）</button>
+</div>
+<div id="feedback-result" style="display:none;">
+  <div class="card"><div id="feedback-content"></div></div>
+</div>
+
+</div>
+
+<div class="footer">
+  Generated by <strong>Collusion v0.4.0</strong> — 多视角协作技术方案编排引擎
 </div>
 
 <script>
@@ -320,22 +465,17 @@ const STORAGE_KEY = `collusion_feedback_${TASK_ID}`;
 function getStorage() {
   try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}'); } catch { return {}; }
 }
-function setStorage(data) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
-}
+function setStorage(data) { localStorage.setItem(STORAGE_KEY, JSON.stringify(data)); }
 
 function saveStep(index) {
   const data = getStorage();
   data[index] = document.getElementById(`step-${index}`).value;
   setStorage(data);
-  alert(`步骤 ${index} 已保存。`);
 }
 
 function clearStep(index) {
   document.getElementById(`step-${index}`).value = '';
-  const data = getStorage();
-  delete data[index];
-  setStorage(data);
+  const data = getStorage(); delete data[index]; setStorage(data);
 }
 
 function saveDraft() {
@@ -345,99 +485,96 @@ function saveDraft() {
     if (el && el.value.trim()) data[i] = el.value;
   }
   setStorage(data);
-  const count = Object.keys(data).length;
-  alert(`✅ 草稿已保存（${count} 个步骤有修改）。\n修改已暂存到浏览器本地存储，下次打开此页面自动恢复。`);
+  alert(`Draft saved (${Object.keys(data).length} steps modified).`);
 }
 
 function submitMods() {
   const data = getStorage();
-  const mods = [];
+  var mods = [];
   {% for step in steps %}
   if (data[{{ step.index }}] && data[{{ step.index }}].trim()) {
     mods.push({step_name: "{{ step.name }}", suggestion: data[{{ step.index }}].trim()});
   }
   {% endfor %}
+  if (mods.length === 0) { alert('请先在展开的环节中输入修改建议。'); return; }
 
-  if (mods.length === 0) {
-    alert('请先在步骤中输入修改建议再提交。');
-    return;
+  // 复制到剪贴板
+  var text = '';
+  for (var i = 0; i < mods.length; i++) {
+    text += '步骤' + mods[i].step_name + ': ' + mods[i].suggestion + '\n';
   }
 
-  const btn = document.querySelector('.btn-submit');
-  btn.textContent = '提交中...';
-  btn.disabled = true;
+  navigator.clipboard.writeText(text).then(function() {
+    var modsHtml = '';
+    for (var i = 0; i < mods.length; i++) {
+      modsHtml += '<div style="margin:4px 0;padding:8px 12px;background:var(--surface2);border-radius:6px;font-size:0.85rem;">' +
+        '<strong>' + mods[i].step_name + '</strong>: ' + mods[i].suggestion + '</div>';
+    }
+    document.getElementById('feedback-content').innerHTML =
+      '<div style="text-align:center;padding:20px;">' +
+      '<div style="font-size:3rem;margin-bottom:8px;">✅</div>' +
+      '<h3>' + mods.length + ' 条修改已复制</h3>' +
+      '<div style="margin:12px 0;text-align:left;">' + modsHtml + '</div>' +
+      '<div style="background:var(--accent);color:#fff;border-radius:var(--radius);padding:20px;margin-top:16px;text-align:center;">' +
+      '<p style="font-size:1.05rem;margin-bottom:4px;">⬅ 切换回 Claude Code</p>' +
+      '<p style="opacity:0.85;">粘贴已复制的修改建议，我立刻让 3 个 Agent 审查</p>' +
+      '</div></div>';
 
-  fetch('http://localhost:8020/api/refine', {
-    method: 'POST',
-    headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify({task_id: TASK_ID, modifications: mods})
-  })
-  .then(r => r.json())
-  .then(result => {
-    btn.textContent = '🚀 提交修改（Agent 审查）';
-    btn.disabled = false;
-    showResultAndClose(result);
-  })
-  .catch(err => {
-    btn.textContent = '🚀 提交修改（Agent 审查）';
-    btn.disabled = false;
-    alert('提交失败: ' + err.message + '\n请确认 MCP 服务器已启动 (http://localhost:8020)');
+    document.getElementById('feedback-result').style.display = 'block';
+    document.getElementById('feedback-result').scrollIntoView({behavior:'smooth'});
+    localStorage.removeItem(STORAGE_KEY);
+  }).catch(function() {
+    alert('复制失败，请手动复制文本框中的内容后切换回 Claude Code。');
   });
 }
 
-function showResultAndClose(result) {
+function showResult(result) {
   let html = '';
   if (result.error) {
-    html += '<p style="color:var(--red);">❌ ' + escapeHtml(result.error) + '</p>';
+    html += '<p style="color:var(--red);">Error: ' + escapeHtml(result.error) + '</p>';
   } else {
     const auto = result.auto_applied || [];
     const review = result.needs_review || [];
-    html += '<div style="text-align:center;padding:16px;">';
+    html += '<div style="text-align:center;padding:24px;">';
     html += '<div style="font-size:3rem;margin-bottom:8px;">' + (auto.length > 0 ? '✅' : '⚠️') + '</div>';
-    html += '<h3>' + (auto.length > 0 ? '修改已通过审查' : '修改已提交') + '</h3>';
-    html += '<p style="color:var(--muted);">通过: ' + auto.length + ' 条 | 需审核: ' + review.length + ' 条</p>';
-    if (auto.length > 0) html += '<p style="color:var(--green);">方案文件已自动更新。</p>';
+    html += '<h3>' + (auto.length > 0 ? auto.length + ' 条修改已通过审查' : '修改已提交') + '</h3>';
+    html += '<p style="color:var(--text3);">通过: ' + auto.length + ' | 需审核: ' + review.length + '</p>';
     html += '</div>';
-
     for (const item of result.feedback_matrix || []) {
       const ok = auto.includes(item.step_name);
-      html += '<div style="margin:8px 0;padding:12px;border-radius:6px;' + (ok ? 'background:#ecfdf5;border-left:3px solid var(--green)' : 'background:#fffbeb;border-left:3px solid var(--yellow)') + '">';
-      html += (ok ? '✅' : '⚠️') + ' <strong>' + escapeHtml(item.step_name) + '</strong>: ' + escapeHtml(item.suggestion) + '<br>';
+      html += '<div style="margin:8px 0;padding:12px;border-radius:var(--radius-sm);' + (ok ? 'background:var(--green-bg);border-left:3px solid var(--green)' : 'background:var(--yellow-bg);border-left:3px solid var(--yellow)') + '">';
+      html += (ok ? '✅ ' : '⚠️ ') + '<strong>' + escapeHtml(item.step_name) + '</strong>: ' + escapeHtml(item.suggestion) + '<br>';
       for (const v of item.verdicts || []) {
-        let e = v.verdict === '认可' ? '✅' : (v.verdict === '有隐患' ? '⚠️' : '💡');
-        html += '<span style="font-size:0.8rem;color:var(--muted);">' + e + ' ' + escapeHtml(v.agent) + ': ' + escapeHtml(v.reason) + '</span><br>';
+        const emoji = v.verdict === '认可' ? '✅' : (v.verdict === '有隐患' ? '⚠️' : '💡');
+        html += '<span style="font-size:0.8rem;color:var(--text3);">' + emoji + ' ' + escapeHtml(v.agent) + ': ' + escapeHtml(v.reason) + '</span><br>';
       }
       html += '</div>';
     }
-
-    html += '<div style="background:#f0f9ff;border:1px solid #bae6fd;border-radius:8px;padding:20px;margin-top:16px;">';
-    html += '<h4 style="margin:0 0 8px;">💬 在智能体中继续讨论</h4>';
-    html += '<p style="margin:0 0 12px;color:var(--muted);">关闭此页面，在智能体中输入：</p>';
-    html += '<pre style="background:#1e293b;color:#e2e8f0;padding:12px;border-radius:6px;font-size:0.9rem;cursor:pointer;margin:0;" onclick="copyCmd(this)" title="点击复制">/brainstorm-result ' + TASK_ID + '</pre>';
+    // Claude Code 指令 + 自动关闭
+    html += '<div style="background:var(--surface2);border:1px solid var(--accent);border-radius:var(--radius);padding:20px;margin-top:16px;text-align:center;">';
+    html += '<p style="margin-bottom:8px;color:var(--text2);">💬 返回 Claude Code，粘贴以下指令查看更新后的方案：</p>';
+    html += '<pre id="cmd" style="background:var(--bg);color:var(--green);padding:12px 16px;border-radius:var(--radius-sm);font-size:0.95rem;cursor:pointer;text-align:left;display:inline-block;" onclick="copyCmd()" title="点击复制">/collusion result ' + TASK_ID + '</pre>';
+    html += '<p style="color:var(--text3);font-size:0.8rem;margin-top:8px;">点击上方代码块复制指令，页面将在 3 秒后关闭</p>';
     html += '</div>';
+    setTimeout(function(){ window.close(); }, 3000);
   }
-
-  const div = document.getElementById('feedback-content');
-  div.innerHTML = html;
-  const matrix = document.getElementById('feedback-matrix');
-  matrix.style.display = 'block';
-  document.getElementById('feedback-title').textContent = '🚀 提交完成';
-  matrix.scrollIntoView({behavior: 'smooth'});
+  document.getElementById('feedback-content').innerHTML = html;
+  document.getElementById('feedback-result').style.display = 'block';
+  document.getElementById('feedback-result').scrollIntoView({behavior:'smooth'});
 }
-
-function copyCmd(el) {
-  navigator.clipboard.writeText(el.textContent).then(() => {
-    const orig = el.textContent;
-    el.textContent = '✅ 已复制！切换到智能体贴入';
-    setTimeout(() => { el.textContent = orig; }, 2000);
+function copyCmd() {
+  const el = document.getElementById('cmd');
+  navigator.clipboard.writeText(el.textContent).then(function() {
+    el.textContent = '✅ 已复制！切换到 Claude Code 粘贴执行';
+    setTimeout(function(){ el.textContent = '/collusion result ' + TASK_ID; }, 2000);
   });
 }
 
 function escapeHtml(text) {
-  return (text || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  return (text||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 }
 
-// 页面加载时恢复草稿
+// Restore drafts on load
 (function() {
   const data = getStorage();
   for (const [idx, val] of Object.entries(data)) {
@@ -446,13 +583,12 @@ function escapeHtml(text) {
   }
 })();
 
-// Mermaid 图渲染
+// Render Mermaid on load
 window.addEventListener('load', async () => {
   if (window.mermaid) {
     await mermaid.run({ querySelector: '.mermaid' });
   }
 });
 </script>
-
 </body>
 </html>
