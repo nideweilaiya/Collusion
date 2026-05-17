@@ -211,11 +211,18 @@ textarea {
 @media (max-width:768px) {
   .top3-grid { grid-template-columns:1fr; }
   .hero .meta { flex-direction:column; gap:8px; }
+  .hero h1 { font-size:1.4rem; }
+  .container { padding:12px; }
+  .card { padding:16px; }
 }
 @media print {
-  body { background:#fff; color:#000; }
-  .card { box-shadow:none; border:1px solid #ddd; }
-  textarea,.feedback-bar { display:none; }
+  body { background:#fff; color:#111; }
+  .hero { background:#f0f0f0; color:#111; }
+  .card { box-shadow:none; border:1px solid #ccc; background:#fff; }
+  .card h2 { color:#333; border-color:#ccc; }
+  textarea,.feedback-bar,#feedback-result { display:none; }
+  .winner { border-color:#999; }
+  .winner::before { display:none; }
 }
 </style>
 <script type="module">

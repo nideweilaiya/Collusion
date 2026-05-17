@@ -1,0 +1,71 @@
+# Collusion Agent 角色配置文件
+# 复制为 collusion_roles.yaml 后自定义
+# 路径: ~/.collusion/roles.yaml 或 项目根目录
+
+# ---- 自定义角色 ----
+roles:
+  # 内置角色（可覆盖 focus 和 model）
+  # business_value, architecture, security 已内置，无需重复定义
+
+  # 扩展角色（默认未启用，通过 presets 或 auto_detect 激活）
+  - id: cost_optimizer
+    name: 成本优化师
+    focus: 云资源成本、许可费用、运维人力成本、第三方服务费用
+    model: flash
+    enabled: false
+
+  - id: frontend_expert
+    name: 前端专家
+    focus: 组件架构、状态管理、渲染性能、打包优化、浏览器兼容性
+    model: flash
+    enabled: false
+
+  - id: data_engineer
+    name: 数据工程师
+    focus: 数据管道设计、ETL流程、数据仓库选型、数据质量管理
+    model: flash
+    enabled: false
+
+  - id: devops_advisor
+    name: DevOps顾问
+    focus: CI/CD流水线、容器化部署、监控告警、基础设施即代码
+    model: flash
+    enabled: false
+
+# ---- 预设模式 ----
+presets:
+  quick:
+    agents: 1
+    roles: [business_value]
+
+  standard:
+    agents: 3
+    roles: [business_value, architecture, security]
+
+  full:
+    agents: 5
+    roles: [business_value, architecture, security, cost_optimizer, devops_advisor]
+
+# ---- 自动检测 ----
+auto_detect:
+  enabled: true
+  rules:
+    - keywords: [高并发, 性能, 扩展, cache, 缓存, qps]
+      add_roles: [architecture]
+      boost_complexity: 1
+
+    - keywords: [安全, 加密, 认证, auth, 合规, gdpr, 权限]
+      add_roles: [security]
+      boost_complexity: 1
+
+    - keywords: [前端, ui, 页面, 组件, react, vue, 交互]
+      add_roles: [frontend_expert]
+
+    - keywords: [数据, data, etl, 仓库, pipeline, 分析]
+      add_roles: [data_engineer]
+
+    - keywords: [部署, deploy, docker, k8s, ci/cd, 运维]
+      add_roles: [devops_advisor]
+
+    - keywords: [成本, 省钱, 预算, 优化, 降本]
+      add_roles: [cost_optimizer]

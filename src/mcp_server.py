@@ -69,6 +69,11 @@ async def list_tools():
                         "description": "输出格式: md(默认，仅Markdown，~800 token增量) / html(可视化报告+Markdown，~2500 token增量) / both(同html)",
                         "default": "md",
                     },
+                    "preset": {
+                        "type": "string",
+                        "description": "Agent配置: auto(自动检测)/quick(1Agent)/standard(3Agent)/full(5Agent)",
+                        "default": "auto",
+                    },
                 },
                 "required": ["task"],
             },
@@ -463,6 +468,14 @@ async def call_tool(name: str, arguments: dict):
         task = arguments["task"]
         agents = arguments.get("agents", 3)
         fmt = arguments.get("format", "md")
+        preset = arguments.get("preset", "auto")
+
+        # 动态检测 Agent 配置
+        if preset == "auto":
+            role_ids, detected_count, _ = _orchestrator.detect_agents_for_task(task)
+            if agents == 3:  # 用户未显式指定时使用检测结果
+                agents = detected_count
+
         _orchestrator.num_agents = agents
 
         # 预生成 task_id，立即注册状态（避免轮询时找不到）

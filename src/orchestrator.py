@@ -17,6 +17,7 @@ from src.llm.deepseek import DeepSeekAdapter
 from src.agents import OrchestratorAgent
 from src.scorer import Scorer
 from src.prompts import SYSTEM_DECOMPOSE
+from src.role_config import role_manager
 
 DEFAULT_AGENT_ROLES = [
     AgentRole.UX,          # → 业务价值对象
@@ -135,7 +136,31 @@ class BrainstormOrchestrator:
 
     # ==================== 公共 API ====================
 
-    def orchestrate(self, task: str, task_id: str = None, output_format: str = "md") -> str:
+    def detect_agents_for_task(self, task: str, preset: str = "auto") -> tuple:
+        """根据任务自动检测需要的 Agent 配置
+
+        Args:
+            task: 任务描述
+            preset: 预设模式 — auto(自动检测)/quick/standard/full
+
+        Returns:
+            (role_ids, agent_count, complexity_level)
+        """
+        if preset == "auto":
+            role_ids, complexity = role_manager.detect(task, "standard")
+            count = role_manager.get_agent_count(role_ids)
+        elif preset in role_manager.presets:
+            pc = role_manager.presets[preset]
+            role_ids = pc.roles
+            count = pc.agents
+            complexity = 0
+        else:
+            role_ids, count, complexity = ["business_value", "architecture", "security"], 3, 0
+
+        return role_ids, count, complexity
+
+    def orchestrate(self, task: str, task_id: str = None, output_format: str = "md",
+                    preset: str = "auto") -> str:
         """主入口：执行完整编排
 
         Args:
