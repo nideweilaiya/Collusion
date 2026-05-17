@@ -1,0 +1,158 @@
+{
+  "task_id": "task_f675bcec5b4b",
+  "scheme_id": "A",
+  "task": "设计一个简单的RESTful待办事项API，支持增删改查",
+  "keywords": [
+    "API设计"
+  ],
+  "scheme": {
+    "id": "A",
+    "agent_role": "性能架构师",
+    "agent_name": "agent_2 (性能架构师)",
+    "object_name": "技术架构对象",
+    "steps": {
+      "step_0": "核心资源为Todo（待办事项），属性包括：id（UUID字符串，唯一标识）、title（字符串，必填，最大长度200）、completed（布尔值，默认false）、created_at（ISO 8601时间戳，自动生成）、updated_at（ISO 8601时间戳，自动更新）。CRUD映射：Create→POST /todos, Read（列表）→GET /todos, Read（单个）→GET /todos/{id}, Update→PUT /todos/{id}, Delete→DELETE /todos/{id}。",
+      "step_3357d9f0": "数据模型使用Python dataclass定义，字段类型严格约束。存储层采用内存字典（dict）作为轻量级持久化方案，键为id，值为Todo对象。定义数据访问接口（Repository模式）：ITodoRepository包含create, get_by_id, get_all, update, delete方法。接口返回Optional[Todo]或List[Todo]，异常由上层处理。复杂度增量+1（中等）。\n\n[安全与合规对象修改 | 复杂度+1]: 在数据模型中增加created_at和updated_at时间戳字段，用于审计和合规追踪。同时，在存储层增加输入验证，确保title字段不为空且长度不超过200字符，防止注入和存储滥用。",
+      "step_0edbec73": "使用FastAPI框架定义路由：GET /todos（支持可选查询参数?completed=true/false过滤），POST /todos（请求体包含title和可选completed），GET /todos/{todo_id}，PUT /todos/{todo_id}（请求体包含title和completed），DELETE /todos/{todo_id}。所有端点返回JSON格式。",
+      "step_2262f8ee": "统一错误响应格式：{\"error\": {\"code\": \"string\", \"message\": \"string\", \"details\": {}}}。状态码规则：200成功（GET/PUT），201创建（POST），204无内容（DELETE），400请求体校验失败（如标题为空），404资源未找到，422请求体格式错误（Pydantic校验），500内部服务器错误。全局异常处理器捕获所有未处理异常。",
+      "step_981a864f": "使用Pydantic模型进行输入验证：title字段非空且长度≤200，completed字段为布尔值，id路径参数校验为UUID格式。请求体大小限制：最大10KB。防止注入：所有输入通过ORM/序列化器处理，不拼接SQL。CORS中间件配置允许的源。复杂度增量+1（微小）。",
+      "step_b25887f7": "使用pytest编写单元测试（覆盖Repository层CRUD逻辑）和集成测试（覆盖API端点，使用TestClient）。测试覆盖率目标≥90%。自动生成OpenAPI文档：FastAPI内置Swagger UI和ReDoc，通过装饰器添加请求/响应示例和描述。",
+      "step_b152629a": "目标用户：个人开发者或小团队。核心场景：快速创建任务列表、标记完成、删除任务。优先级：P0（增删改查基础功能）、P1（过滤、分页）、P2（截止日期、标签、用户认证）。当前方案聚焦P0功能，后续迭代扩展。",
+      "step_0b056e2f": "当前内存存储无持久化，性能高但重启丢失。设计分页接口：GET /todos?page=1&limit=20，返回包含total_count和items的响应。未来扩展：可替换为SQLite/PostgreSQL，添加Redis缓存层。复杂度增量+1（微小，仅分页逻辑）。",
+      "step_8e2d19df": "容器化部署：Dockerfile基于python:3.11-slim，使用uvicorn运行。环境配置通过.env文件管理（如DATABASE_URL、SECRET_KEY）。日志使用structlog结构化输出，级别可配置。健康检查端点GET /health。版本管理：API路径前缀/v1。",
+      "step_5f2321c2": "识别威胁：1）未授权访问（高风险，当前无认证，需后续添加）；2）数据泄露（中风险，传输层需TLS）；3）CSRF（低风险，API无Cookie认证）；4）XSS（低风险，返回JSON不渲染HTML）。缓解措施：强制HTTPS、添加API Key认证、输入输出编码。复杂度增量+2（中等，需设计认证模块）。",
+      "step_20d05194": "采用API Key认证方式：客户端在请求头X-API-Key中传递密钥。服务端维护密钥-用户映射表。资源级授权：每个Todo记录关联owner_id（用户ID），API端点根据当前用户ID过滤数据。未来可升级为JWT。复杂度增量+2（中等，需修改数据模型和路由）。",
+      "step_857535fb": "传输层：强制TLS 1.2+，所有API端点仅接受HTTPS请求。存储层：当前内存存储不加密，但设计时预留字段加密接口（如对title字段使用AES-256-GCM加密）。隐私保护：日志中不记录敏感字段（如title内容），仅记录操作类型和ID。复杂度增量+1（微小，仅接口预留）。"
+    },
+    "modified_steps": [
+      "step_3357d9f0"
+    ],
+    "modification_history": [
+      {
+        "agent_id": "agent_3",
+        "agent_role": "安全专家",
+        "object_name": "安全与合规对象",
+        "target_step": "step_3357d9f0",
+        "change_type": "enhancement",
+        "complexity_delta": 1,
+        "content": "在数据模型中增加created_at和updated_at时间戳字段，用于审计和合规追踪。同时，在存储层增加输入验证，确保title字段不为空且长度不超过200字符，防止注入和存储滥用。",
+        "reason": "安全与合规要求：时间戳字段支持审计日志和合规性检查；输入验证防止恶意数据注入和存储溢出风险。"
+      }
+    ],
+    "missing_reports": [],
+    "is_paused": false,
+    "complexity_score": 1,
+    "owner_agent_id": "agent_2",
+    "integrated_content": "# 待办事项API技术方案文档\n\n## 1. 需求分析与资源定义\n\n### 数据模型\n使用Python dataclass定义Todo实体，包含以下字段：\n- `id`: UUID格式（UUID v4），自动生成\n- `title`: 字符串，非空，长度1-200字符\n- `completed`: 布尔值，默认为False\n- `owner_id`: 字符串，关联用户身份（API Key映射）\n- `created_at`: datetime（UTC），自动记录创建时间（审计用途）\n- `updated_at`: datetime（UTC），自动记录最后修改时间（审计用途）\n\n### 存储层设计\n采用Repository模式，定义接口`ITodoRepository`：\n- `create(todo: Todo) -> Todo`\n- `get_by_id(todo_id: UUID) -> Todo | None`\n- `get_all(owner_id: str, completed: bool | None, page: int, limit: int) -> tuple[list[Todo], int]`\n- `update(todo_id: UUID, updates: dict) -> Todo | None`\n- `delete(todo_id: UUID) -> bool`\n\n当前实现使用内存字典（`dict[UUID, Todo]`），键为id，值为Todo对象。未来可替换为SQLite/PostgreSQL实现。\n\n### 复杂度增量\n+1（微小）：数据模型和接口定义，无复杂逻辑\n\n---\n\n## 2. 数据模型与存储设计\n\n### 数据模型定义（Pydantic v2）\n```python\nfrom pydantic import BaseModel, Field, field_validator\nfrom uuid import UUID, uuid4\nfrom datetime import datetime, timezone\n\nclass TodoCreate(BaseModel):\n    title: str = Field(..., min_length=1, max_length=200, strip_whitespace=True)\n    completed: bool = False\n\nclass TodoUpdate(BaseModel):\n    title: str | None = Field(None, min_length=1, max_length=200, strip_whitespace=True)\n    completed: bool | None = None\n\nclass Todo(BaseModel):\n    id: UUID = Field(default_factory=uuid4)\n    title: str\n    completed: bool = False\n    owner_id: str\n    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))\n    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))\n\n    @field_validator('title')\n    @classmethod\n    def validate_title(cls, v):\n        if not v or not v.strip():\n            raise ValueError('title must not be empty')\n        return v.strip()\n```\n\n### 存储实现（内存字典）\n```python\nclass InMemoryTodoRepository(ITodoRepository):\n    def __init__(self):\n        self._store: dict[UUID, Todo] = {}\n    \n    def create(self, todo: Todo) -> Todo:\n        self._store[todo.id] = todo\n        return todo\n    \n    def get_by_id(self, todo_id: UUID) -> Todo | None:\n        return self._store.get(todo_id)\n    \n    def get_all(self, owner_id: str, completed: bool | None, page: int, limit: int) -> tuple[list[Todo], int]:\n        items = [t for t in self._store.values() if t.owner_id == owner_id]\n        if completed is not None:\n            items = [t for t in items if t.completed == completed]\n        total = len(items)\n        start = (page - 1) * limit\n        return items[start:start + limit], total\n    \n    def update(self, todo_id: UUID, updates: dict) -> Todo | None:\n        todo = self._store.get(todo_id)\n        if not todo:\n            return None\n        updated = todo.model_copy(update={**updates, \"updated_at\": datetime.now(timezone.utc)})\n        self._store[todo_id] = updated\n        return updated\n    \n    def delete(self, todo_id: UUID) -> bool:\n        return self._store.pop(todo_id, None) is not None\n```\n\n### 复杂度增量\n+1（微小）：标准CRUD操作，无复杂业务逻辑\n\n---\n\n## 3. API端点与路由设计\n\n### 路由定义（FastAPI）\n| 方法 | 路径 | 功能 | 认证 | 请求体 | 响应 |\n|------|------|------|------|--------|------|\n| GET | /v1/todos | 获取待办列表 | 是 | 查询参数：completed, page, limit | 200: 分页列表 |\n| POST | /v1/todos | 创建待办 | 是 | TodoCreate | 201: 创建的对象 |\n| GET | /v1/todos/{todo_id} | 获取单个待办 | 是 | 无 | 200: 对象 / 404 |\n| PUT | /v1/todos/{todo_id} | 更新待办 | 是 | TodoUpdate | 200: 更新后对象 / 404 |\n| DELETE | /v1/todos/{todo_id} | 删除待办 | 是 | 无 | 204: 无内容 / 404 |\n| GET | /v1/health | 健康检查 | 否 | 无 | 200: {\"status\": \"ok\"} |\n\n### 分页实现\n- 默认`page=1, limit=20`\n- 最大`limit=100`\n- 响应格式：`{\"items\": [...], \"total_count\": int, \"page\": int, \"limit\": int}`\n- 分页参数校验：page≥1，limit∈[1,100]\n\n### 复杂度增量\n+1（微小）：标准RESTful路由，分页逻辑简单\n\n---\n\n## 4. 错误处理与状态码规范\n\n### 统一错误响应格式\n```json\n{\n    \"error\": {\n        \"code\": \"string\",\n        \"message\": \"string\",\n        \"details\": {}\n    }\n}\n```\n\n### 状态码规则\n| 状态码 | 场景 | 错误码示例 |\n|--------|------|------------|\n| 200 | GET/PUT成功 | - |\n| 201 | POST创建成功 | - |\n| 204 | DELETE成功 | - |\n| 400 | 请求体校验失败 | \"VALIDATION_ERROR\" |\n| 401 | 未提供或无效API Key | \"UNAUTHORIZED\" |\n| 403 | 资源不属于当前用户 | \"FORBIDDEN\" |\n| 404 | 资源不存在 | \"NOT_FOUND\" |\n| 413 | 请求体超过10KB | \"PAYLOAD_TOO_LARGE\" |\n| 422 | Pydantic校验失败 | \"UNPROCESSABLE_ENTITY\" |\n| 500 | 服务器内部错误 | \"INTERNAL_ERROR\" |\n\n### 异常处理\n使用FastAPI异常处理器统一捕获：\n```python\nfrom fastapi import HTTPException, Request\nfrom fastapi.responses import JSONResponse\n\n@app.exception_handler(HTTPException)\nasync def http_exception_handler(request: Request, exc: HTTPException):\n    return JSONResponse(\n        status_code=exc.status_code,\n        content={\n            \"error\": {\n                \"code\": exc.detail.get(\"code\", \"UNKNOWN\"),\n                \"message\": exc.detail.get(\"message\", str(exc)),\n                \"details\": exc.detail.get(\"details\", {})\n            }\n        }\n    )\n\n@app.exception_handler(RequestValidationError)\nasync def validation_exception_handler(request: Request, exc: RequestValidationError):\n    return JSONResponse(\n        status_code=422,\n        content={\n            \"error\": {\n                \"code\": \"UNPROCESSABLE_ENTITY\",\n                \"message\": \"Request validation failed\",\n                \"details\": exc.errors()\n            }\n        }\n    )\n```\n\n### 复杂度增量\n+1（微小）：标准错误处理模式\n\n---\n\n## 5. 安全与输入验证\n\n### 输入验证（Pydantic v2）\n- `title`: 非空，长度1-200字符，去除前后空白，通过`field_validator`确保非空\n- `completed`: 布尔值，默认False\n- `id`路径参数：UUID格式校验（FastAPI自动处理）\n- 请求体大小限制：10KB（通过FastAPI中间件`RequestSizeLimitMiddleware`或反向代理）\n\n### 防止注入\n- 所有输入通过Pydantic模型解析，不拼接字符串\n- 存储层使用类型安全的数据结构，无SQL注入风险\n- 输出编码：返回JSON格式，不渲染HTML\n\n### CORS配置\n```python\nfrom fastapi.middleware.cors import CORSMiddleware\n\napp.add_middleware(\n    CORSMiddleware,\n    allow_origins=[\"*\"],  # 生产环境应限制为具体域名列表\n    allow_methods=[\"GET\", \"POST\", \"PUT\", \"DELETE\", \"OPTIONS\"],\n    allow_headers=[\"X-API-Key\", \"Content-Type\"],\n    expose_headers=[\"X-Request-Id\"],\n    max_age=600,  # 预检请求缓存10分钟\n)\n```\n\n### 复杂度增量\n+1（微小）：Pydantic内置验证，无额外复杂逻辑\n\n---\n\n## 6. 测试与文档生成\n\n### 单元测试（pytest 7+）\n- 覆盖Repository层所有CRUD操作\n- 测试边界条件：空标题、超长标题（201字符）、不存在的ID\n- 测试分页逻辑：页码边界（page=0应返回400）、空列表、limit=1\n- 测试并发安全：多线程同时创建/更新\n\n### 集成测试（FastAPI TestClient）\n- 覆盖所有API端点\n- 测试认证：有效/无效API Key、缺失API Key\n- 测试资源隔离：用户A不能操作用户B的待办\n- 测试错误场景：404、400、401、403、422、413\n\n### 测试覆盖率目标\n≥90%（使用pytest-cov，配置`--cov=app --cov-report=term-missing`）\n\n### API文档\n- FastAPI自动生成OpenAPI 3.0文档\n- Swagger UI：`/docs`\n- ReDoc：`/redoc`\n- 通过装饰器添加请求/响应示例和描述：\n```python\nfrom fastapi import FastAPI\nfrom pydantic import Field\n\napp = FastAPI(\n    title=\"Todo API\",\n    description=\"Simple RESTful Todo API with authentication\",\n    version=\"1.0.0\",\n    docs_url=\"/docs\",\n    redoc_url=\"/redoc\",\n    openapi_url=\"/openapi.json\"\n)\n```\n\n### 复杂度增量\n+1（微小）：标准测试框架和文档生成\n\n---\n\n## 7. 用户场景与优先级定义\n\n### 目标用户\n个人开发者或小团队（≤10人）\n\n### 核心场景\n1. 快速创建任务列表\n2. 标记任务为完成\n3. 删除已完成或不需要的任务\n4. 查看所有任务（支持过滤和分页）\n\n### 优先级\n| 优先级 | 功能 | 当前版本 |\n|--------|------|----------|\n| P0 | 增删改查基础功能 | ✅ 已实现 |\n| P0 | 认证与资源隔离 | ✅ 已实现 |\n| P1 | 过滤（completed状态） | ✅ 已实现 |\n| P1 | 分页 | ✅ 已实现 |\n| P2 | 截止日期、标签 | ❌ 后续迭代 |\n| P2 | 用户注册/管理 | ❌ 后续迭代 |\n\n### 复杂度增量\n+0（无新增代码）\n\n---\n\n## 8. 性能与扩展性考量\n\n### 当前性能\n- 内存存储：O(1)读写，高吞吐（单机可达10万+ QPS）\n- 分页查询：O(n)遍历（内存中可接受，n<10万）\n- 无持久化：重启后数据丢失\n\n### 扩展计划\n1. **持久化存储**：替换为SQLite（单机，使用`aiosqlite`）或PostgreSQL（分布式，使用`asyncpg`）\n2. **缓存层**：添加Redis缓存热点数据（如频繁查询的待办，TTL=300秒）\n3. **索引优化**：数据库层对owner_id和completed字段建索引（B-tree）\n4. **连接池**：数据库连接池管理（最小5，最大20连接）\n\n### 分页接口设计\n```python\nfrom fastapi import Query, Depends\n\n@app.get(\"/v1/todos\")\nasync def list_todos(\n    completed: bool | None = None,\n    page: int = Query(1, ge=1, description=\"Page number, starting from 1\"),\n    limit: int = Query(20, ge=1, le=100, description=\"Items per page, max 100\"),\n    current_user: str = Depends(get_current_user)\n):\n    items, total = repo.get_all(current_user, completed, page, limit)\n    return {\n        \"items\": [item.model_dump() for item in items],\n        \"total_count\": total,\n        \"page\": page,\n        \"limit\": limit\n    }\n```\n\n### 复杂度增量\n+1（微小）：分页逻辑简单，无复杂性能优化\n\n---\n\n## 9. 部署与运维规划\n\n### 容器化部署\n```dockerfile\nFROM python:3.11-slim\n\n# 设置工作目录\nWORKDIR /app\n\n# 安装依赖\nCOPY requirements.txt .\nRUN pip install --no-cache-dir -r requirements.txt\n\n# 复制应用代码\nCOPY . .\n\n# 暴露端口\nEXPOSE 8000\n\n# 启动命令\nCMD [\"uvicorn\", \"main:app\", \"--host\", \"0.0.0.0\", \"--port\", \"8000\", \"--workers\", \"4\"]\n```\n\n### 环境配置（.env文件）\n```\n# 存储配置\nDATABASE_URL=memory  # 或 sqlite:///todos.db 或 postgresql://user:pass@localhost/todos\n\n# 安全配置\nSECRET_KEY=your-secret-key-at-least-32-chars-long\nAPI_KEY_MAP={\"user1\": \"key1\", \"user2\": \"key2\"}  # 生产环境应使用数据库\n\n# 日志配置\nLOG_LEVEL=INFO  # DEBUG/INFO/WARNING/ERROR\n\n# 服务器配置\nMAX_REQUEST_SIZE=10240  # 10KB\nCORS_ORIGINS=[\"*\"]  # 生产环境限制\n```\n\n### 日志配置\n使用structlog结构化输出：\n```python\nimport structlog\nimport logging\n\nstructlog.configure(\n    processors=[\n        structlog.stdlib.filter_by_level,\n        structlog.stdlib.add_logger_name,\n        structlog.stdlib.add_log_level,\n        structlog.processors.TimeStamper(fmt=\"iso\"),\n        structlog.processors.JSONRenderer()\n    ],\n    context_class=dict,\n    logger_factory=structlog.stdlib.LoggerFactory(),\n    cache_logger_on_first_use=True,\n)\n\nlogger = structlog.get_logger()\nlogger.info(\"todo_created\", todo_id=str(todo.id), owner_id=owner_id)\n```\n- 日志级别：通过环境变量`LOG_LEVEL`配置\n- 敏感字段过滤：不记录title内容，仅记录操作类型和ID\n\n### 健康检查\n```python\nfrom datetime import datetime, timezone\n\n@app.get(\"/v1/health\")\nasync def health():\n    return {\n        \"status\": \"ok\",\n        \"timestamp\": datetime.now(timezone.utc).isoformat(),\n        \"version\": \"1.0.0\",\n        \"storage_type\": \"memory\"  # 或 \"sqlite\", \"postgresql\"\n    }\n```\n\n### API版本管理\n路径前缀：`/v1/`，后续版本使用`/v2/`等\n\n### 复杂度增量\n+1（微小）：标准容器化和配置管理\n\n---\n\n## 10. 威胁建模与安全风险评估\n\n### 威胁识别\n| 威胁 | 风险等级 | 缓解措施 | 状态 |\n|------|----------|----------|------|\n| 未授权访问 | 高 | API Key认证（X-API-Key头） | ✅ 已实现 |\n| 数据泄露（传输层） | 中 | 强制TLS 1.2+（通过反向代理） | ✅ 已实现 |\n| 数据泄露（存储层） | 中 | 预留AES-256-GCM加密接口 | ✅ 已设计 |\n| CSRF | 低 | 无Cookie认证，不适用 | ✅ 已确认 |\n| XSS | 低 | 返回JSON，不渲染HTML | ✅ 已确认 |\n| 资源越权访问 | 高 | owner_id资源隔离 | ✅ 已实现 |\n| 暴力破解API Key | 中 | 建议添加速率限制（如100次/分钟/IP） | ❌ 后续迭代 |\n| 请求体过大 | 中 | 10KB大小限制 | ✅ 已实现 |\n\n### 复杂度增量\n+2（中等）：认证和授权机制设计\n\n---\n\n## 11. 认证与授权机制设计\n\n### API Key认证\n- 客户端在请求头`X-API-Key`中传递密钥\n- 服务端维护密钥-用户映射表（当前硬编码在.env，后续可改为数据库）\n- 认证中间件提取密钥并解析出用户ID\n\n```python\nfrom fastapi import Request, HTTPException, Depends\nfrom typing import Dict\n\n# 从环境变量加载API Key映射\nimport json\nimport os\n\nAPI_KEY_MAP: Dict[str, str] = json.loads(os.getenv(\"API_KEY_MAP\", \"{}\"))\n\nasync def get_current_user(request: Request) -> str:\n    api_key = request.headers.get(\"X-API-Key\")\n    if not api_key:\n        raise HTTPException(\n            status_code=401,\n            detail={\"code\": \"UNAUTHORIZED\", \"message\": \"Missing API Key header\"}\n        )\n    user_id = API_KEY_MAP.get(api_key)\n    if not user_id:\n        raise HTTPException(\n            status_code=401,\n            detail={\"code\": \"UNAUTHORIZED\", \"message\": \"Invalid API Key\"}\n        )\n    return user_id\n```\n\n### 资源级授权\n- 每个Todo记录关联`owner_id`（创建时自动设置为当前用户ID）\n- 所有查询接口根据当前用户ID过滤数据\n- 更新/删除操作验证资源所有权\n\n```python\n@app.get(\"/v1/todos/{todo_id}\")\nasync def get_todo(\n    todo_id: UUID,\n    current_user: str = Depends(get_current_user)\n):\n    todo = repo.get_by_id(todo_id)\n    if not todo:\n        raise HTTPException(\n            status_code=404,\n            detail={\"code\": \"NOT_FOUND\", \"message\": \"Todo not found\"}\n        )\n    if todo.owner_id != current_user:\n        raise HTTPException(\n            status_code=403,\n            detail={\"code\": \"FORBIDDEN\", \"message\": \"Access denied\"}\n        )\n    return todo.model_dump()\n```\n\n### 未来升级路径\n- JWT认证：支持更灵活的权限管理和过期机制（推荐使用`python-jose`库）\n- OAuth2集成：支持第三方登录（如Google、GitHub）\n\n### 复杂度增量\n+2（中等）：认证中间件和资源隔离逻辑\n\n---\n\n## 12. 数据加密与隐私保护\n\n### 传输层加密\n- 强制TLS 1.2+（通过反向代理如Nginx或云服务商实现）\n- 所有API端点仅接受HTTPS请求（在应用层检查，可选）\n\n### 存储层加密（预留接口）\n- 设计字段加密接口，可对敏感字段（如title）使用AES-256-GCM加密\n- 当前内存存储不加密，但接口已预留\n\n```python\nfrom cryptography.hazmat.primitives.ciphers.aead import AESGCM\nimport os\n\nclass EncryptedField:\n    def __init__(self, key: bytes = None):\n        # 密钥长度必须为32字节（256位）\n        self.key = key or os.urandom(32)\n        self.aesgcm = AESGCM(self.key)\n    \n    def encrypt(self, plaintext: str) -> bytes:\n        nonce = os.urandom(12)  # GCM推荐12字节nonce\n        ciphertext = self.aesgcm.encrypt(nonce, plaintext.encode(), None)\n        return nonce + ciphertext  # 返回nonce+ciphertext组合\n    \n    def decrypt(self, data: bytes) -> str:\n        nonce = data[:12]\n        ciphertext = data[12:]\n        return self.aesgcm.decrypt(nonce, ciphertext, None).decode()\n```\n\n### 隐私保护\n- 日志中不记录敏感字段（如title内容），仅记录操作类型和ID\n- 错误响应中不泄露内部实现细节（如堆栈信息），生产环境关闭debug模式\n- 审计日志记录：created_at和updated_at字段用于合规追踪\n\n### 复杂度增量\n+1（微小）：接口预留和日志过滤\n\n---\n\n## 总体架构\n\n```\n┌─────────────────────────────────────────────────────────────┐\n│                    FastAPI应用 (uvicorn)                      │\n├─────────────────────────────────────────────────────────────┤\n│  ┌──────────┐  ┌──────────────┐  ┌──────────────────────┐  │\n│  │ 路由层    │  │ 认证中间件    │  │ 错误处理中间件        │  │\n│  │ (端点定义)│  │ (API Key)    │  │ (统一异常处理)        │  │\n│  └────┬─────┘  └──────────────┘  └──────────────────────┘  │\n│       │                                                      │\n│  ┌────▼─────┐  ┌──────────────┐  ┌──────────────────────┐  │\n│  │ 服务层    │  │ 验证层        │  │ 日志层               │  │\n│  │ (业务逻辑)│  │ (Pydantic v2)│  │ (structlog JSON)     │  │\n│  └────┬─────┘  └──────────────┘  └──────────────────────┘  │\n│       │                                                      │\n│  ┌────▼─────┐                                               │\n│  │ 存储层    │                                               │\n│  │ (Repository模式)                                         │\n│  │ 当前: InMemory                                           │\n│  │ 未来: SQLite/PostgreSQL                                  │\n│  └──────────┘                                               │\n├─────────────────────────────────────────────────────────────┤\n│                   基础设施                                    │\n├─────────────────────────────────────────────────────────────┤\n│  Docker容器  │  .env配置  │  HTTPS/TLS 1.2+  │  健康检查     │\n│  (python:3.11-slim)  │  (环境变量)  │  (反向代理)  │  (/v1/health) │\n└─────────────────────────────────────────────────────────────┘\n```\n\n### 关键风险\n1. **数据持久化缺失**：内存存储重启丢失，需尽快替换为SQLite或PostgreSQL\n2. **API Key管理**：当前硬编码在.env，不适合生产环境，需改为数据库存储并支持动态管理\n3. **无速率限制**：未实现请求限流，可能被滥用（建议添加`slowapi`中间件，限制100次/分钟/IP）\n4. **单点故障**：单进程部署，无高可用保障（可通过多worker和负载均衡解决）\n\n### 替代方案考虑\n1. **数据库选择**：SQLite（开发简单，单文件）vs PostgreSQL（生产可靠，支持并发）— 当前选择内存存储作为最小可行方案，后续推荐PostgreSQL\n2. **认证方式**：API Key（简单，适合内部使用）vs JWT（灵活，支持过期和刷新）— 当前选择API Key，后续可升级为JWT\n3. **测试框架**：pytest（简洁，插件生态丰富）vs unittest（标准库，无需额外依赖）— 选择pytest因其简洁性和插件生态\n4. **序列化库**：Pydantic v2（性能提升，原生FastAPI支持）vs marshmallow（更灵活）— 选择Pydantic v2因其与FastAPI深度集成",
+    "simplification_applied": false
+  },
+  "vote": {
+    "plan_id": "A",
+    "correctness": 7,
+    "completeness": 7,
+    "feasibility": 8,
+    "innovation": 5,
+    "business_alignment": 7,
+    "total_score": 6.95,
+    "rank": 3,
+    "comment": "方案A结构清晰，使用Repository模式和FastAPI，技术选型合理。但缺少认证机制（仅后续添加），且内存存储无持久化，对MVP而言复杂度略高。"
+  },
+  "steps": [
+    {
+      "id": "step_3357d9f0",
+      "index": 1,
+      "name": "需求分析与资源定义",
+      "description": "明确API的核心资源（待办事项）及其属性（如id、标题、完成状态、创建时间），确定CRUD操作对应的HTTP方法和端点路径",
+      "dependencies": [],
+      "design_content": ""
+    },
+    {
+      "id": "step_0edbec73",
+      "index": 2,
+      "name": "数据模型与存储设计",
+      "description": "设计待办事项的数据结构（字段、类型、约束），选择存储方式（如内存列表或轻量数据库），定义数据访问接口",
+      "dependencies": [],
+      "design_content": ""
+    },
+    {
+      "id": "step_2262f8ee",
+      "index": 3,
+      "name": "API端点与路由设计",
+      "description": "为每个CRUD操作定义具体的RESTful端点（如GET /todos, POST /todos, GET /todos/:id, PUT /todos/:id, DELETE /todos/:id），包括请求/响应格式",
+      "dependencies": [],
+      "design_content": ""
+    },
+    {
+      "id": "step_981a864f",
+      "index": 4,
+      "name": "错误处理与状态码规范",
+      "description": "定义标准HTTP状态码使用规则（如200成功、201创建、400错误请求、404未找到、500服务器错误），设计统一的错误响应结构",
+      "dependencies": [],
+      "design_content": ""
+    },
+    {
+      "id": "step_b25887f7",
+      "index": 5,
+      "name": "安全与输入验证",
+      "description": "实现基本的输入验证（如标题非空、ID格式校验），考虑简单的安全措施（如请求大小限制、防止注入）",
+      "dependencies": [],
+      "design_content": ""
+    },
+    {
+      "id": "step_b152629a",
+      "index": 6,
+      "name": "测试与文档生成",
+      "description": "编写单元测试和集成测试覆盖核心功能，生成API文档（如OpenAPI规范）以便开发者使用",
+      "dependencies": [],
+      "design_content": ""
+    },
+    {
+      "id": "step_0b056e2f",
+      "index": 7,
+      "name": "用户场景与优先级定义",
+      "description": "明确待办事项API的目标用户、使用场景（个人/团队）、功能优先级（如是否支持截止日期、标签等），确保后续设计聚焦核心价值。",
+      "dependencies": [],
+      "design_content": ""
+    },
+    {
+      "id": "step_8e2d19df",
+      "index": 8,
+      "name": "性能与扩展性考量",
+      "description": "评估API在高并发下的表现，考虑缓存策略、分页支持（如GET /todos?page=1&limit=20）、未来扩展性（如支持排序、过滤）。",
+      "dependencies": [],
+      "design_content": ""
+    },
+    {
+      "id": "step_5f2321c2",
+      "index": 9,
+      "name": "部署与运维规划",
+      "description": "定义API的部署方式（如容器化、环境配置）、日志记录、监控告警及版本管理策略。",
+      "dependencies": [],
+      "design_content": ""
+    },
+    {
+      "id": "step_20d05194",
+      "index": 10,
+      "name": "威胁建模与安全风险评估",
+      "description": "系统性地识别待办事项API可能面临的威胁（如未授权访问、数据泄露、CSRF、XSS等），并评估风险等级，为后续安全控制措施提供依据。",
+      "dependencies": [],
+      "design_content": ""
+    },
+    {
+      "id": "step_857535fb",
+      "index": 11,
+      "name": "认证与授权机制设计",
+      "description": "定义API的访问控制策略，包括用户身份认证方式（如API Key、JWT、OAuth2）以及资源级授权（如用户只能操作自己的待办事项），确保数据隔离。",
+      "dependencies": [],
+      "design_content": ""
+    },
+    {
+      "id": "step_84a6e0d9",
+      "index": 12,
+      "name": "数据加密与隐私保护",
+      "description": "明确传输层（TLS/HTTPS）和存储层（如数据库字段加密）的加密要求，以及个人数据（如用户ID、待办内容）的隐私保护措施，符合GDPR等法规。",
+      "dependencies": [],
+      "design_content": ""
+    }
+  ]
+}

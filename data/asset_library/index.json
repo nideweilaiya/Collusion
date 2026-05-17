@@ -1,0 +1,138 @@
+{
+  "task_de67fcea48b7_A": {
+    "task_id": "task_de67fcea48b7",
+    "scheme_id": "A",
+    "task": "设计一个简单的RESTful待办事项应用API，支持增删改查",
+    "keywords": [
+      "API设计"
+    ],
+    "object_name": "安全与合规对象",
+    "agent_role": "安全专家",
+    "total_score": 0,
+    "is_top1": false,
+    "summary": "{}",
+    "created_at": "2026-05-17T16:40:11.907058"
+  },
+  "task_de67fcea48b7_B": {
+    "task_id": "task_de67fcea48b7",
+    "scheme_id": "B",
+    "task": "设计一个简单的RESTful待办事项应用API，支持增删改查",
+    "keywords": [
+      "API设计"
+    ],
+    "object_name": "技术架构对象",
+    "agent_role": "性能架构师",
+    "total_score": 0,
+    "is_top1": false,
+    "summary": "{}",
+    "created_at": "2026-05-17T16:40:11.907058"
+  },
+  "task_de67fcea48b7_C": {
+    "task_id": "task_de67fcea48b7",
+    "scheme_id": "C",
+    "task": "设计一个简单的RESTful待办事项应用API，支持增删改查",
+    "keywords": [
+      "API设计"
+    ],
+    "object_name": "业务价值对象",
+    "agent_role": "UX/产品专家",
+    "total_score": 0,
+    "is_top1": false,
+    "summary": "{}",
+    "created_at": "2026-05-17T16:40:11.907058"
+  },
+  "task_8b825c4c4ccc_A": {
+    "task_id": "task_8b825c4c4ccc",
+    "scheme_id": "A",
+    "task": "设计一个短链接服务，要求支持自定义短码，Docker单命令部署",
+    "keywords": [
+      "部署",
+      "Docker",
+      "短链接"
+    ],
+    "object_name": "业务价值对象",
+    "agent_role": "UX/产品专家",
+    "total_score": 8.35,
+    "is_top1": true,
+    "summary": "# 短链接服务技术方案\n\n## 1. 业务需求与锚点确认\n\n### 1.1 核心需求\n- 支持用户自定义短码（4-16位字母数字，正则`^[a-zA-Z0-9]{4,16}$`）\n- 支持系统自动生成短码（6位随机字符串，使用`crypto/rand`）\n- 支持Docker单命令部署（`docker-compose up -d`）\n- 提供短链接重定向服务（301/302重定向）\n- 支持访问统计（总点击次数、最后访问时间）\n\n### 1.2 业务边界与简化锚点\n- **不包含**：用户认证系统、多租户、API密钥管理\n- **不包含**：分布式追踪、消息队列、微服务拆分\n- **不包含**：管理后台UI（仅提供RESTful API）\n- **聚焦**：核心短链接生成、重定向、基础统计\n\n## 2. 技术选型与架构设计\n\n### 2.1 技术栈\n| 组件 | 选型 | 版本 | 理由 |\n|------|------|------|------|\n| 编程语言 | Go | 1.21+ | 高性能、编译快、镜像小（最终二进制<20MB）、并发模型适合IO密集型 |\n| 缓存层 | ",
+    "created_at": "2026-05-17T17:00:28.419540"
+  },
+  "task_f675bcec5b4b_A": {
+    "task_id": "task_f675bcec5b4b",
+    "scheme_id": "A",
+    "task": "设计一个简单的RESTful待办事项API，支持增删改查",
+    "keywords": [
+      "API设计"
+    ],
+    "object_name": "技术架构对象",
+    "agent_role": "性能架构师",
+    "total_score": 6.95,
+    "is_top1": false,
+    "summary": "# 待办事项API技术方案文档\n\n## 1. 需求分析与资源定义\n\n### 数据模型\n使用Python dataclass定义Todo实体，包含以下字段：\n- `id`: UUID格式（UUID v4），自动生成\n- `title`: 字符串，非空，长度1-200字符\n- `completed`: 布尔值，默认为False\n- `owner_id`: 字符串，关联用户身份（API Key映射）\n- `created_at`: datetime（UTC），自动记录创建时间（审计用途）\n- `updated_at`: datetime（UTC），自动记录最后修改时间（审计用途）\n\n### 存储层设计\n采用Repository模式，定义接口`ITodoRepository`：\n- `create(todo: Todo) -> Todo`\n- `get_by_id(todo_id: UUID) -> Todo | None`\n- `get_all(owner_id: str, completed: bool | None, page: int, limit: int) -> tuple[lis",
+    "created_at": "2026-05-17T17:06:22.647259"
+  },
+  "task_f675bcec5b4b_B": {
+    "task_id": "task_f675bcec5b4b",
+    "scheme_id": "B",
+    "task": "设计一个简单的RESTful待办事项API，支持增删改查",
+    "keywords": [
+      "API设计"
+    ],
+    "object_name": "业务价值对象",
+    "agent_role": "UX/产品专家",
+    "total_score": 8.15,
+    "is_top1": true,
+    "summary": "# 待办事项API技术方案文档\n\n## 1. 概述\n\n本文档定义了一个简单、可用的RESTful待办事项API，面向个人开发者、小型团队及REST API初学者。核心目标是提供一个最小可行产品（MVP），支持基本的增删改查操作，同时确保安全性、可测试性和可扩展性。本方案由业务价值对象代言人整合，聚焦于用户价值与商业目标，避免过度设计。\n\n## 2. 数据模型\n\n### Todo对象\n```json\n{\n  \"id\": \"uuid-string (UUID v4格式，36字符)\",\n  \"title\": \"string (最大200字符，最小1字符)\",\n  \"completed\": \"boolean (默认false)\",\n  \"created_at\": \"string (ISO 8601格式，如2024-01-01T00:00:00Z)\"\n}\n```\n\n### 存储选择\n- **初始阶段**：使用Python内存列表（list），便于快速原型验证。最大容量建议不超过10000条记录，超出后需迁移至持久化存储。\n- **后续迁移**：存储层设计为可替换接口（定义`TodoReposit",
+    "created_at": "2026-05-17T17:06:22.648432"
+  },
+  "task_f675bcec5b4b_C": {
+    "task_id": "task_f675bcec5b4b",
+    "scheme_id": "C",
+    "task": "设计一个简单的RESTful待办事项API，支持增删改查",
+    "keywords": [
+      "API设计"
+    ],
+    "object_name": "安全与合规对象",
+    "agent_role": "安全专家",
+    "total_score": 7.35,
+    "is_top1": false,
+    "summary": "# 待办事项API技术方案文档\n\n## 1. 系统概述\n\n本方案设计一个RESTful待办事项API，支持个人用户管理日常待办事项。系统采用JWT无状态认证实现用户隔离，使用PostgreSQL 15存储数据，通过Docker Compose容器化部署。核心功能包括创建、读取、更新、删除待办事项，支持分页查询，并内置安全防护机制。API服务运行在8080端口，所有通信强制使用TLS 1.2+。\n\n## 2. 数据模型与存储设计\n\n### 2.1 数据库表结构\n\n```sql\n-- 用户表（假设已存在，此处仅作参考）\nCREATE TABLE users (\n    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),\n    username VARCHAR(50) UNIQUE NOT NULL,\n    password_hash VARCHAR(255) NOT NULL,\n    created_at TIMESTAMPTZ DEFAULT NOW()\n);\n\n-- 待办事项表\nCREATE TABLE todos (\n    id UU",
+    "created_at": "2026-05-17T17:06:22.648432"
+  },
+  "task_6befe4a08e2d_A": {
+    "task_id": "task_6befe4a08e2d",
+    "scheme_id": "A",
+    "task": "设计一个文件分享服务：用户可以上传文件并生成分享链接，链接支持过期时间和访问密码",
+    "keywords": [],
+    "object_name": "业务价值对象",
+    "agent_role": "UX/产品专家",
+    "total_score": 8.25,
+    "is_top1": false,
+    "summary": "# 文件分享服务技术方案文档\n\n## 一、方案概述\n\n本方案设计一个完整的文件分享服务，核心功能包括：用户上传文件、生成可配置的分享链接（支持过期时间和访问密码）、链接管理与监控。系统采用微服务架构，兼顾安全性、可扩展性与用户体验。\n\n---\n\n## 二、用户故事与功能流程\n\n### 2.1 用户上传与生成分享链接\n\n**流程描述：**\n1. 用户登录后，进入文件管理页面或直接通过上传入口选择文件\n2. 上传过程中显示进度条、速度与剩余时间，支持拖拽上传（带视觉反馈）\n3. 上传成功后，文件出现在文件列表中；用户也可在上传完成后立即点击“生成分享链接”\n4. 系统弹出配置面板，提供以下选项：\n   - **过期时间**：预设选项（1小时/1天/7天）或自定义日期选择器（精确到分钟，最长不超过365天）\n   - **访问密码**：可选，输入时显示密码强度指示器（弱/中/强），密码长度6-32位，支持字母、数字、特殊字符\n   - **最大访问次数**：可选，设置后链接在达到次数后自动失效（1-10000次）\n   - **IP白名单**：可选，支持CIDR格式（如192.168.1.0",
+    "created_at": "2026-05-17T18:31:10.641664"
+  },
+  "task_6befe4a08e2d_B": {
+    "task_id": "task_6befe4a08e2d",
+    "scheme_id": "B",
+    "task": "设计一个文件分享服务：用户可以上传文件并生成分享链接，链接支持过期时间和访问密码",
+    "keywords": [],
+    "object_name": "安全与合规对象",
+    "agent_role": "安全专家",
+    "total_score": 8.05,
+    "is_top1": false,
+    "summary": "# 文件分享服务技术方案文档（终审润色版）\n\n## 一、系统概述\n\n本方案设计一个安全、合规、可扩展的文件分享服务，核心功能包括：用户上传文件、生成带过期时间和访问密码的分享链接、链接管理、安全扫描与审计。系统采用微服务架构，强调数据安全、用户隐私保护和操作可追溯性。所有服务间通信使用gRPC（内部）或HTTPS（外部），默认超时设置为5秒。\n\n---\n\n## 二、用户身份与权限管理\n\n### 2.1 认证方式\n- **邮箱注册+密码登录**：密码使用bcrypt哈希存储（成本因子12），支持密码强度校验（至少8位，含大小写字母和数字，建议至少1个特殊字符）。\n- **OAuth 2.0**：支持Google和GitHub第三方登录，使用标准OAuth 2.0授权码流程，获取用户邮箱作为唯一标识。令牌有效期1小时，刷新令牌有效期7天。\n- **JWT令牌**：API请求携带JWT（RS256签名算法），有效期1小时；刷新令牌有效期7天，存储于HTTP-only Secure Cookie中，路径为`/api/auth/refresh`。\n\n### 2.2 用户角色\n- **普通用户**",
+    "created_at": "2026-05-17T18:31:10.641664"
+  },
+  "task_6befe4a08e2d_C": {
+    "task_id": "task_6befe4a08e2d",
+    "scheme_id": "C",
+    "task": "设计一个文件分享服务：用户可以上传文件并生成分享链接，链接支持过期时间和访问密码",
+    "keywords": [],
+    "object_name": "技术架构对象",
+    "agent_role": "性能架构师",
+    "total_score": 8.65,
+    "is_top1": true,
+    "summary": "# 文件分享服务技术架构方案（终审润色版）\n\n## 一、系统总体架构\n\n本方案采用微服务架构，核心组件包括：\n\n- **API Gateway**：统一入口，负责路由、限流（令牌桶算法，每秒1000请求/节点）、认证令牌校验\n- **分享服务**：核心业务逻辑，管理分享链接的生成、校验、生命周期\n- **文件服务**：处理文件上传、下载、存储管理\n- **安全扫描服务**：异步文件病毒扫描（ClamAV 0.103+，扫描超时300秒）\n- **用户服务**：身份认证与权限管理（OAuth 2.0 + JWT）\n- **审计服务**：日志收集与分析（ELK Stack 7.17+，日志保留180天）\n- **数据层**：Redis Cluster 6.2+（热数据缓存，16个分片，3副本）、分布式SQL数据库（TiDB 6.0+，元数据持久化）、对象存储（MinIO 2023+ / AWS S3，存储桶策略：私有读写）\n\n## 二、详细步骤设计\n\n### 步骤1：用户上传文件\n\n**设计内容**：\n- 用户通过API Gateway上传文件，请求携带JWT令牌（RS256签名，有效期1",
+    "created_at": "2026-05-17T18:31:10.641664"
+  }
+}

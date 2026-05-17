@@ -1,0 +1,100 @@
+{
+  "task_id": "task_de67fcea48b7",
+  "scheme_id": "C",
+  "task": "设计一个简单的RESTful待办事项应用API，支持增删改查",
+  "keywords": [
+    "API设计"
+  ],
+  "scheme": {
+    "id": "C",
+    "agent_role": "UX/产品专家",
+    "agent_name": "agent_1 (UX/产品专家)",
+    "object_name": "业务价值对象",
+    "steps": {},
+    "modified_steps": [],
+    "modification_history": [],
+    "missing_reports": [],
+    "is_paused": false,
+    "complexity_score": 0,
+    "owner_agent_id": "agent_1",
+    "integrated_content": "{}",
+    "simplification_applied": false
+  },
+  "vote": {
+    "plan_id": "C",
+    "correctness": 0.0,
+    "completeness": 0.0,
+    "feasibility": 0.0,
+    "innovation": 0.0,
+    "business_alignment": 0.0,
+    "total_score": 0,
+    "rank": 0,
+    "comment": "方案内容为空，无法评分。请检查 API Key 是否正确配置。"
+  },
+  "steps": [
+    {
+      "id": "step_8d0922a9",
+      "index": 1,
+      "name": "数据模型设计",
+      "description": "设计 Todo 数据模型，定义字段和关系",
+      "dependencies": [],
+      "design_content": ""
+    },
+    {
+      "id": "step_55017411",
+      "index": 2,
+      "name": "RESTful API 端点",
+      "description": "设计 CRUD 端点，定义请求/响应格式",
+      "dependencies": [],
+      "design_content": ""
+    },
+    {
+      "id": "step_c954eba1",
+      "index": 3,
+      "name": "数据持久化",
+      "description": "选择存储方案，SQLite 单文件或内存数据库",
+      "dependencies": [],
+      "design_content": ""
+    },
+    {
+      "id": "step_1c803511",
+      "index": 4,
+      "name": "开发者体验与入门引导",
+      "description": "提供 API 文档、SDK、快速开始指南",
+      "dependencies": [],
+      "design_content": ""
+    },
+    {
+      "id": "step_40807c7b",
+      "index": 5,
+      "name": "威胁建模与安全风险评估",
+      "description": "识别潜在威胁向量，设计安全防护措施",
+      "dependencies": [],
+      "design_content": ""
+    },
+    {
+      "id": "step_21f27e5b",
+      "index": 6,
+      "name": "全局业务价值对象基线",
+      "description": "确保所有环节满足业务价值对象的基本要求",
+      "dependencies": [],
+      "design_content": ""
+    },
+    {
+      "id": "step_756b4927",
+      "index": 7,
+      "name": "全局技术架构对象基线",
+      "description": "确保所有环节满足技术架构对象的基本要求",
+      "dependencies": [],
+      "design_content": ""
+    },
+    {
+      "id": "step_b304ec80",
+      "index": 8,
+      "name": "全局安全与合规对象基线",
+      "description": "确保所有环节满足安全与合规对象的基本要求",
+      "dependencies": [],
+      "design_content": ""
+    }
+  ]
+}

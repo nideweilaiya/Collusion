@@ -1,0 +1,93 @@
+{
+  "task_id": "task_8b825c4c4ccc",
+  "scheme_id": "A",
+  "task": "设计一个短链接服务，要求支持自定义短码，Docker单命令部署",
+  "keywords": [
+    "部署",
+    "Docker",
+    "短链接"
+  ],
+  "scheme": {
+    "id": "A",
+    "agent_role": "UX/产品专家",
+    "agent_name": "agent_1 (UX/产品专家)",
+    "object_name": "业务价值对象",
+    "steps": {
+      "step_0": "核心功能：用户可自定义短码（长度4-16字符，字母数字组合），系统生成唯一短码并支持重定向（301/302），记录访问次数、来源、时间。非功能需求：单机Docker部署，启动时间<5秒，QPS>1000，可用性99.9%。业务边界：不提供用户注册、权限管理、批量导入，仅作为轻量级工具。确认Docker单命令部署为硬性约束，所有组件必须容器化且通过docker-compose up -d一键启动。",
+      "step_140ac646": "技术栈：Go（高性能、编译快、镜像小）+ Redis（内存存储，支持TTL和原子操作）+ PostgreSQL（持久化存储短码映射和统计）。架构：单进程Go服务作为API网关和业务逻辑层，直接连接Redis（缓存热点短码）和PostgreSQL（持久化）。无额外API网关组件，减少复杂度。整体为单体服务+双存储，满足单机部署。",
+      "step_3e69d189": "短码生成：用户自定义时直接校验合法性（长度4-16，仅字母数字，正则^[a-zA-Z0-9]{4,16}$），系统生成时使用6位随机字符串（62^6≈568亿空间，碰撞概率极低）。重定向逻辑：默认301永久重定向（浏览器缓存），支持通过参数指定302临时重定向。访问统计：每次重定向时异步写入Redis队列，后台定时批量写入PostgreSQL（每10秒或每100条），减少写压力。自定义短码校验：唯一性检查（先查Redis再查PostgreSQL），保留敏感词列表（如admin, login）防止滥用。",
+      "step_66d7395a": "威胁模型：恶意用户生成指向钓鱼网站的短码、枚举攻击猜测有效短码、日志泄露真实IP。防护措施：速率限制（每个IP每分钟最多创建10个短码，使用Redis计数器）；短码随机化（系统生成的短码使用加密安全随机数）；HTTPS强制（通过反向代理或内置TLS）；日志脱敏（只记录访问时间、短码、来源域名，不记录IP和User-Agent完整值）。",
+      "step_8a0a5da8": "Dockerfile：多阶段构建，第一阶段使用golang:1.21-alpine编译，第二阶段使用scratch或alpine:3.18，仅包含二进制文件、静态资源和ca-certificates。docker-compose.yml：定义三个服务——app（Go服务，暴露8080端口）、redis（redis:7-alpine）、postgres（postgres:16-alpine，挂载持久化卷）。健康检查：app服务配置GET /health返回200，依赖redis和postgres健康。单命令：docker-compose up -d。",
+      "step_342421eb": "开发成本：Go语言团队熟悉度中高，Redis和PostgreSQL运维简单，整体开发周期约2周。简化设计：去掉分布式追踪（单机不需要）、去掉消息队列（Redis队列足够）、去掉用户认证（业务边界内不包含）。确保方案可行：所有组件在单机Docker内通信，网络延迟低，资源占用小（Go二进制<20MB，Redis和PostgreSQL各约100MB内存）。"
+    },
+    "modified_steps": [],
+    "modification_history": [],
+    "missing_reports": [],
+    "is_paused": false,
+    "complexity_score": 0,
+    "owner_agent_id": "agent_1",
+    "integrated_content": "# 短链接服务技术方案\n\n## 1. 业务需求与锚点确认\n\n### 1.1 核心需求\n- 支持用户自定义短码（4-16位字母数字，正则`^[a-zA-Z0-9]{4,16}$`）\n- 支持系统自动生成短码（6位随机字符串，使用`crypto/rand`）\n- 支持Docker单命令部署（`docker-compose up -d`）\n- 提供短链接重定向服务（301/302重定向）\n- 支持访问统计（总点击次数、最后访问时间）\n\n### 1.2 业务边界与简化锚点\n- **不包含**：用户认证系统、多租户、API密钥管理\n- **不包含**：分布式追踪、消息队列、微服务拆分\n- **不包含**：管理后台UI（仅提供RESTful API）\n- **聚焦**：核心短链接生成、重定向、基础统计\n\n## 2. 技术选型与架构设计\n\n### 2.1 技术栈\n| 组件 | 选型 | 版本 | 理由 |\n|------|------|------|------|\n| 编程语言 | Go | 1.21+ | 高性能、编译快、镜像小（最终二进制<20MB）、并发模型适合IO密集型 |\n| 缓存层 | Redis | 7-alpine | 内存存储、支持TTL自动过期、原子操作适合计数器（INCR命令） |\n| 持久化 | PostgreSQL | 15-alpine | 关系型数据库、支持JSON字段、成熟稳定、ACID事务 |\n| 容器化 | Docker + docker-compose | 3.8 | 单命令部署、依赖管理、环境一致性 |\n\n### 2.2 架构模式\n**单体应用架构**（非微服务）：\n- 单进程Go服务作为API网关和业务逻辑层，监听8080端口\n- 直接连接Redis（6379端口，缓存热点短码）和PostgreSQL（5432端口，持久化存储）\n- 无额外API网关组件，减少复杂度\n- 所有组件在单机Docker内通过内部网络通信，网络延迟<1ms\n\n### 2.3 数据流\n```\n用户 → HTTP请求 → Go服务(端口8080) → Redis(缓存查询/写入，端口6379) \n                                   → PostgreSQL(持久化存储，端口5432)\n                                   → 返回重定向响应(301/302)\n```\n\n## 3. 核心功能详细设计\n\n### 3.1 短码生成规则\n- **自定义短码**：长度4-16位，仅字母数字，正则`^[a-zA-Z0-9]{4,16}$`，不区分大小写（统一转为小写存储）\n- **系统生成短码**：6位随机字符串（62^6≈568亿空间，碰撞概率约1/568亿）\n  - 使用`crypto/rand`生成加密安全随机数，每次生成6字节随机数据，映射到62字符集（a-z, A-Z, 0-9）\n  - 生成后检查数据库唯一性（SELECT COUNT(1) WHERE short_code=?），碰撞时重新生成（最多重试3次，每次重新生成完整随机数）\n  - 若3次重试后仍碰撞，返回500错误（实际概率极低，可忽略）\n\n### 3.2 API接口设计\n\n#### POST /api/shorten\n- 请求体：`{\"url\": \"https://example.com\", \"custom_code\": \"optional\"}`\n- 响应：`{\"short_code\": \"abc123\", \"original_url\": \"https://example.com\"}`\n- 速率限制：每个IP每分钟最多10次创建（Redis计数器实现，key格式`rate_limit:{ip}:{分钟时间戳}`，TTL 60秒）\n- 校验：URL必须为http/https开头，长度不超过2048字符；custom_code若提供，需通过正则校验且未占用\n\n#### GET /{short_code}\n- 行为：301永久重定向（默认），支持`?redirect_type=302`参数（值为\"302\"时使用302临时重定向）\n- 缓存：Redis缓存热点短码（TTL 1小时=3600秒），key格式`shortlink:{short_code}`，value为原始URL\n- 统计：异步写入Redis队列（key格式`stats_queue`，使用LPUSH），每10秒或队列长度达100时批量写入PostgreSQL（使用事务）\n\n#### GET /api/stats/{short_code}\n- 响应：`{\"short_code\": \"abc123\", \"total_clicks\": 100, \"last_accessed\": \"2024-01-01T00:00:00Z\"}`\n- 数据来源：PostgreSQL表`click_stats`，字段：short_code VARCHAR(16), total_clicks BIGINT, last_accessed TIMESTAMP\n\n### 3.3 重定向逻辑（伪代码）\n```go\nfunc redirectHandler(w http.ResponseWriter, r *http.Request) {\n    code := extractShortCode(r.URL.Path) // 提取路径中的短码，如/abc123 → \"abc123\"\n    \n    // 1. 查询Redis缓存\n    url, err := redis.Get(\"shortlink:\" + code)\n    if err == nil {\n        go recordStatsAsync(code, r) // 异步记录统计\n        http.Redirect(w, r, url, getRedirectType(r))\n        return\n    }\n    \n    // 2. 查询PostgreSQL\n    url, err = db.GetOriginalURL(code) // SELECT original_url FROM shortlinks WHERE short_code=$1\n    if err != nil {\n        http.NotFound(w, r) // 返回404\n        return\n    }\n    \n    // 3. 写入Redis缓存（TTL 3600秒）\n    redis.Set(\"shortlink:\"+code, url, 3600*time.Second)\n    \n    // 4. 异步记录访问统计\n    go recordStatsAsync(code, r)\n    \n    http.Redirect(w, r, url, getRedirectType(r))\n}\n\nfunc getRedirectType(r *http.Request) int {\n    if r.URL.Query().Get(\"redirect_type\") == \"302\" {\n        return http.StatusFound // 302\n    }\n    return http.StatusMovedPermanently // 301\n}\n\nfunc recordStatsAsync(code string, r *http.Request) {\n    // 使用Redis LPUSH将统计事件推入队列\n    event := fmt.Sprintf(`{\"short_code\":\"%s\",\"timestamp\":\"%s\"}`, code, time.Now().UTC().Format(time.RFC3339))\n    redis.LPush(\"stats_queue\", event)\n}\n```\n\n## 4. 安全与合规设计\n\n### 4.1 威胁模型与防护\n| 威胁 | 防护措施 | 具体参数 |\n|------|----------|----------|\n| 恶意短码指向钓鱼网站 | 创建时URL格式校验（必须http/https开头）、可选黑名单检查（配置项`blocked_domains`，默认空列表） | 校验正则：`^(http\\|https)://` |\n| 枚举攻击猜测有效短码 | 系统生成短码使用加密安全随机数、速率限制（每个IP每分钟10次创建） | 随机数使用`crypto/rand`，速率限制窗口60秒 |\n| 日志泄露真实IP | 日志脱敏（只记录访问时间、短码、来源域名，不记录IP和User-Agent） | 日志格式：`[2024-01-01T00:00:00Z] GET /abc123 → 301 from example.com` |\n| Redis/PostgreSQL未授权访问 | Docker内部网络隔离、仅内部端口暴露（不映射到宿主机） | docker-compose中不暴露6379和5432端口 |\n\n### 4.2 数据保护\n- 短码映射数据：PostgreSQL表`shortlinks`存储，字段：id SERIAL, short_code VARCHAR(16) UNIQUE, original_url TEXT, created_at TIMESTAMP DEFAULT NOW()\n- 访问统计：表`click_stats`存储，字段：id SERIAL, short_code VARCHAR(16), click_count BIGINT DEFAULT 0, last_accessed TIMESTAMP\n- 数据保留：访问统计保留30天，通过定时任务（每天凌晨3点执行）清理`click_stats`中last_accessed < NOW() - INTERVAL '30 days'的数据\n- 敏感信息：不记录用户IP、User-Agent等隐私数据，仅记录短码和访问时间\n\n## 5. Docker化与部署方案\n\n### 5.1 Dockerfile（多阶段构建）\n```dockerfile\n# 构建阶段\nFROM golang:1.21-alpine AS builder\nWORKDIR /app\nCOPY go.mod go.sum ./\nRUN go mod download\nCOPY . .\nRUN CGO_ENABLED=0 GOOS=linux go build -ldflags=\"-s -w\" -o shortlink .\n\n# 运行阶段\nFROM alpine:3.18\nRUN apk --no-cache add ca-certificates tzdata\nWORKDIR /app\nCOPY --from=builder /app/shortlink .\nCOPY --from=builder /app/config.yaml .  # 配置文件（可选）\nEXPOSE 8080\nCMD [\"./shortlink\"]\n```\n\n### 5.2 docker-compose.yml\n```yaml\nversion: '3.8'\nservices:\n  app:\n    build: .\n    ports:\n      - \"8080:8080\"\n    environment:\n      - REDIS_ADDR=redis:6379\n      - DB_DSN=postgres://user:pass@db:5432/shortlink?sslmode=disable\n      - REDIS_POOL_SIZE=10  # Redis连接池大小\n      - DB_MAX_OPEN_CONNS=25  # 数据库最大连接数\n      - RATE_LIMIT_PER_MIN=10  # 每个IP每分钟最大创建次数\n      - CACHE_TTL=3600  # 缓存TTL（秒）\n      - STATS_RETENTION_DAYS=30  # 统计保留天数\n    depends_on:\n      redis:\n        condition: service_started\n      db:\n        condition: service_healthy\n    restart: unless-stopped\n    networks:\n      - internal\n\n  redis:\n    image: redis:7-alpine\n    command: redis-server --appendonly yes --save 60 1000  # 每60秒或1000次写入持久化\n    volumes:\n      - redis_data:/data\n    restart: unless-stopped\n    networks:\n      - internal\n    healthcheck:\n      test: [\"CMD\", \"redis-cli\", \"ping\"]\n      interval: 10s\n      timeout: 5s\n      retries: 3\n\n  db:\n    image: postgres:15-alpine\n    environment:\n      - POSTGRES_USER=user\n      - POSTGRES_PASSWORD=pass\n      - POSTGRES_DB=shortlink\n    volumes:\n      - pg_data:/var/lib/postgresql/data\n      - ./init.sql:/docker-entrypoint-initdb.d/init.sql  # 初始化表结构\n    restart: unless-stopped\n    networks:\n      - internal\n    healthcheck:\n      test: [\"CMD-SHELL\", \"pg_isready -U user -d shortlink\"]\n      interval: 10s\n      timeout: 5s\n      retries: 5\n\nvolumes:\n  redis_data:\n  pg_data:\n\nnetworks:\n  internal:\n    driver: bridge\n```\n\n### 5.3 初始化SQL（init.sql）\n```sql\nCREATE TABLE IF NOT EXISTS shortlinks (\n    id SERIAL PRIMARY KEY,\n    short_code VARCHAR(16) UNIQUE NOT NULL,\n    original_url TEXT NOT NULL,\n    created_at TIMESTAMP DEFAULT NOW()\n);\n\nCREATE TABLE IF NOT EXISTS click_stats (\n    id SERIAL PRIMARY KEY,\n    short_code VARCHAR(16) NOT NULL,\n    click_count BIGINT DEFAULT 0,\n    last_accessed TIMESTAMP DEFAULT NOW(),\n    UNIQUE(short_code)\n);\n\nCREATE INDEX idx_short_code ON shortlinks(short_code);\nCREATE INDEX idx_stats_short_code ON click_stats(short_code);\n```\n\n### 5.4 启动命令\n```bash\ndocker-compose up -d\n# 验证服务状态\ncurl http://localhost:8080/api/shorten -X POST -d '{\"url\":\"https://example.com\"}'\n```\n\n## 6. 工程实现与可行性\n\n### 6.1 开发成本评估\n- **开发周期**：约2周（1名Go开发工程师）\n  - 第1周：核心功能（短码生成、API、重定向、缓存）\n  - 第2周：统计功能、安全加固、Docker化、测试\n- **技术栈熟悉度**：Go中高、Redis高、PostgreSQL高\n- **运维复杂度**：低（单机Docker部署，组件成熟，健康检查自动恢复）\n\n### 6.2 简化设计决策\n| 原方案 | 简化方案 | 影响 |\n|--------|----------|------|\n| 分布式追踪 | 去掉（单机不需要） | 减少依赖和复杂度 |\n| 消息队列（RabbitMQ/Kafka） | 去掉（Redis队列LPUSH/RPOP足够） | 减少组件数量，降低运维成本 |\n| 用户认证 | 去掉（业务边界内不包含） | 聚焦核心功能，减少开发时间 |\n| 管理后台UI | 仅提供API | 减少前端开发成本，API可被任何客户端调用 |\n\n### 6.3 性能预估\n- **QPS**：单机Go服务可支撑5000+ QPS（短码查询，Redis缓存命中率>90%）\n- **延迟**：Redis缓存命中时<5ms，数据库查询时<20ms（索引查询）\n- **资源占用**：Go二进制<20MB，Redis内存<100MB（100万条短码，每条约100字节），PostgreSQL磁盘<1GB（100万条短码+统计）\n- **并发连接**：Go服务默认支持10000+并发连接，Redis连接池10个，PostgreSQL连接池25个\n\n## 7. 总结\n\n本方案以**业务价值为核心**，通过单体架构、成熟技术栈（Go+Redis+PostgreSQL）、简化设计（无用户认证、无消息队列、无管理后台UI），在2周内交付一个可Docker单命令部署的短链接服务。方案平衡了功能完整性、安全性、实现成本和运维便利性，满足核心业务需求的同时避免了过度设计。关键参数已明确（短码长度、缓存TTL、速率限制、统计保留期），所有组件通过docker-compose一键启动，适合快速部署和迭代。",
+    "simplification_applied": false
+  },
+  "vote": {
+    "plan_id": "A",
+    "correctness": 9,
+    "completeness": 8,
+    "feasibility": 9,
+    "innovation": 6,
+    "business_alignment": 9,
+    "total_score": 8.35,
+    "rank": 1,
+    "comment": "方案完整覆盖需求，技术选型合理，Docker部署清晰，安全措施到位，但创新性一般，缺少对自定义短码冲突处理的详细说明。"
+  },
+  "steps": [
+    {
+      "id": "step_140ac646",
+      "index": 1,
+      "name": "需求分析与业务锚点确认",
+      "description": "明确短链接服务的核心功能（自定义短码、重定向、统计）、非功能需求（性能、可用性）及业务边界，确认Docker单命令部署的约束条件",
+      "dependencies": [],
+      "design_content": ""
+    },
+    {
+      "id": "step_3e69d189",
+      "index": 2,
+      "name": "技术选型与架构设计",
+      "description": "选择技术栈（如Go/Node.js + Redis/PostgreSQL），设计系统架构（API网关、服务层、存储层），定义模块划分与交互接口",
+      "dependencies": [],
+      "design_content": ""
+    },
+    {
+      "id": "step_66d7395a",
+      "index": 3,
+      "name": "核心功能详细设计",
+      "description": "设计短码生成算法（支持自定义）、重定向逻辑（301/302）、访问统计埋点，以及自定义短码的校验规则（长度、字符集、唯一性）",
+      "dependencies": [],
+      "design_content": ""
+    },
+    {
+      "id": "step_8a0a5da8",
+      "index": 4,
+      "name": "安全与合规设计",
+      "description": "识别威胁模型（恶意短码、枚举攻击、数据泄露），设计防护措施（速率限制、短码随机化、HTTPS强制、日志脱敏）",
+      "dependencies": [],
+      "design_content": ""
+    },
+    {
+      "id": "step_342421eb",
+      "index": 5,
+      "name": "Docker化与部署方案",
+      "description": "编写Dockerfile（多阶段构建）、docker-compose.yml（服务+数据库），实现单命令启动，配置健康检查与日志收集",
+      "dependencies": [],
+      "design_content": ""
+    },
+    {
+      "id": "step_048cfe95",
+      "index": 6,
+      "name": "工程实现与可行性收束",
+      "description": "评估开发成本、团队技能匹配度，简化过度设计（如去掉分布式追踪），确保方案在单机Docker环境下切实可行",
+      "dependencies": [],
+      "design_content": ""
+    }
+  ]
+}

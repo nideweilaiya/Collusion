@@ -1,0 +1,145 @@
+{
+  "task_id": "task_f675bcec5b4b",
+  "scheme_id": "B",
+  "task": "设计一个简单的RESTful待办事项API，支持增删改查",
+  "keywords": [
+    "API设计"
+  ],
+  "scheme": {
+    "id": "B",
+    "agent_role": "UX/产品专家",
+    "agent_name": "agent_1 (UX/产品专家)",
+    "object_name": "业务价值对象",
+    "steps": {
+      "step_0": "核心资源为待办事项（Todo），属性包括：id（唯一标识）、title（标题，必填）、completed（完成状态，布尔值，默认false）、created_at（创建时间，ISO 8601格式）。CRUD操作映射：Create（POST /todos）、Read（GET /todos 列表，GET /todos/{id} 详情）、Update（PUT /todos/{id} 全量更新，PATCH /todos/{id} 部分更新）、Delete（DELETE /todos/{id}）。目标用户为个人开发者或小型团队，聚焦于快速集成和轻量级任务管理，初期不引入复杂权限模型。",
+      "step_3357d9f0": "数据结构：Todo对象包含id（UUID字符串）、title（字符串，最大200字符）、completed（布尔值）、created_at（字符串，ISO 8601）。存储选择：使用内存列表（Python list）作为初始存储，便于快速原型验证，后续可迁移至SQLite或PostgreSQL。数据访问接口：定义Repository模式，提供create_todo、get_todo_by_id、get_all_todos、update_todo、delete_todo方法，隔离存储实现。",
+      "step_0edbec73": "端点定义：GET /todos（返回所有待办事项，支持可选查询参数?completed=true/false过滤）；POST /todos（创建新待办，请求体包含title，可选completed）；GET /todos/{id}（返回单个待办详情）；PUT /todos/{id}（全量更新，请求体需包含title和completed）；PATCH /todos/{id}（部分更新，仅需提供要修改的字段）；DELETE /todos/{id}（删除指定待办）。所有端点返回JSON格式响应。",
+      "step_2262f8ee": "统一错误响应格式：{\"error\": {\"code\": \"ERROR_CODE\", \"message\": \"描述\", \"details\": {}}}。状态码规则：200（成功响应GET、PUT、PATCH）、201（成功创建POST）、204（成功删除DELETE）、400（请求体格式错误或验证失败）、404（资源未找到）、405（方法不允许）、500（服务器内部错误）。错误码示例：VALIDATION_ERROR、NOT_FOUND、INTERNAL_ERROR。",
+      "step_981a864f": "输入验证：title字段必须为非空字符串，长度不超过200字符；id必须为有效UUID格式；completed字段必须为布尔值（若提供）。安全措施：请求体大小限制为1KB，防止大payload攻击；对所有字符串字段进行HTML实体转义，防止XSS（若前端渲染）；使用参数化查询或ORM防止SQL注入（若使用数据库）。",
+      "step_b25887f7": "单元测试：使用pytest覆盖Repository层和验证逻辑，确保每个CRUD操作的正确性。集成测试：使用FastAPI TestClient模拟HTTP请求，测试所有端点及错误场景。文档生成：使用OpenAPI 3.0规范自动生成API文档（FastAPI内置支持），包含端点描述、请求/响应示例、错误码说明。",
+      "step_b152629a": "目标用户：个人开发者、小型团队、学习REST API的初学者。使用场景：快速创建任务列表、标记完成状态、删除已完成任务。功能优先级：P0（核心CRUD，必须实现）、P1（过滤和分页，高优先级）、P2（标签、截止日期、用户认证，后续迭代）。确保初始版本聚焦于最小可行产品（MVP），避免过度设计。",
+      "step_0b056e2f": "性能基线：内存存储下，单节点支持1000 QPS（简单查询）。缓存策略：对GET /todos列表结果进行短时缓存（如5秒），减少重复计算。分页支持：GET /todos?page=1&limit=20，返回总条数、当前页、总页数。扩展性：存储层设计为可替换，未来可水平扩展至数据库集群；API无状态，便于负载均衡。",
+      "step_8e2d19df": "部署方式：容器化（Docker），使用docker-compose定义服务；环境配置通过环境变量管理（如DATABASE_URL、LOG_LEVEL）。日志记录：结构化日志（JSON格式），包含请求ID、方法、路径、状态码、耗时。监控告警：集成Prometheus指标（请求数、错误率、延迟），设置告警规则（如错误率>5%）。版本管理：API版本通过URL前缀（/v1/todos）或请求头（Accept: application/vnd.todo.v1+json）实现。",
+      "step_5f2321c2": "威胁识别：未授权访问（攻击者直接调用API）、数据泄露（通过错误信息或日志泄露待办内容）、CSRF（若使用Cookie认证）、XSS（通过title字段注入脚本）。风险评估：未授权访问风险高（需认证），数据泄露风险中（需限制错误详情），XSS风险低（输入转义即可）。缓解措施：强制HTTPS、输入验证、最小化错误信息、日志脱敏。",
+      "step_20d05194": "认证方式：采用API Key机制，每个客户端分配唯一Key，通过请求头X-API-Key传递。授权策略：简单模式，所有API Key拥有相同权限（可操作所有待办），适用于单用户场景。未来扩展：支持JWT Bearer Token，实现用户级隔离（每个用户只能看到自己的待办）。当前MVP阶段，认证为可选配置（通过环境变量ENABLE_AUTH控制）。",
+      "step_857535fb": "传输层：强制使用TLS 1.2+，所有API通信通过HTTPS进行，证书由Let's Encrypt自动管理。存储层：内存存储不加密，但若使用数据库，对敏感字段（如用户ID）进行AES-256加密。隐私保护：日志中不记录待办标题内容，仅记录操作类型和资源ID；API响应中不返回内部错误堆栈。数据保留：支持定期清理已完成且超过30天的待办。"
+    },
+    "modified_steps": [],
+    "modification_history": [],
+    "missing_reports": [],
+    "is_paused": false,
+    "complexity_score": 0,
+    "owner_agent_id": "agent_1",
+    "integrated_content": "# 待办事项API技术方案文档\n\n## 1. 概述\n\n本文档定义了一个简单、可用的RESTful待办事项API，面向个人开发者、小型团队及REST API初学者。核心目标是提供一个最小可行产品（MVP），支持基本的增删改查操作，同时确保安全性、可测试性和可扩展性。本方案由业务价值对象代言人整合，聚焦于用户价值与商业目标，避免过度设计。\n\n## 2. 数据模型\n\n### Todo对象\n```json\n{\n  \"id\": \"uuid-string (UUID v4格式，36字符)\",\n  \"title\": \"string (最大200字符，最小1字符)\",\n  \"completed\": \"boolean (默认false)\",\n  \"created_at\": \"string (ISO 8601格式，如2024-01-01T00:00:00Z)\"\n}\n```\n\n### 存储选择\n- **初始阶段**：使用Python内存列表（list），便于快速原型验证。最大容量建议不超过10000条记录，超出后需迁移至持久化存储。\n- **后续迁移**：存储层设计为可替换接口（定义`TodoRepository`抽象基类），未来可平滑迁移至SQLite或PostgreSQL。\n\n## 3. API端点定义\n\n| 方法 | 路径 | 描述 | 请求体 | 响应 |\n|------|------|------|--------|------|\n| GET | /todos | 获取所有待办事项 | 无 | 200: Todo数组 |\n| GET | /todos?completed=true/false | 按完成状态过滤 | 无 | 200: 过滤后的Todo数组 |\n| POST | /todos | 创建新待办 | {title: string, completed?: boolean} | 201: 创建的Todo对象 |\n| GET | /todos/{id} | 获取单个待办 | 无 | 200: Todo对象 |\n| PUT | /todos/{id} | 全量更新待办 | {title: string, completed: boolean} | 200: 更新后的Todo对象 |\n| DELETE | /todos/{id} | 删除待办 | 无 | 204: 无内容 |\n\n### 分页支持（P1优先级）\n- 查询参数：`?page=1&limit=20`（page默认1，limit默认20，最大100）\n- 响应格式：`{\"items\": [...], \"total\": 100, \"page\": 1, \"limit\": 20, \"total_pages\": 5}`\n- 当page或limit为无效值（如负数）时，返回400错误\n\n## 4. 错误处理与状态码\n\n### 统一错误响应格式\n```json\n{\n  \"error\": {\n    \"code\": \"ERROR_CODE\",\n    \"message\": \"人类可读描述\",\n    \"details\": {}\n  }\n}\n```\n\n### 状态码规则\n- **200**：成功响应GET、PUT\n- **201**：成功创建POST\n- **204**：成功删除DELETE\n- **400**：请求体格式错误或验证失败\n- **404**：资源不存在\n- **413**：请求体超过大小限制（1KB）\n- **500**：服务器内部错误（不返回堆栈信息）\n\n### 错误码定义\n- `VALIDATION_ERROR`：输入验证失败（如title为空、超长、completed非布尔值）\n- `NOT_FOUND`：资源不存在（id无效或已删除）\n- `INVALID_REQUEST`：请求格式错误（如JSON解析失败、缺少必填字段）\n- `PAYLOAD_TOO_LARGE`：请求体超过1KB限制\n- `INTERNAL_ERROR`：服务器内部错误（记录日志但不暴露细节）\n\n## 5. 输入验证与安全措施\n\n### 输入验证规则\n- **title**：必须为非空字符串，长度1-200字符。前后空白字符自动trim。\n- **id**：必须为有效UUID v4格式（正则：`^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$`）\n- **completed**：必须为布尔值（若提供），默认false\n\n### 安全措施\n- **请求体大小限制**：1KB（1024字节），防止大payload攻击\n- **HTML实体转义**：对所有字符串字段进行转义（使用`html.escape()`），防止XSS\n- **SQL注入防护**：使用参数化查询或ORM（后续数据库迁移时）\n- **强制HTTPS**：所有API通信通过TLS 1.2+进行（生产环境配置）\n- **速率限制**：建议在反向代理层（如Nginx）配置，每IP每秒最多100请求\n\n## 6. 认证与授权（MVP阶段）\n\n### 当前实现\n- **认证方式**：API Key机制，通过请求头`X-API-Key`传递。API Key为32字符随机字符串（使用`secrets.token_hex(16)`生成）。\n- **授权策略**：简单模式，所有API Key拥有相同权限（可操作所有待办）。API Key列表通过环境变量`API_KEYS`配置（逗号分隔）。\n- **适用场景**：单用户或信任的小型团队（最多5个API Key）\n\n### 未来扩展\n- 支持JWT Bearer Token（使用RS256算法）\n- 实现用户级隔离（每个用户只能看到自己的待办）\n\n## 7. 测试策略\n\n### 单元测试\n- 使用pytest覆盖Repository层和验证逻辑\n- 确保每个CRUD操作的正确性，测试覆盖率目标≥90%\n\n### 集成测试\n- 使用FastAPI TestClient模拟HTTP请求\n- 测试所有端点及错误场景，包括边界条件\n\n### 测试覆盖范围\n- 正常CRUD流程（创建、读取、更新、删除）\n- 边界条件（空title、超长title、无效UUID、completed非布尔值）\n- 错误场景（资源不存在、请求体过大、无效API Key）\n- 过滤和分页功能（completed过滤、page/limit边界值）\n\n## 8. 文档生成\n\n- 使用OpenAPI 3.0规范自动生成API文档（FastAPI内置支持）\n- 包含端点描述、请求/响应示例、错误码说明\n- 文档可通过`/docs`端点访问（Swagger UI），生产环境建议关闭或添加认证\n\n## 9. 性能与扩展性\n\n### 性能基线\n- 内存存储下，单节点支持1000 QPS（简单查询，响应时间<10ms）\n- 数据库迁移后，单节点支持500 QPS（SQLite）或2000 QPS（PostgreSQL）\n\n### 缓存策略\n- 对GET /todos列表结果进行短时缓存（5秒，使用`cachetools.TTLCache`），减少重复计算\n- 缓存键基于查询参数（包括completed和分页参数）\n\n### 分页支持\n- 查询参数：`?page=1&limit=20`（page默认1，limit默认20，最大100）\n- 响应包含总条数、当前页、总页数\n\n### 扩展性设计\n- 存储层接口化（`TodoRepository`抽象基类），可替换为数据库实现\n- API无状态设计，支持水平扩展（通过负载均衡器）\n- 未来可集成消息队列（如Redis Streams）处理高并发写入\n\n## 10. 部署与运维\n\n### 部署方式\n- 容器化（Docker），使用docker-compose定义服务\n- 环境配置通过环境变量管理（如`DATABASE_URL`、`LOG_LEVEL`、`API_KEYS`）\n- 推荐基础镜像：`python:3.11-slim`\n\n### 日志记录\n- 结构化日志（JSON格式），使用Python标准库`logging` + `python-json-logger`\n- 包含字段：`timestamp`、`request_id`（UUID）、`method`、`path`、`status_code`、`duration_ms`\n- **隐私保护**：日志中不记录待办标题内容，仅记录操作类型和资源ID\n\n### 监控告警\n- 集成Prometheus指标（请求数、错误率、延迟分位数P50/P95/P99）\n- 设置告警规则（如错误率超过5%触发告警，延迟P99超过500ms触发告警）\n\n## 11. 威胁建模与安全风险评估\n\n### 已识别威胁\n| 威胁 | 风险等级 | 缓解措施 |\n|------|----------|----------|\n| 未授权访问 | 高 | 强制API Key认证，密钥长度32字符 |\n| 数据泄露（错误信息） | 中 | 限制错误详情，不返回内部堆栈 |\n| XSS（title字段） | 低 | 输入HTML实体转义（`html.escape()`） |\n| 大payload攻击 | 中 | 请求体大小限制1KB（1024字节） |\n| API Key泄露 | 中 | 建议定期轮换，通过环境变量管理 |\n\n### 隐私保护\n- API响应中不返回内部错误堆栈\n- 日志中不记录待办标题内容\n- 若使用数据库，对敏感字段进行AES-256-GCM加密（密钥通过环境变量`ENCRYPTION_KEY`配置）\n\n## 12. 功能优先级与迭代路线\n\n| 优先级 | 功能 | 说明 |\n|--------|------|------|\n| P0 | 核心CRUD | 必须实现，包括GET/POST/PUT/DELETE |\n| P1 | 过滤和分页 | 高优先级，提升可用性 |\n| P2 | 标签、截止日期、用户认证 | 后续迭代，基于用户反馈 |\n\n**核心原则**：初始版本聚焦于MVP，避免过度设计，确保快速交付和验证。所有P1及以上功能需在第一个发布版本中完成。",
+    "simplification_applied": false
+  },
+  "vote": {
+    "plan_id": "B",
+    "correctness": 8,
+    "completeness": 8,
+    "feasibility": 9,
+    "innovation": 6,
+    "business_alignment": 9,
+    "total_score": 8.15,
+    "rank": 1,
+    "comment": "方案B最贴近MVP需求，提供PATCH端点、可选认证、合理分页，且错误处理规范。整体平衡了功能完整性与实现复杂度，业务对齐度高。"
+  },
+  "steps": [
+    {
+      "id": "step_3357d9f0",
+      "index": 1,
+      "name": "需求分析与资源定义",
+      "description": "明确API的核心资源（待办事项）及其属性（如id、标题、完成状态、创建时间），确定CRUD操作对应的HTTP方法和端点路径",
+      "dependencies": [],
+      "design_content": ""
+    },
+    {
+      "id": "step_0edbec73",
+      "index": 2,
+      "name": "数据模型与存储设计",
+      "description": "设计待办事项的数据结构（字段、类型、约束），选择存储方式（如内存列表或轻量数据库），定义数据访问接口",
+      "dependencies": [],
+      "design_content": ""
+    },
+    {
+      "id": "step_2262f8ee",
+      "index": 3,
+      "name": "API端点与路由设计",
+      "description": "为每个CRUD操作定义具体的RESTful端点（如GET /todos, POST /todos, GET /todos/:id, PUT /todos/:id, DELETE /todos/:id），包括请求/响应格式",
+      "dependencies": [],
+      "design_content": ""
+    },
+    {
+      "id": "step_981a864f",
+      "index": 4,
+      "name": "错误处理与状态码规范",
+      "description": "定义标准HTTP状态码使用规则（如200成功、201创建、400错误请求、404未找到、500服务器错误），设计统一的错误响应结构",
+      "dependencies": [],
+      "design_content": ""
+    },
+    {
+      "id": "step_b25887f7",
+      "index": 5,
+      "name": "安全与输入验证",
+      "description": "实现基本的输入验证（如标题非空、ID格式校验），考虑简单的安全措施（如请求大小限制、防止注入）",
+      "dependencies": [],
+      "design_content": ""
+    },
+    {
+      "id": "step_b152629a",
+      "index": 6,
+      "name": "测试与文档生成",
+      "description": "编写单元测试和集成测试覆盖核心功能，生成API文档（如OpenAPI规范）以便开发者使用",
+      "dependencies": [],
+      "design_content": ""
+    },
+    {
+      "id": "step_0b056e2f",
+      "index": 7,
+      "name": "用户场景与优先级定义",
+      "description": "明确待办事项API的目标用户、使用场景（个人/团队）、功能优先级（如是否支持截止日期、标签等），确保后续设计聚焦核心价值。",
+      "dependencies": [],
+      "design_content": ""
+    },
+    {
+      "id": "step_8e2d19df",
+      "index": 8,
+      "name": "性能与扩展性考量",
+      "description": "评估API在高并发下的表现，考虑缓存策略、分页支持（如GET /todos?page=1&limit=20）、未来扩展性（如支持排序、过滤）。",
+      "dependencies": [],
+      "design_content": ""
+    },
+    {
+      "id": "step_5f2321c2",
+      "index": 9,
+      "name": "部署与运维规划",
+      "description": "定义API的部署方式（如容器化、环境配置）、日志记录、监控告警及版本管理策略。",
+      "dependencies": [],
+      "design_content": ""
+    },
+    {
+      "id": "step_20d05194",
+      "index": 10,
+      "name": "威胁建模与安全风险评估",
+      "description": "系统性地识别待办事项API可能面临的威胁（如未授权访问、数据泄露、CSRF、XSS等），并评估风险等级，为后续安全控制措施提供依据。",
+      "dependencies": [],
+      "design_content": ""
+    },
+    {
+      "id": "step_857535fb",
+      "index": 11,
+      "name": "认证与授权机制设计",
+      "description": "定义API的访问控制策略，包括用户身份认证方式（如API Key、JWT、OAuth2）以及资源级授权（如用户只能操作自己的待办事项），确保数据隔离。",
+      "dependencies": [],
+      "design_content": ""
+    },
+    {
+      "id": "step_84a6e0d9",
+      "index": 12,
+      "name": "数据加密与隐私保护",
+      "description": "明确传输层（TLS/HTTPS）和存储层（如数据库字段加密）的加密要求，以及个人数据（如用户ID、待办内容）的隐私保护措施，符合GDPR等法规。",
+      "dependencies": [],
+      "design_content": ""
+    }
+  ]
+}

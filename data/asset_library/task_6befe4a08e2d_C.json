@@ -1,0 +1,147 @@
+{
+  "task_id": "task_6befe4a08e2d",
+  "scheme_id": "C",
+  "task": "设计一个文件分享服务：用户可以上传文件并生成分享链接，链接支持过期时间和访问密码",
+  "keywords": [],
+  "scheme": {
+    "id": "C",
+    "agent_role": "性能架构师",
+    "agent_name": "agent_2 (性能架构师)",
+    "object_name": "技术架构对象",
+    "steps": {
+      "step_0": "采用分层架构：前端（Web/移动端/API Gateway）→ 负载均衡 → 应用服务集群（无状态，水平扩展）→ 对象存储（如AWS S3/MinIO）。上传流程：客户端通过预签名URL直传对象存储，避免应用服务器成为瓶颈；应用服务异步接收对象存储回调，记录元数据到分布式数据库（如TiDB/CockroachDB），元数据包含文件ID、原始名称、大小、MIME类型、上传时间、上传者ID、存储桶路径。支持分片上传（大文件>100MB自动触发），客户端断点续传。",
+      "step_08feb361": "应用服务生成全局唯一分享令牌（UUID v4或NanoID），关联文件ID、过期时间（支持绝对时间戳或相对时长）、访问密码（bcrypt哈希存储）、访问次数限制（可选）、IP白名单（可选）。配置存储于Redis Cluster（热数据，TTL与过期时间对齐） + 持久化至数据库。链接格式：https://domain/s/{token}。生成时同步创建审计记录。\n\n[安全与合规对象修改 | 复杂度+2]: 在密码校验环节增加速率限制（如每IP每分钟最多5次尝试），防止暴力破解；同时增加对访问密码的强度校验（至少8位，包含大小写字母和数字），并在生成链接时强制要求密码复杂度。",
+      "step_e803bb9c": "请求到达API Gateway，路由至分享服务。服务从Redis查询链接配置，若不存在则回查数据库。校验：链接是否存在、是否过期（当前时间 > 过期时间）、密码是否正确（bcrypt对比）、访问次数是否超限、IP是否在白名单内。通过后生成临时下载凭证（预签名URL，有效期5分钟），重定向至对象存储直接下载。失败时返回标准化错误码（如LINK_EXPIRED、PASSWORD_INCORRECT）。",
+      "step_06423d66": "提供RESTful API：GET /links（列表）、PUT /links/{token}（更新过期时间/重置密码/修改限制）、DELETE /links/{token}（撤销）。更新操作需校验上传者身份（JWT中的用户ID匹配）。撤销时立即删除Redis中的缓存，并标记数据库状态为disabled。支持批量操作（如一键过期所有链接）。",
+      "step_0a431ba8": "传输层：全链路TLS 1.3。存储层：对象存储启用服务端加密（AES-256），敏感字段（密码哈希）使用应用层加密。访问日志记录：每次上传、下载、管理操作均记录到ELK/ClickHouse，保留至少180天。合规：支持数据主权区域（对象存储选择用户指定Region），提供数据导出/删除API（GDPR合规）。",
+      "step_a39c1645": "应用层配置：默认单文件上限500MB，通过管理后台可调整（如VIP用户提升至2GB）。文件类型白名单（如pdf, docx, png, jpg, mp4），黑名单（exe, bat, js等可执行文件）。前端上传前预检（File API读取类型+大小），后端接收时二次校验（MIME检测+魔数签名验证）。超限或类型不符返回413/415状态码及明确错误信息。",
+      "step_2a10db6c": "采用分布式对象存储（MinIO集群或AWS S3），支持多AZ冗余（至少3副本）。分片策略：文件按内容哈希分桶（前2字符作为前缀），避免单目录文件过多。扩容：对象存储天然支持水平扩展，增加节点即可。备份：每日全量备份至异地冷存储（如Glacier），保留30天。元数据数据库采用分布式SQL，分片键为文件ID（哈希分片），支持自动rebalance。",
+      "step_0af6122e": "上传流程中增加异步安全扫描队列（基于消息队列如RabbitMQ/Kafka）。文件上传至临时存储区后，触发扫描服务调用ClamAV或第三方API（如VirusTotal）。扫描结果（clean/infected/unknown）写入元数据。若为infected，自动删除文件并通知上传者；若为unknown，标记为待人工审核。扫描超时（默认30秒）则放行但标记为低置信度。",
+      "step_bbaadc15": "集成OAuth 2.0 / OpenID Connect（支持Google、GitHub登录），同时提供邮箱注册+密码登录（bcrypt+盐）。JWT令牌（Access Token 15分钟 + Refresh Token 7天）。角色：普通用户（上传、管理自己的链接）、管理员（全局管理、查看审计日志、调整系统配置）。权限模型基于RBAC，API Gateway层校验角色。",
+      "step_e9d11569": "细粒度控制：支持设置最大访问次数（整数，0表示不限）、IP白名单（CIDR列表）、允许的Referer域名。审计日志记录每次访问：时间、IP、User-Agent、是否成功、失败原因。异常检测：同一IP短时间内多次失败（如密码错误>5次）触发临时封禁（1小时）。日志定期分析，生成安全报告。",
+      "step_ae5866da": "上传：前端显示实时进度条（基于XMLHttpRequest.upload.onprogress），大文件显示分片上传进度。错误提示：文件过大时显示“文件大小超过500MB限制”，类型不符时显示“不支持的文件类型，仅允许：pdf, docx...”。链接生成后：自动复制到剪贴板，并提供一键分享到社交平台按钮。访问页面：若需密码，显示简洁密码输入框；过期时显示“链接已失效”；下载按钮清晰可见。"
+    },
+    "modified_steps": [
+      "step_08feb361"
+    ],
+    "modification_history": [
+      {
+        "agent_id": "agent_3",
+        "agent_role": "安全专家",
+        "object_name": "安全与合规对象",
+        "target_step": "step_08feb361",
+        "change_type": "enhancement",
+        "complexity_delta": 2,
+        "content": "在密码校验环节增加速率限制（如每IP每分钟最多5次尝试），防止暴力破解；同时增加对访问密码的强度校验（至少8位，包含大小写字母和数字），并在生成链接时强制要求密码复杂度。",
+        "reason": "当前方案仅使用bcrypt哈希存储密码，但未对密码尝试频率和密码强度做限制，存在暴力破解和弱密码风险，不符合安全最佳实践。"
+      }
+    ],
+    "missing_reports": [],
+    "is_paused": false,
+    "complexity_score": 2,
+    "owner_agent_id": "agent_2",
+    "integrated_content": "# 文件分享服务技术架构方案（终审润色版）\n\n## 一、系统总体架构\n\n本方案采用微服务架构，核心组件包括：\n\n- **API Gateway**：统一入口，负责路由、限流（令牌桶算法，每秒1000请求/节点）、认证令牌校验\n- **分享服务**：核心业务逻辑，管理分享链接的生成、校验、生命周期\n- **文件服务**：处理文件上传、下载、存储管理\n- **安全扫描服务**：异步文件病毒扫描（ClamAV 0.103+，扫描超时300秒）\n- **用户服务**：身份认证与权限管理（OAuth 2.0 + JWT）\n- **审计服务**：日志收集与分析（ELK Stack 7.17+，日志保留180天）\n- **数据层**：Redis Cluster 6.2+（热数据缓存，16个分片，3副本）、分布式SQL数据库（TiDB 6.0+，元数据持久化）、对象存储（MinIO 2023+ / AWS S3，存储桶策略：私有读写）\n\n## 二、详细步骤设计\n\n### 步骤1：用户上传文件\n\n**设计内容**：\n- 用户通过API Gateway上传文件，请求携带JWT令牌（RS256签名，有效期15分钟）\n- 文件服务接收文件流，进行实时校验：\n  - 文件大小：默认上限500MB（524288000字节），可通过管理后台按用户等级调整（VIP用户2GB，即2147483648字节）\n  - 文件类型：前端预检（File API读取type属性）+ 后端二次校验（MIME检测 + 魔数签名验证），白名单：pdf（%PDF-）、docx（PK\\x03\\x04）、png（\\x89PNG）、jpg（\\xFF\\xD8\\xFF）、mp4（ftypmp4）；黑名单：exe（MZ）、bat（无魔数，按扩展名）、js（无魔数，按扩展名）、sh（#!）、dll（MZ）、vbs（无魔数，按扩展名）\n- 校验通过后，文件上传至临时存储区（MinIO bucket: temp-uploads，生命周期策略：24小时后自动清理），触发异步安全扫描队列（消息队列RabbitMQ 3.11+，队列名：scan.queue，持久化，死信队列：scan.dlq）\n- 文件分片策略：按内容SHA-256哈希前2字符分桶（如哈希以\"a3\"开头，存储路径为a3/），避免单目录文件超过10000个\n- 上传进度实时反馈：前端显示进度条（XMLHttpRequest.upload.onprogress，每100ms更新一次），大文件（>100MB）支持分片上传（每片5MB，并发3片）\n- 错误提示：文件过大显示“文件大小超过500MB限制（VIP用户2GB）”，类型不符显示“不支持的文件类型，仅允许：pdf, docx, png, jpg, mp4”\n\n### 步骤2：生成分享链接\n\n**设计内容**：\n- 上传完成后，用户可配置分享参数：\n  - 过期时间：支持绝对时间戳（Unix毫秒）或相对时长（如24小时、7天，精确到秒），最大过期时间30天\n  - 访问密码：强制要求，至少8位，包含大小写字母和数字（正则：^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d).{8,}$），bcrypt哈希存储（成本因子12，输出长度60字符）\n  - 可选配置：最大访问次数（整数，0表示不限，默认0）、IP白名单（CIDR列表，如192.168.1.0/24，最多10条）、允许的Referer域名（最多5个，如example.com）\n- 分享服务生成全局唯一分享令牌（NanoID，长度21字符，字符集：A-Za-z0-9_-，碰撞概率：约1.4×10^-13）\n- 配置存储：同时写入Redis Cluster（key格式：share:{token}，TTL与过期时间对齐，精确到秒）和分布式SQL数据库（表：share_links，主键：token，索引：user_id, created_at）\n- 链接格式：`https://share.example.com/s/{token}`\n- 生成后自动复制到剪贴板（navigator.clipboard.writeText），提供一键分享到社交平台按钮（微信、微博、邮件，使用各平台URL Scheme）\n\n### 步骤3：访问分享链接\n\n**设计内容**：\n- 请求到达API Gateway，路由至分享服务（路径：/s/{token}）\n- 服务从Redis查询链接配置（key: share:{token}），若不存在则回查数据库（SELECT * FROM share_links WHERE token = ? AND status = 'active'）\n- 校验流程（顺序执行，任一失败返回明确错误）：\n  1. 链接是否存在（不存在返回404，JSON：{\"error\": \"link_not_found\", \"message\": \"分享链接不存在\"}）\n  2. 是否过期（当前时间 > 过期时间，返回410 Gone，JSON：{\"error\": \"link_expired\", \"message\": \"分享链接已过期\"}）\n  3. 密码是否正确（bcrypt对比，错误返回403，JSON：{\"error\": \"invalid_password\", \"message\": \"密码错误\"}）\n  4. 访问次数是否超限（已使用次数 >= 最大次数，返回403，JSON：{\"error\": \"access_limit_exceeded\", \"message\": \"访问次数已达上限\"}）\n  5. IP是否在白名单内（不在白名单返回403，JSON：{\"error\": \"ip_not_allowed\", \"message\": \"IP不在允许范围内\"}）\n- 密码校验环节增加速率限制：每IP每分钟最多5次尝试（Redis key: rate:password:{ip}，TTL 60秒），超限临时封禁1小时（Redis key: ban:password:{ip}，TTL 3600秒）\n- 校验通过后，生成临时下载凭证（预签名URL，有效期5分钟，使用AWS Signature V4或MinIO presignedGetObject），重定向（HTTP 302）至对象存储直接下载\n- 审计日志记录每次访问：时间（ISO 8601格式）、IP、User-Agent（截断至256字符）、是否成功、失败原因（枚举：not_found/expired/invalid_password/limit_exceeded/ip_not_allowed）\n\n### 步骤4：管理分享链接\n\n**设计内容**：\n- 提供RESTful API：\n  - `GET /api/v1/links`：列出用户所有分享链接（分页，page_size默认20，最大100，支持按status筛选：active/disabled/expired）\n  - `PUT /api/v1/links/{token}`：更新过期时间（Unix毫秒）、重置密码（bcrypt重新哈希）、修改访问限制（max_accesses, ip_whitelist, referer_domains）\n  - `DELETE /api/v1/links/{token}`：撤销分享链接\n- 所有管理操作需校验上传者身份（JWT中的user_id与链接创建者user_id匹配，不匹配返回403）\n- 撤销时立即删除Redis中的缓存（DEL share:{token}），并标记数据库状态为disabled（UPDATE share_links SET status = 'disabled', updated_at = NOW() WHERE token = ?）\n- 前端提供管理界面：表格展示链接列表（分页，每页20条），支持批量操作（选中后批量撤销），显示访问统计（总次数、剩余次数、最后访问时间）\n\n### 步骤5：安全与合规保障\n\n**设计内容**：\n- 传输层：全链路TLS 1.3（证书使用ECDSA P-256，密码套件：TLS_AES_256_GCM_SHA384）\n- 存储层：\n  - 对象存储启用服务端加密（AES-256，使用SSE-S3或MinIO内置加密）\n  - 敏感字段（密码哈希）使用应用层加密（AES-256-GCM，密钥由KMS管理，密钥轮换周期90天，nonce随机12字节）\n- 访问日志记录：每次上传、下载、管理操作均记录到ELK（Elasticsearch 7.17+，索引模式：daily，如file-share-2024-01-01），保留至少180天\n- 合规：\n  - 支持数据主权区域（对象存储选择用户指定Region，如us-east-1/eu-west-1/ap-southeast-1，元数据数据库按Region分片）\n  - 提供数据导出/删除API（GDPR合规，DELETE /api/v1/user/data，删除所有文件及关联数据，异步执行，返回job_id）\n  - 用户可随时删除自己的文件及所有关联数据（级联删除share_links、file_metadata、audit_logs）\n\n### 步骤6：文件大小与类型限制\n\n**设计内容**：\n- 应用层配置：默认单文件上限500MB（524288000字节），通过管理后台可调整（如VIP用户提升至2GB，即2147483648字节），配置存储在数据库表system_configs\n- 文件类型白名单：pdf, docx, png, jpg, mp4（对应MIME类型：application/pdf, application/vnd.openxmlformats-officedocument.wordprocessingml.document, image/png, image/jpeg, video/mp4）\n- 文件类型黑名单：exe, bat, js, sh, dll, vbs（对应MIME类型：application/x-msdownload, text/x-bat, text/javascript, application/x-sh, application/x-msdownload, text/x-vbscript）\n- 前端上传前预检：File API读取type属性 + file.size属性\n- 后端接收时二次校验：MIME检测（使用Go的net/http DetectContentType或Java的Tika）+ 魔数签名验证（前8字节匹配已知魔数，如PDF：%PDF-，PNG：\\x89PNG\\r\\n\\x1a\\n）\n- 校验失败返回明确错误信息（HTTP 400，JSON：{\"error\": \"invalid_file_type\", \"message\": \"不支持的文件类型，仅允许：pdf, docx, png, jpg, mp4\"}），不占用存储空间\n\n### 步骤7：文件存储架构设计\n\n**设计内容**：\n- 采用分布式对象存储（MinIO集群4节点或AWS S3），支持多AZ冗余（至少3副本，MinIO erasure coding：data=4, parity=2）\n- 分片策略：文件按内容SHA-256哈希分桶（前2字符作为前缀，如a3/），避免单目录文件超过10000个\n- 扩容：对象存储天然支持水平扩展，增加节点即可（MinIO rebalance自动触发）\n- 备份：每日全量备份至异地冷存储（AWS Glacier Deep Archive或MinIO bucket replication），保留30天，备份文件加密（AES-256）\n- 元数据数据库采用分布式SQL（TiDB 6.0+），分片键为file_id（UUID v4），支持高并发查询（预估QPS 5000+）\n\n### 步骤8：文件上传前的安全扫描\n\n**设计内容**：\n- 上传流程中增加异步安全扫描队列（基于RabbitMQ，队列名：scan.queue，prefetch count=1，死信队列：scan.dlq，重试3次，间隔60秒）\n- 文件上传至临时存储区（bucket: temp-uploads）后，触发扫描服务调用ClamAV（0.103+，clamdscan命令，超时300秒）或第三方API（如VirusTotal API v3，文件大小限制32MB，超时120秒）\n- 扫描结果（clean/infected/unknown）写入元数据表file_metadata（字段：scan_status枚举，scan_result JSON，scan_time TIMESTAMP）\n- 若为infected：自动删除文件（DELETE FROM temp-uploads），通知上传者（邮件/站内信，模板：文件{filename}因安全风险已被删除），记录审计日志\n- 若为unknown：标记为待人工审核（scan_status='pending_review'），临时保留24小时后自动删除（MinIO生命周期策略）\n- 扫描期间文件不可访问（file_metadata中status='scanning'），扫描完成后更新状态为'ready'或'deleted'\n\n### 步骤9：用户身份与权限管理\n\n**设计内容**：\n- 集成OAuth 2.0 / OpenID Connect（支持Google、GitHub登录，回调URL：https://api.example.com/auth/callback）\n- 同时提供邮箱注册+密码登录（bcrypt+盐，成本因子12，密码强度要求：至少8位，大小写字母+数字+特殊字符，正则：^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)(?=.*[!@#$%^&*]).{8,}$）\n- JWT令牌：Access Token 15分钟（RS256签名，包含claims：sub, user_id, role, iat, exp），Refresh Token 7天（HMAC-SHA256签名，存储于Redis，key: refresh:{user_id}:{token_id}），Refresh Token支持轮换（每次刷新生成新token，旧token失效）\n- 角色体系：\n  - 普通用户：上传文件、管理自己的链接、查看个人审计日志\n  - 管理员：全局管理、查看所有审计日志、管理用户、调整系统配置（如文件大小限制、白名单）\n- 密码重置：支持邮箱验证码重置（验证码6位数字，有效期5分钟，发送至注册邮箱），重置后所有活跃会话失效（删除所有refresh token）\n\n### 步骤10：分享链接的访问控制与审计\n\n**设计内容**：\n- 细粒度控制：\n  - 最大访问次数（整数，0表示不限，默认0）\n  - IP白名单（CIDR列表，如192.168.1.0/24，最多10条，使用Go的net.IPNet或Java的Apache Commons Net）\n  - 允许的Referer域名（最多5个，如example.com，匹配时忽略协议和路径）\n- 审计日志记录每次访问：时间（ISO 8601）、IP、User-Agent（截断至256字符）、是否成功、失败原因（枚举）\n- 异常检测：\n  - 同一IP短时间内多次失败（如密码错误>5次/分钟）触发临时封禁（1小时，Redis key: ban:ip:{ip}，TTL 3600秒）\n  - 同一链接短时间内大量访问（>100次/分钟）触发限流（返回429 Too Many Requests，JSON：{\"error\": \"rate_limited\", \"message\": \"访问过于频繁，请稍后再试\"}）\n- 日志定期分析，生成安全报告（每周自动发送给管理员，报告包含：异常IP列表、高频失败链接、封禁统计）\n\n### 步骤11：用户体验与反馈机制\n\n**设计内容**：\n- 上传：实时进度条（基于XMLHttpRequest.upload.onprogress，每100ms更新一次），大文件（>100MB）显示分片上传进度（当前分片/总分片）\n- 错误提示：文件过大时显示“文件大小超过500MB限制（VIP用户2GB）”，类型不符时显示“不支持的文件类型，仅允许：pdf, docx, png, jpg, mp4”\n- 链接生成后：自动复制到剪贴板（navigator.clipboard.writeText），并提供一键分享到社交平台（微信、微博、邮件，使用各平台URL Scheme）\n- 访问页面：响应式设计（Bootstrap 5或Tailwind CSS），移动端友好，显示文件名称、大小（自动格式化，如“15.2 MB”）、上传时间（相对时间，如“2小时前”）、过期倒计时（实时更新，格式“剩余23小时45分”）\n- 密码输入：显示密码强度指示器（弱/中/强，基于长度和字符组合），支持显示/隐藏密码（toggle按钮）\n- 下载完成：显示感谢页面，提供“再次分享”按钮（跳转至上传页面）\n\n## 三、整体架构说明\n\n系统采用微服务架构，各服务独立部署、独立扩展（Kubernetes集群，每个服务至少2副本）。API Gateway作为统一入口（Kong或Nginx Plus），负责认证、限流（令牌桶，每秒1000请求/节点）、路由。分享服务为核心业务逻辑，依赖文件服务、安全扫描服务、用户服务。数据层采用混合存储：Redis Cluster（6节点，16分片，3副本）处理热数据（链接配置、会话），分布式SQL数据库（TiDB 6.0+，3 TiKV节点）持久化元数据，对象存储（MinIO 4节点，每节点4TB NVMe）保存文件内容。所有服务通过消息队列（RabbitMQ 3.11+，3节点集群）解耦异步任务（安全扫描、审计日志）。监控与告警基于Prometheus + Grafana（指标：请求延迟P99<500ms，错误率<1%，缓存命中率>90%），日志集中管理于ELK（Elasticsearch 3节点，Logstash 2节点，Kibana 1节点）。\n\n## 四、关键风险\n\n1. **对象存储性能瓶颈**：高并发下载时，预签名URL生成可能成为瓶颈（单节点约5000 QPS）。缓解：预生成URL池（提前生成1000个有效URL，缓存于Redis，TTL 5分钟），使用CDN（CloudFront或Cloudflare）缓存热点文件。\n2. **安全扫描延迟**：大文件（>100MB）扫描耗时较长（ClamAV约30秒/100MB），影响用户体验。缓解：扫描期间返回“文件正在安全检查”（HTTP 202 Accepted），提供进度查询接口（GET /api/v1/files/{file_id}/scan-status），前端轮询。\n3. **密码强度与用户体验矛盾**：强制复杂密码可能导致用户放弃分享。缓解：提供密码生成器（一键生成16位随机密码，包含大小写字母、数字、特殊字符），支持用户自定义密码但需满足最低要求。\n4. **Redis与数据库一致性**：缓存与数据库可能短暂不一致（写操作先更新数据库再删除缓存，但删除可能失败）。缓解：采用Cache-Aside模式，写操作先更新数据库再删除缓存（使用Redis DEL命令），读操作回填缓存时加分布式锁（Redlock，TTL 5秒），设置缓存过期时间（TTL与链接过期时间对齐）。\n5. **跨区域数据合规**：用户选择不同Region存储时，需确保数据不跨境。缓解：严格按用户选择Region路由（API Gateway根据Region header转发），元数据与文件存储在同一Region（TiDB按Region分片，MinIO按Region部署独立集群），审计日志记录Region信息。\n\n## 五、备选方案考虑\n\n1. **令牌生成**：考虑过UUID v4（36字符，含连字符），最终选择NanoID（21字符，URL友好，碰撞概率约1.4×10^-13，性能更高）。\n2. **密码存储**：考虑过SHA-256加盐（抗暴力破解能力弱，约10亿哈希/秒），最终选择bcrypt（成本因子12，约10哈希/秒，抗暴力破解能力更强）。\n3. **文件存储**：考虑过自建分布式文件系统（如Ceph，运维复杂，故障恢复慢），最终选择对象存储（MinIO/S3，运维成本低、生态成熟、S3 API兼容）。\n4. **消息队列**：考虑过Kafka（高吞吐但延迟高，适合流处理），最终选择RabbitMQ（对于异步扫描场景，延迟更低<10ms，配置更简单，支持死信队列）。\n5. **缓存策略**：考虑过仅用Redis（数据丢失风险，RDB持久化可能丢失最近数据），最终选择Redis+数据库双写（保证数据持久性，Redis故障可回查数据库，使用Cache-Aside模式）。",
+    "simplification_applied": false
+  },
+  "vote": {
+    "plan_id": "C",
+    "correctness": 9,
+    "completeness": 9,
+    "feasibility": 9,
+    "innovation": 8,
+    "business_alignment": 8,
+    "total_score": 8.65,
+    "rank": 1,
+    "comment": "方案C在技术架构、性能、安全与可行性上均衡且优秀，创新性较高，业务对齐良好，综合得分最高。"
+  },
+  "steps": [
+    {
+      "id": "step_08feb361",
+      "index": 1,
+      "name": "用户上传文件",
+      "description": "用户通过Web或API上传文件，系统接收并存储文件，记录文件元数据（名称、大小、类型、上传时间等）",
+      "dependencies": [],
+      "design_content": ""
+    },
+    {
+      "id": "step_e803bb9c",
+      "index": 2,
+      "name": "生成分享链接",
+      "description": "系统为上传的文件生成唯一分享链接，支持设置过期时间和访问密码，并将配置与链接关联存储",
+      "dependencies": [],
+      "design_content": ""
+    },
+    {
+      "id": "step_06423d66",
+      "index": 3,
+      "name": "访问分享链接",
+      "description": "用户通过分享链接访问文件，系统验证链接有效性、过期时间和访问密码，通过后提供文件下载",
+      "dependencies": [],
+      "design_content": ""
+    },
+    {
+      "id": "step_0a431ba8",
+      "index": 4,
+      "name": "管理分享链接",
+      "description": "上传者可以查看、修改或删除已生成的分享链接，包括更新过期时间、重置密码或撤销链接",
+      "dependencies": [],
+      "design_content": ""
+    },
+    {
+      "id": "step_a39c1645",
+      "index": 5,
+      "name": "安全与合规保障",
+      "description": "确保文件存储和传输加密，访问日志记录，防止未授权访问，符合数据保护法规要求",
+      "dependencies": [],
+      "design_content": ""
+    },
+    {
+      "id": "step_2a10db6c",
+      "index": 6,
+      "name": "文件大小与类型限制",
+      "description": "系统应明确上传文件的大小上限和允许的文件类型，避免存储滥用和安全风险，同时向用户提供清晰的反馈。",
+      "dependencies": [],
+      "design_content": ""
+    },
+    {
+      "id": "step_0af6122e",
+      "index": 7,
+      "name": "文件存储架构设计",
+      "description": "明确文件存储的物理架构（如分布式文件系统、对象存储）、分片策略、冗余备份及扩容机制，确保高可用和可扩展性。",
+      "dependencies": [],
+      "design_content": ""
+    },
+    {
+      "id": "step_bbaadc15",
+      "index": 8,
+      "name": "文件上传前的安全扫描",
+      "description": "在上传环节增加恶意文件检测（如病毒、木马扫描），防止恶意文件进入系统并传播给其他用户。",
+      "dependencies": [],
+      "design_content": ""
+    },
+    {
+      "id": "step_e9d11569",
+      "index": 9,
+      "name": "用户身份与权限管理",
+      "description": "需要明确用户身份认证机制（如注册、登录、OAuth）以及上传者和管理员权限划分，确保只有合法用户才能上传和管理链接。",
+      "dependencies": [],
+      "design_content": ""
+    },
+    {
+      "id": "step_ae5866da",
+      "index": 10,
+      "name": "分享链接的访问控制与审计",
+      "description": "除了过期时间和密码，还应考虑访问次数限制、IP白名单等细粒度控制，并记录访问日志用于审计和异常检测。",
+      "dependencies": [],
+      "design_content": ""
+    },
+    {
+      "id": "step_51fcd63e",
+      "index": 11,
+      "name": "用户体验与反馈机制",
+      "description": "上传进度、链接生成后的复制/分享引导、错误提示（如文件过大、类型不符）等交互细节，确保用户操作流畅且信息清晰。",
+      "dependencies": [],
+      "design_content": ""
+    }
+  ]
+}
