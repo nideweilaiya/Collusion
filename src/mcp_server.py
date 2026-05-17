@@ -603,7 +603,6 @@ async def call_tool(name: str, arguments: dict):
             output, ensure_ascii=False, indent=2,
         ))]
 
-    else:
     if name == "collusion_enhance":
         plan = arguments["plan"]
         focus = arguments.get("focus", "")
