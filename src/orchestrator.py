@@ -1021,6 +1021,248 @@ class BrainstormOrchestrator:
             "saved_mods": {},  # 用于 HTML 草稿恢复
         }
 
+    # ==================== v0.5.0: 6 种新模式 ====================
+
+    def enhance(self, plan: str, focus: str = "") -> dict:
+        """多视角增强已有方案"""
+        perspectives = ["业务价值", "技术架构", "安全合规"]
+        if focus:
+            mapping = {"business": "业务价值", "architecture": "技术架构", "security": "安全合规"}
+            perspectives = [mapping.get(focus, "技术架构")]
+
+        findings = []
+        for p in perspectives:
+            ctx = (
+                f"你是一个{p}专家。请审查以下技术方案，输出JSON:\n"
+                f'{{"strengths":["优势1","优势2"],"risks":["风险1","风险2"],'
+                f'"suggestions":["建议1","建议2"],"score":7.5}}\n\n'
+                f"方案:\n{plan[:4000]}"
+            )
+            try:
+                data = self.fast_llm.cached_call_json(ctx, temperature=0.1, max_tokens=1024)
+                findings.append({"perspective": p, **data})
+            except Exception as e:
+                findings.append({"perspective": p, "error": str(e)})
+
+        # 融合增强
+        all_suggestions = []
+        for f in findings:
+            all_suggestions.extend(f.get("suggestions", []))
+        avg_score = sum(f.get("score", 5) for f in findings) / max(len(findings), 1)
+
+        return {
+            "mode": "enhance",
+            "original_length": len(plan),
+            "perspectives": len(findings),
+            "average_score": round(avg_score, 1),
+            "findings": findings,
+            "merged_suggestions": all_suggestions[:10],
+        }
+
+    def review_code(self, code: str, language: str = "python") -> dict:
+        """多视角代码审查"""
+        perspectives = [
+            ("安全专家", "检查注入漏洞、权限控制、敏感数据泄露、依赖安全"),
+            ("性能架构师", "检查N+1查询、缓存策略、内存泄漏、算法复杂度"),
+            ("代码质量", "检查命名规范、SOLID原则、错误处理、圈复杂度"),
+        ]
+        findings = []
+        for role, focus in perspectives:
+            ctx = (
+                f"你是{role}，专注{language}代码的{focus}。审查以下代码，输出JSON:\n"
+                f'{{"issues":[{{"severity":"high|medium|low","line":"描述位置",'
+                f'"description":"问题描述","fix":"修复建议"}}],"score":7.5}}\n\n'
+                f"代码:\n{code[:4000]}"
+            )
+            try:
+                data = self.fast_llm.cached_call_json(ctx, temperature=0.1, max_tokens=1024)
+                findings.append({"reviewer": role, **data})
+            except Exception as e:
+                findings.append({"reviewer": role, "error": str(e)})
+
+        all_issues = []
+        for f in findings:
+            all_issues.extend(f.get("issues", []))
+        high = [i for i in all_issues if i.get("severity") == "high"]
+        mid = [i for i in all_issues if i.get("severity") == "medium"]
+        low = [i for i in all_issues if i.get("severity") == "low"]
+        avg_score = sum(f.get("score", 5) for f in findings) / max(len(findings), 1)
+
+        return {
+            "mode": "review",
+            "language": language,
+            "total_issues": len(all_issues),
+            "high": high,
+            "medium": mid,
+            "low": low,
+            "overall_score": round(avg_score, 1),
+        }
+
+    def decompose_task(self, task: str) -> dict:
+        """多视角任务拆解"""
+        perspectives = [
+            ("产品经理", "关注用户故事、验收标准、优先级排序"),
+            ("架构师", "关注技术依赖、模块边界、接口定义"),
+            ("工程专家", "关注实现路径、风险预估、工时估算"),
+        ]
+        plans = []
+        for role, focus in perspectives:
+            ctx = (
+                f"你是{role}，{focus}。将以下任务拆解为可执行的任务清单，输出JSON:\n"
+                f'{{"tasks":[{{"id":1,"name":"任务名","description":"描述",'
+                f'"estimated_hours":2,"priority":"high|medium|low",'
+                f'"dependencies":[]}}],"total_hours":0}}\n\n'
+                f"任务:\n{task}"
+            )
+            try:
+                data = self.fast_llm.cached_call_json(ctx, temperature=0.1, max_tokens=2048)
+                plans.append({"role": role, **data})
+            except Exception as e:
+                plans.append({"role": role, "error": str(e)})
+
+        # 去重合并
+        seen = set()
+        merged_tasks = []
+        for p in plans:
+            for t in p.get("tasks", []):
+                key = t.get("name", "")[:20]
+                if key not in seen:
+                    seen.add(key)
+                    merged_tasks.append(t)
+
+        total_hours = sum(t.get("estimated_hours", 0) for t in merged_tasks)
+        mvp_tasks = [t for t in merged_tasks if t.get("priority") == "high"]
+
+        return {
+            "mode": "plan",
+            "total_tasks": len(merged_tasks),
+            "total_hours": total_hours,
+            "mvp_tasks": len(mvp_tasks),
+            "tasks": merged_tasks,
+        }
+
+    def diagnose(self, problem: str) -> dict:
+        """多视角问题诊断"""
+        perspectives = [
+            ("用户操作链", "从用户操作角度分析问题可能出在哪个环节"),
+            ("系统依赖链", "从系统组件依赖关系分析故障点"),
+            ("数据流", "从数据流转和状态变化分析异常"),
+        ]
+        trees = []
+        for angle, focus in perspectives:
+            ctx = (
+                f"你是故障诊断专家。从{angle}（{focus}）构建故障树，输出JSON:\n"
+                f'{{"root_causes":[{{"hypothesis":"根因假设","probability":"high|medium|low",'
+                f'"verification":"验证方法","fix":"修复方法","impact":"影响范围"}}],'
+                f'"recommended_order":[1,2,3]}}\n\n'
+                f"异常现象:\n{problem}"
+            )
+            try:
+                data = self.fast_llm.cached_call_json(ctx, temperature=0.1, max_tokens=1536)
+                trees.append({"angle": angle, **data})
+            except Exception as e:
+                trees.append({"angle": angle, "error": str(e)})
+
+        return {
+            "mode": "diagnose",
+            "fault_trees": trees,
+        }
+
+    def evaluate_options(self, options: list, context: str = "") -> dict:
+        """多维度技术选型评估"""
+        ctx = (
+            f"你是技术选型顾问。对以下候选方案从成本/性能/安全/维护四维评分，输出JSON:\n"
+            f'{{"evaluations":[{{"option":"方案名","cost":8.0,"performance":7.5,'
+            f'"security":9.0,"maintenance":8.5,"total":0,'
+            f'"pros":["优点"],"cons":["缺点"]}}],"recommendation":"推荐理由"}}\n\n'
+            f"候选方案: {', '.join(options)}\n"
+            f"背景: {context or '通用技术选型'}"
+        )
+        try:
+            data = self.fast_llm.cached_call_json(ctx, temperature=0.1, max_tokens=2048)
+            # 计算加权总分
+            for ev in data.get("evaluations", []):
+                ev["total"] = round(
+                    ev.get("cost", 5) * 0.3 +
+                    ev.get("performance", 5) * 0.25 +
+                    ev.get("security", 5) * 0.25 +
+                    ev.get("maintenance", 5) * 0.2, 1
+                )
+            data["evaluations"].sort(key=lambda x: x.get("total", 0), reverse=True)
+            data["mode"] = "choose"
+            return data
+        except Exception as e:
+            return {"mode": "choose", "error": str(e)}
+
+    def scout(self, project_path: str, files: list = None) -> dict:
+        """多视角项目侦察"""
+        import glob as _glob
+        project_dir = Path(project_path)
+        if not project_dir.exists():
+            return {"mode": "scout", "error": f"项目路径不存在: {project_path}"}
+
+        # 自动发现关键文件
+        if not files:
+            key_patterns = [
+                "**/*.py", "**/*.js", "**/*.ts", "**/*.go", "**/*.rs",
+                "**/package.json", "**/requirements.txt", "**/go.mod",
+                "**/Cargo.toml", "**/Dockerfile", "**/docker-compose*.yml",
+                "**/*.config.*", "**/.env*",
+            ]
+            found = set()
+            for pat in key_patterns:
+                for f in _glob.glob(str(project_dir / pat), recursive=True):
+                    fpath = Path(f)
+                    # 跳过忽略的目录
+                    if any(skip in str(fpath) for skip in [
+                        "node_modules", ".git", "__pycache__", ".venv", "venv",
+                        "dist", "build", ".next", "target",
+                    ]):
+                        continue
+                    # 限制文件大小
+                    if fpath.stat().st_size < 102400:
+                        found.add(str(fpath.relative_to(project_dir)))
+            files = sorted(found)[:30]
+
+        # 读取文件内容
+        snippets = []
+        for fname in files[:20]:
+            fpath = project_dir / fname
+            try:
+                content = fpath.read_text(encoding="utf-8", errors="replace")[:2000]
+                snippets.append(f"--- {fname} ---\n{content}")
+            except Exception:
+                pass
+
+        code_sample = "\n\n".join(snippets)[:12000]
+
+        perspectives = [
+            ("业务/UX", "分析用户流程、交互模式、API设计"),
+            ("架构", "分析技术栈、模块结构、依赖关系、数据流"),
+            ("安全/质量", "分析认证授权、安全配置、代码质量"),
+        ]
+        findings = []
+        for role, focus in perspectives:
+            ctx = (
+                f"你是{role}专家。审查以下项目文件，{focus}，输出JSON:\n"
+                f'{{"tech_stack":["发现的技术"],"strengths":["优势"],'
+                f'"risks":["风险"],"suggestions":["建议"],'
+                f'"key_files":["关键文件路径"]}}\n\n'
+                f"项目: {project_path}\n文件内容:\n{code_sample}"
+            )
+            try:
+                data = self.fast_llm.cached_call_json(ctx, temperature=0.1, max_tokens=1536)
+                findings.append({"perspective": role, **data})
+            except Exception as e:
+                findings.append({"perspective": role, "error": str(e)})
+
+        return {
+            "mode": "scout",
+            "project_path": str(project_path),
+            "files_analyzed": len(files),
+            "findings": findings,
+        }
+
     # ==================== v0.4.0: 会话分支与合并 ====================
 
     def branch(self, parent_task_id: str, branch_point: str,

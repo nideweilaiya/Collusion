@@ -202,6 +202,112 @@ async def list_tools():
                 "required": ["task_id", "modifications"],
             },
         ),
+        Tool(
+            name="collusion_enhance",
+            description="多视角增强已有方案。传入一份半成品方案，3个Agent从业务/技术/安全视角审查并输出优化后的完整方案。",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "plan": {
+                        "type": "string",
+                        "description": "已有的方案文本（Markdown或纯文本），需要多视角审查增强",
+                    },
+                    "focus": {
+                        "type": "string",
+                        "description": "可选：重点关注维度（business/architecture/security），不填则全视角",
+                        "default": "",
+                    },
+                },
+                "required": ["plan"],
+            },
+        ),
+        Tool(
+            name="collusion_review",
+            description="多视角代码审查。3个Agent从安全/性能/可维护性视角并行审查代码。",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "code": {
+                        "type": "string",
+                        "description": "要审查的代码内容",
+                    },
+                    "language": {
+                        "type": "string",
+                        "description": "编程语言（python/javascript/go/rust/java等）",
+                        "default": "python",
+                    },
+                },
+                "required": ["code"],
+            },
+        ),
+        Tool(
+            name="collusion_plan",
+            description="多视角任务拆解。架构师+产品经理+工程专家协作将大型任务拆解为可执行清单。",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "task": {
+                        "type": "string",
+                        "description": "要拆解的大型任务描述",
+                    },
+                },
+                "required": ["task"],
+            },
+        ),
+        Tool(
+            name="collusion_diagnose",
+            description="多视角问题诊断。3个Agent独立构建故障树，交叉验证后输出综合诊断报告和排查路径。",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "problem": {
+                        "type": "string",
+                        "description": "异常现象描述（错误信息、症状、复现步骤等）",
+                    },
+                },
+                "required": ["problem"],
+            },
+        ),
+        Tool(
+            name="collusion_choose",
+            description="多维度技术选型评估。成本/性能/安全/维护四维加权打分，输出推荐排名。",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "options": {
+                        "type": "array",
+                        "description": "候选技术方案列表",
+                        "items": {"type": "string"},
+                    },
+                    "context": {
+                        "type": "string",
+                        "description": "选型背景（项目类型、规模、约束等）",
+                        "default": "",
+                    },
+                },
+                "required": ["options"],
+            },
+        ),
+        Tool(
+            name="collusion_scout",
+            description="多视角项目侦察。3个Agent从业务/架构/安全视角并行审查项目代码，输出侦察报告。",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "project_path": {
+                        "type": "string",
+                        "description": "项目根目录路径",
+                    },
+                    "files": {
+                        "type": "array",
+                        "description": "要审查的文件列表（相对路径），不填则自动发现",
+                        "items": {"type": "string"},
+                        "default": [],
+                    },
+                },
+                "required": ["project_path"],
+            },
+        ),
     ]
 
 
@@ -418,7 +524,53 @@ async def call_tool(name: str, arguments: dict):
         ))]
 
     else:
-        return [TextContent(type="text", text=f"Unknown tool: {name}")]
+    if name == "collusion_enhance":
+        plan = arguments["plan"]
+        focus = arguments.get("focus", "")
+        result = _orchestrator.enhance(plan, focus)
+        return [TextContent(type="text", text=json.dumps(
+            result, ensure_ascii=False, indent=2,
+        ))]
+
+    if name == "collusion_review":
+        code = arguments["code"]
+        language = arguments.get("language", "python")
+        result = _orchestrator.review_code(code, language)
+        return [TextContent(type="text", text=json.dumps(
+            result, ensure_ascii=False, indent=2,
+        ))]
+
+    if name == "collusion_plan":
+        task = arguments["task"]
+        result = _orchestrator.decompose_task(task)
+        return [TextContent(type="text", text=json.dumps(
+            result, ensure_ascii=False, indent=2,
+        ))]
+
+    if name == "collusion_diagnose":
+        problem = arguments["problem"]
+        result = _orchestrator.diagnose(problem)
+        return [TextContent(type="text", text=json.dumps(
+            result, ensure_ascii=False, indent=2,
+        ))]
+
+    if name == "collusion_choose":
+        options = arguments["options"]
+        context = arguments.get("context", "")
+        result = _orchestrator.evaluate_options(options, context)
+        return [TextContent(type="text", text=json.dumps(
+            result, ensure_ascii=False, indent=2,
+        ))]
+
+    if name == "collusion_scout":
+        project_path = arguments["project_path"]
+        files = arguments.get("files", [])
+        result = _orchestrator.scout(project_path, files)
+        return [TextContent(type="text", text=json.dumps(
+            result, ensure_ascii=False, indent=2,
+        ))]
+
+    return [TextContent(type="text", text=f"Unknown tool: {name}")]
 
 
 # ============================================================

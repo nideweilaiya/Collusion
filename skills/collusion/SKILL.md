@@ -7,9 +7,37 @@ version: v0.4.0
 
 # Collusion (共谋)
 
-> 零依赖。利用 Claude Code 原生多 Agent 并行能力。核心机制：多视角独立提案 → 交叉审查 → 可行性收束 → 输出。
+> 零依赖。利用宿主原生多 Agent 并行能力。核心机制：多视角独立提案 → 交叉审查 → 可行性收束 → 输出。
 
-## 模式一览
+## 宿主检测
+
+加载此 Skill 后，先判断当前宿主类型：
+
+**如果你在 Claude Code / Cursor 中（有 Agent 工具）** → 直接按下方「Skill 模式」执行，利用宿主原生 Agent 并行。
+
+**如果你在 Reasonix / Trae Solo 中（无 Agent 工具）** → 需要 MCP Server：
+
+```bash
+# 终端执行（保持运行）
+collusion-mcp --sse --port 8020
+```
+
+然后在 Reasonix 中调用以下 MCP 工具：
+- `brainstorm_orchestrate` — 方案设计
+- `brainstorm_status` — 查询进度
+- `brainstorm_result` — 获取结果
+- `collusion_refine` — 反馈修改
+- `brainstorm_search_assets` — 搜索历史方案
+- `brainstorm_elicit` — 回答引导问题
+- `collusion_branch` / `collusion_merge` — 分支与合并
+
+---
+
+## Skill 模式（Claude Code / Cursor）
+
+以下所有模式利用宿主原生 Agent 工具并行执行。
+
+### 模式一览
 
 | 命令 | 功能 | Agent 数 | 典型耗时 |
 |------|------|---------|---------|
