@@ -21,7 +21,14 @@ import threading
 import subprocess
 from pathlib import Path
 from datetime import datetime
-from typing import Dict, List
+from typing import Dict, List, Optional
+
+from src.agent_manager import (
+    get_agent_manager,
+    AgentManagerConfig,
+    ExecutionMode,
+    AgentStatus,
+)
 
 
 BLACKBOARD_ROOT = Path.home() / ".collusion" / "blackboard"
@@ -53,8 +60,15 @@ ORCHESTRATION_PHASES = [
 class BlackboardOrchestrator:
     """黑板编排器 — 完整 7 阶段"""
 
-    def __init__(self):
+    def __init__(self, execution_mode: ExecutionMode = ExecutionMode.PROCESS):
         self._lock = threading.Lock()
+        
+        # 配置 Agent 管理器
+        config = AgentManagerConfig(
+            default_execution_mode=execution_mode,
+            log_dir=BLACKBOARD_ROOT / "logs",
+        )
+        self._agent_manager = get_agent_manager(config)
 
     # ==================== 任务管理 ====================
 
@@ -83,35 +97,17 @@ class BlackboardOrchestrator:
             return json.loads(path.read_text(encoding="utf-8"))
         return {}
 
-    # ==================== 进程管理 ====================
+    # ==================== 进程管理（使用新的 AgentManager）====================
 
     def _spawn_agents(self, task_id: str, mode: str) -> dict:
-        """启动 3 个子 Agent，并行执行指定阶段"""
-        agent_script = Path(__file__).parent / "child_agent.py"
-        processes = {}
-
-        for role in AGENT_ROLES:
-            cmd = [
-                sys.executable, str(agent_script),
-                "--task-id", task_id,
-                "--role", role,
-                "--mode", mode,
-                "--blackboard", str(BLACKBOARD_ROOT),
-            ]
-            startupinfo = None
-            if sys.platform == "win32":
-                startupinfo = subprocess.STARTUPINFO()
-                startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
-                startupinfo.wShowWindow = subprocess.SW_HIDE
-
-            proc = subprocess.Popen(
-                cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
-                startupinfo=startupinfo,
-                creationflags=subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0,
-            )
-            processes[role] = {"pid": proc.pid, "mode": mode}
-
-        return processes
+        """启动 3 个子 Agent，并行执行指定阶段（使用 AgentManager）"""
+        roles = list(AGENT_ROLES.keys())
+        agents = self._agent_manager.spawn_agents(
+            task_id=task_id,
+            roles=roles,
+            mode=mode,
+        )
+        return {role: {"agent": agent} for role, agent in agents.items()}
 
     # ==================== 完整编排 ====================
 
@@ -124,38 +120,53 @@ class BlackboardOrchestrator:
 
         results = {"task_id": task_id, "phases": {}}
 
-        for mode, phase_name in ORCHESTRATION_PHASES:
-            print(f"  [{phase_name}] 启动 3 Agent...")
-            task_data["current_phase"] = mode
-            task_data["status"] = "running"
+        try:
+            for mode, phase_name in ORCHESTRATION_PHASES:
+                print(f"  [{phase_name}] 启动 3 Agent...")
+                task_data["current_phase"] = mode
+                task_data["status"] = "running"
+                self._atomic_write(task_dir / "task.json", task_data)
+
+                # 启动 Agent
+                procs = self._spawn_agents(task_id, mode)
+
+                # 等待全部完成
+                print(f"  [{phase_name}] 等待 Agent 完成...")
+                success, agents = self._agent_manager.wait_for_agents(
+                    task_id=task_id,
+                    timeout=300.0,
+                )
+
+                # 检查状态
+                phase_status = self._check_agents_phase(task_id, mode)
+                if not phase_status["all_done"]:
+                    print(f"  [{phase_name}] 警告: 并非所有 Agent 都正常完成")
+
+                task_data["phase_history"].append({
+                    "phase": mode, "name": phase_name,
+                    "completed_at": datetime.now().isoformat(),
+                    "agents": self._agent_manager.get_task_status(task_id),
+                })
+                self._atomic_write(task_dir / "task.json", task_data)
+                results["phases"][mode] = phase_status
+
+            # Phase 7: 合并
+            merged = self._merge_all(task_id)
+            results["merged"] = merged
+
+            task_data["status"] = "completed"
             self._atomic_write(task_dir / "task.json", task_data)
-
-            procs = self._spawn_agents(task_id, mode)
-
-            # 等待全部完成
-            deadline = time.time() + 300
-            while time.time() < deadline:
-                status = self._check_agents_phase(task_id, mode)
-                if status["all_done"]:
-                    break
-                time.sleep(5)
-            else:
-                print(f"  [{phase_name}] 超时，继续下一阶段")
-
-            task_data["phase_history"].append({
-                "phase": mode, "name": phase_name,
-                "completed_at": datetime.now().isoformat(),
-                "pids": {r: p["pid"] for r, p in procs.items()},
-            })
+            
+        except Exception as e:
+            print(f"  [编排异常]: {e}")
+            task_data["status"] = "error"
+            task_data["error_message"] = str(e)
             self._atomic_write(task_dir / "task.json", task_data)
-            results["phases"][mode] = status
-
-        # Phase 7: 合并
-        merged = self._merge_all(task_id)
-        results["merged"] = merged
-
-        task_data["status"] = "completed"
-        self._atomic_write(task_dir / "task.json", task_data)
+            results["error"] = str(e)
+        finally:
+            # 清理该任务的 Agent
+            self._agent_manager.stop_task_agents(task_id)
+        
         return results
 
     def _check_agents_phase(self, task_id: str, expected_mode: str) -> dict:
@@ -279,10 +290,21 @@ class BlackboardOrchestrator:
             return {"error": f"任务不存在: {task_id}"}
 
         task_data = json.loads(task_path.read_text(encoding="utf-8"))
+        
+        # 从 AgentManager 获取更详细的状态
+        agent_manager_status = self._agent_manager.get_task_status(task_id)
+        
+        # 同时也检查文件系统状态（作为备份）
         agent_details = {}
         for role in AGENT_ROLES:
             sp = task_dir / "agents" / role / "status.json"
-            agent_details[role] = json.loads(sp.read_text(encoding="utf-8")) if sp.exists() else {"phase": "unknown"}
+            file_status = json.loads(sp.read_text(encoding="utf-8")) if sp.exists() else {"phase": "unknown"}
+            
+            # 合并 AgentManager 的状态和文件系统状态
+            agent_details[role] = {
+                **file_status,
+                "manager_status": agent_manager_status.get(role, {}),
+            }
 
         phases = [d.get("phase", "unknown") for d in agent_details.values()]
         done = sum(1 for p in phases if "_done" in p)

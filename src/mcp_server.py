@@ -31,8 +31,16 @@ from mcp.types import Tool, TextContent
 from src.orchestrator import BrainstormOrchestrator
 from src.models import OrchestratorState
 from src.blackboard import BlackboardOrchestrator
+from src.agent_manager import ExecutionMode
 
-_blackboard = BlackboardOrchestrator()
+# 根据环境变量选择执行模式
+_execution_mode = ExecutionMode.PROCESS
+if os.environ.get("COLLUSION_EXECUTION_MODE") == "thread":
+    _execution_mode = ExecutionMode.THREAD
+elif os.environ.get("COLLUSION_EXECUTION_MODE") == "sync":
+    _execution_mode = ExecutionMode.SYNC
+
+_blackboard = BlackboardOrchestrator(execution_mode=_execution_mode)
 
 _orchestrator = BrainstormOrchestrator()
 _executor = ThreadPoolExecutor(max_workers=3)
