@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "collusion-mcp"
-version = "0.4.0"
+version = "0.5.1"
 description = "多视角协作引擎 — 通过多 Agent 并行提案、交叉审查、可行性强制收束，解决单 Agent 在方案设计阶段的意图丢失和过度设计问题"
 readme = "README.md"
 license = "MIT"
@@ -34,14 +34,15 @@ dependencies = [
     "uvicorn>=0.30.0",
     "jinja2>=3.0.0",
     "mistune>=3.0.0",
+    "pyyaml>=6.0",
 ]
 
 [project.urls]
-Homepage = "https://github.com/anthropics/Collusion"
-Documentation = "https://github.com/anthropics/Collusion#readme"
-Repository = "https://github.com/anthropics/Collusion"
-Issues = "https://github.com/anthropics/Collusion/issues"
-Roadmap = "https://github.com/anthropics/Collusion/blob/master/ROADMAP.md"
+Homepage = "https://github.com/nideweilaiya/Collusion"
+Documentation = "https://github.com/nideweilaiya/Collusion#readme"
+Repository = "https://github.com/nideweilaiya/Collusion"
+Issues = "https://github.com/nideweilaiya/Collusion/issues"
+Roadmap = "https://github.com/nideweilaiya/Collusion/blob/master/ROADMAP.md"
 
 [project.scripts]
 collusion-mcp = "src.mcp_server:main"

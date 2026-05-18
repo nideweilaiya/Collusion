@@ -85,8 +85,8 @@ class BlackboardOrchestrator:
 
     # ==================== 进程管理 ====================
 
-    def _spawn_agents(self, task_id: str, mode: str) -> dict:
-        """启动 3 个子 Agent，并行执行指定阶段"""
+    def _spawn_agents(self, task_id: str, mode: str, quick: bool = True) -> dict:
+        """启动 3 个子 Agent，并行执行指定阶段。默认 --quick 跳过懒加载大模块。"""
         agent_script = Path(__file__).parent / "child_agent.py"
         processes = {}
 
@@ -98,6 +98,8 @@ class BlackboardOrchestrator:
                 "--mode", mode,
                 "--blackboard", str(BLACKBOARD_ROOT),
             ]
+            if quick:
+                cmd.append("--quick")
             startupinfo = None
             if sys.platform == "win32":
                 startupinfo = subprocess.STARTUPINFO()
@@ -124,45 +126,54 @@ class BlackboardOrchestrator:
 
         results = {"task_id": task_id, "phases": {}}
 
-        for mode, phase_name in ORCHESTRATION_PHASES:
-            print(f"  [{phase_name}] 启动 3 Agent...")
-            task_data["current_phase"] = mode
-            task_data["status"] = "running"
+        try:
+            for mode, phase_name in ORCHESTRATION_PHASES:
+                print(f"  [{phase_name}] 启动 3 Agent...")
+                task_data["current_phase"] = mode
+                task_data["status"] = "running"
+                self._atomic_write(task_dir / "task.json", task_data)
+
+                procs = self._spawn_agents(task_id, mode)
+
+                # 等待全部完成
+                deadline = time.time() + 300
+                while time.time() < deadline:
+                    status = self._check_agents_phase(task_id, mode)
+                    if status["all_done"]:
+                        break
+                    time.sleep(5)
+                else:
+                    print(f"  [{phase_name}] 超时，继续下一阶段")
+
+                task_data["phase_history"].append({
+                    "phase": mode, "name": phase_name,
+                    "completed_at": datetime.now().isoformat(),
+                    "pids": {r: p["pid"] for r, p in procs.items()},
+                })
+                self._atomic_write(task_dir / "task.json", task_data)
+                results["phases"][mode] = status
+
+            # Phase 7: 合并
+            merged = self._merge_all(task_id)
+            results["merged"] = merged
+
+            task_data["status"] = "completed"
             self._atomic_write(task_dir / "task.json", task_data)
-
-            procs = self._spawn_agents(task_id, mode)
-
-            # 等待全部完成
-            deadline = time.time() + 300
-            while time.time() < deadline:
-                status = self._check_agents_phase(task_id, mode)
-                if status["all_done"]:
-                    break
-                time.sleep(5)
-            else:
-                print(f"  [{phase_name}] 超时，继续下一阶段")
-
-            task_data["phase_history"].append({
-                "phase": mode, "name": phase_name,
-                "completed_at": datetime.now().isoformat(),
-                "pids": {r: p["pid"] for r, p in procs.items()},
-            })
+            return results
+        except Exception as e:
+            print(f"[ERROR] orchestrate_full 异常: {e}")
+            task_data["status"] = "error"
+            task_data["error"] = str(e)
             self._atomic_write(task_dir / "task.json", task_data)
-            results["phases"][mode] = status
-
-        # Phase 7: 合并
-        merged = self._merge_all(task_id)
-        results["merged"] = merged
-
-        task_data["status"] = "completed"
-        self._atomic_write(task_dir / "task.json", task_data)
-        return results
+            return {"task_id": task_id, "error": str(e)}
 
     def _check_agents_phase(self, task_id: str, expected_mode: str) -> dict:
-        """检查所有 Agent 在指定阶段的完成状态"""
+        """检查所有 Agent 在指定阶段的完成状态。
+        将 _done / _skipped / _error 均视为完成，避免级联超时。"""
         task_dir = BLACKBOARD_ROOT / task_id
         agents = {}
         done_count = 0
+        warnings = []
         for role in AGENT_ROLES:
             sp = task_dir / "agents" / role / "status.json"
             if sp.exists():
@@ -171,6 +182,12 @@ class BlackboardOrchestrator:
                 agents[role] = phase
                 if phase == f"{expected_mode}_done":
                     done_count += 1
+                elif phase.startswith(f"{expected_mode}_"):
+                    done_count += 1
+                    reason = s.get("reason", s.get("error", "no reason given"))
+                    warning = f"[WARNING] Agent {role} {phase}: {reason}"
+                    warnings.append(warning)
+                    print(warning)
             else:
                 agents[role] = "no_status"
         return {
@@ -178,6 +195,7 @@ class BlackboardOrchestrator:
             "done": done_count,
             "total": len(AGENT_ROLES),
             "all_done": done_count >= len(AGENT_ROLES),
+            "warnings": warnings if warnings else None,
         }
 
     # ==================== 合并 ====================
@@ -187,17 +205,31 @@ class BlackboardOrchestrator:
         task_dir = BLACKBOARD_ROOT / task_id
         task_data = self.read_task(task_id)
 
-        # 收集投票
+        # 收集投票（每个文件独立 try/except，跳过损坏文件）
         votes = {}
         for role in AGENT_ROLES:
             vp = task_dir / "agents" / role / "vote.json"
             if vp.exists():
-                data = json.loads(vp.read_text(encoding="utf-8"))
-                for v in data.get("votes", []):
-                    target = v.get("target", "")
-                    if target not in votes:
-                        votes[target] = []
-                    votes[target].append(v)
+                try:
+                    data = json.loads(vp.read_text(encoding="utf-8"))
+                    for v in data.get("votes", []):
+                        target = v.get("target", "")
+                        if target not in votes:
+                            votes[target] = []
+                        votes[target].append(v)
+                except (json.JSONDecodeError, UnicodeDecodeError) as e:
+                    print(f"[WARNING] Agent {role} vote.json parse error: {e}")
+
+        # 前置检查：无投票数据时返回清晰错误
+        if not votes:
+            return {
+                "rankings": [],
+                "merged_path": "",
+                "top1": None,
+                "content_preview": "",
+                "error": "no_vote_data",
+                "hint": "Vote phase not complete. Check status with collusion_blackboard_status(task_id='{}')".format(task_id),
+            }
 
         # 平均分 + 排名
         rankings = []

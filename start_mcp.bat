@@ -1,5 +1,5 @@
 @echo off
-cd /d D:\BrainstormOrchestrator
+cd /d "%~dp0"
 echo ========================================
 echo   Collusion MCP Server v3.2
 echo   多视角协作技术方案编排引擎

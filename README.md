@@ -208,6 +208,41 @@ brainstorm_result(task_id="task_xxxxxxxxxxxx")
 
 ---
 
+## Troubleshooting
+
+### API Key 未配置
+
+Collusion 自动检测环境变量，优先级为: `DEEPSEEK_API_KEY` → `OPENAI_API_KEY` → `LLM_API_KEY` → Reasonix 配置。
+
+```bash
+export DEEPSEEK_API_KEY=sk-xxxxxxxxxxxxxxxx
+```
+
+Reasonix 用户自动读取 `~/.reasonix/config.json`，无需额外配置。
+
+### MCP 服务启动失败
+
+```bash
+# 确认 mcp 包已安装
+python -c "import mcp; print(mcp.__version__)"
+
+# 检查端口占用 (Windows)
+netstat -ano | findstr :8020
+
+# 检查端口占用 (macOS/Linux)
+lsof -i :8020
+```
+
+### 黑板 merge 返回空排名
+
+先查状态再 merge:
+```
+collusion_blackboard_status(task_id="bb_xxxx")
+```
+确认所有 Agent 显示 `_done`。如果 Agent 卡在 `proposal_start`，等待 2-3 分钟后再 merge。如果显示 `_error`，查看 status 中的 error 字段。
+
+---
+
 ## 许可证
 
 MIT License — 详见 [LICENSE](LICENSE)

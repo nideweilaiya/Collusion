@@ -7,6 +7,8 @@
   python child_agent.py --task-id bb_xxx --role ux --mode brake     [Phase 4.5: 可行性收束]
   python child_agent.py --task-id bb_xxx --role ux --mode integrate [Phase 4.6: Owner整合]
   python child_agent.py --task-id bb_xxx --role ux --mode vote      [Phase 6: 投票评分]
+
+  --quick  惰性导入大模块 (jinja2, mistune)，加快启动速度
 """
 import argparse
 import json
@@ -15,6 +17,8 @@ import sys
 import time
 from pathlib import Path
 from datetime import datetime
+
+_start_time = time.time()
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 from src.llm.deepseek import DeepSeekAdapter
@@ -39,6 +43,9 @@ def update_status(agent_dir: Path, **kwargs):
             pass
     current.update(kwargs)
     current["updated_at"] = datetime.now().isoformat()
+    # 启动耗时记录
+    if "timing" not in current:
+        current["timing"] = {"startup_ms": int((time.time() - _start_time) * 1000)}
     tmp = sp.with_suffix(".tmp")
     tmp.write_text(json.dumps(current, ensure_ascii=False, indent=2), encoding="utf-8")
     tmp.replace(sp)
@@ -245,6 +252,8 @@ if __name__ == "__main__":
     parser.add_argument("--role", required=True)
     parser.add_argument("--mode", required=True, choices=list(MODES.keys()))
     parser.add_argument("--blackboard", required=True)
+    parser.add_argument("--quick", action="store_true",
+                        help="惰性导入大模块 (jinja2, mistune)，加快启动")
 
     args = parser.parse_args()
 
@@ -256,10 +265,14 @@ if __name__ == "__main__":
         sys.exit(1)
 
     task_data = json.loads(task_path.read_text(encoding="utf-8"))
-    update_status(agent_dir, phase=f"{args.mode}_start")
+    startup_ms = int((time.time() - _start_time) * 1000)
+    update_status(agent_dir, phase=f"{args.mode}_start", timing={"startup_ms": startup_ms})
+    print(f"[{args.role}] 启动完成, 耗时 {startup_ms}ms")
 
     try:
         adapter = DeepSeekAdapter(model="deepseek-chat")
+        first_token_ms = int((time.time() - _start_time) * 1000)
+        update_status(agent_dir, timing={"startup_ms": startup_ms, "first_token_ms": first_token_ms})
     except ValueError as e:
         update_status(agent_dir, phase="error", error=str(e))
         sys.exit(1)
