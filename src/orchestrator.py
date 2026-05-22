@@ -48,6 +48,79 @@ class BrainstormOrchestrator:
         self.coverage_threshold = self.config.get("object_coverage_threshold", 0.5)
         self.data_dir = Path(self.config.get("data_dir", "data"))
 
+        # v0.5.0: 知识库配置
+        from src.prompts import DEFAULT_KNOWLEDGE_CONFIG
+        knowledge_cfg = self.config.get("knowledge", {})
+        self.knowledge_config = {**DEFAULT_KNOWLEDGE_CONFIG, **knowledge_cfg}
+
+        # v0.7.0: 向量语义索引（零新依赖）
+        self.vector_index = None
+        self._enable_vector = self.knowledge_config.get("enable_vector_search", False)
+
+        # v0.8.0: MAGE 自进化引擎
+        self.evolution = None
+        self._enable_evolution = self.knowledge_config.get("enable_evolution", True)
+        if self._enable_evolution:
+            try:
+                from src.evolution import EvolutionEngine
+                self.evolution = EvolutionEngine(str(self.data_dir))
+            except Exception:
+                self.evolution = None
+
+        # v1.0.0: Agent-as-a-Graph 知识图谱路由
+        self.agent_graph = None
+        self._enable_agent_graph = self.knowledge_config.get("enable_agent_graph", True)
+        if self._enable_agent_graph:
+            try:
+                from src.agent_graph import AgentGraph
+                self.agent_graph = AgentGraph(str(self.data_dir))
+            except Exception:
+                self.agent_graph = None
+
+        # v1.3-v1.7: 验证门 + 蓝图 + 审查记忆 + 记忆巩固
+        self.verification_gate = None
+        self.task_graph_store = None
+        self.review_memory = None
+        self.memory_consolidation = None
+        if self.knowledge_config.get("enable_advanced", True):
+            try:
+                from src.verification import (VerificationGate, TaskGraphStore,
+                                               ReviewMemory, MemoryConsolidation)
+                self.verification_gate = VerificationGate
+                self.task_graph_store = TaskGraphStore(str(self.data_dir))
+                self.review_memory = ReviewMemory(str(self.data_dir))
+                self.memory_consolidation = MemoryConsolidation(str(self.data_dir))
+            except Exception:
+                pass
+
+        # v1.5-v2.0: Agent 能力自评与自组织进化
+        self.agent_evolution = None
+        if self.knowledge_config.get("enable_agent_evolution", True):
+            try:
+                from src.agent_evolution import AgentEvolutionEngine
+                self.agent_evolution = AgentEvolutionEngine(str(self.data_dir))
+            except Exception:
+                self.agent_evolution = None
+
+        # GoalRunner: 自动化执行闭环
+        self.goal_runner = None
+        if self.knowledge_config.get("enable_goal_runner", True):
+            try:
+                from src.goal_runner import GoalRunner
+                self.goal_runner = GoalRunner(orchestrator=self, data_dir=str(self.data_dir))
+            except Exception:
+                self.goal_runner = None
+        if self._enable_vector:
+            try:
+                from src.vector_index import VectorIndex
+                self.vector_index = VectorIndex()
+                vi_path = self.data_dir / "vector_index"
+                if (vi_path / "metadata.json").exists():
+                    self.vector_index.load(str(vi_path))
+                    print(f"  [向量索引] 加载 {self.vector_index.size} 篇文档")
+            except Exception:
+                self.vector_index = None
+
         self.strong_llm = self._create_adapter("strong")
         self.fast_llm = self._create_adapter("fast")
 
@@ -137,40 +210,74 @@ class BrainstormOrchestrator:
     # ==================== 公共 API ====================
 
     def detect_agents_for_task(self, task: str, preset: str = "auto") -> tuple:
-        """根据任务自动检测需要的 Agent 配置
-
-        Args:
-            task: 任务描述
-            preset: 预设模式 — auto(自动检测)/quick/standard/full
-
-        Returns:
-            (role_ids, agent_count, complexity_level)
-        """
+        """v1.0.0: 使用 Agent-as-a-Graph 优化 Agent 选择"""
+        # 先获取默认检测结果
         if preset == "auto":
             role_ids, complexity = role_manager.detect(task, "standard")
             count = role_manager.get_agent_count(role_ids)
         elif preset in role_manager.presets:
             pc = role_manager.presets[preset]
-            role_ids = pc.roles
-            count = pc.agents
+            role_ids = pc["roles"]
+            count = pc["agents"]
             complexity = 0
         else:
-            role_ids, count, complexity = ["business_value", "architecture", "security"], 3, 0
+            role_ids = role_manager.detect(task, "standard")[0]
+            count = len(role_ids)
+            complexity = 0
+
+        # v1.0.0: 如果 Agent 图有数据，用历史数据优化选择
+        if self._enable_agent_graph and self.agent_graph is not None:
+            try:
+                # 提取任务标签
+                task_lower = task.lower()
+                kw_patterns = ["短链接", "微服务", "API", "数据库", "安全", "前端",
+                               "后端", "高并发", "文件", "博客", "实时", "搜索"]
+                task_tags = [kw for kw in kw_patterns if kw in task_lower]
+
+                graph_roles = self.agent_graph.select_agents(
+                    task_tags=task_tags,
+                    available_roles=[r.value for r in DEFAULT_AGENT_ROLES],
+                    top_k=count,
+                )
+                if graph_roles:
+                    # 把前端 Agent 映射回 role_ids
+                    role_map = {
+                        "业务价值对象": "ux",
+                        "技术架构对象": "performance",
+                        "安全与合规对象": "security",
+                    }
+                    mapped = [role_map.get(r, r) for r in graph_roles]
+                    if mapped:
+                        role_ids = mapped[:count]
+            except Exception:
+                pass
 
         return role_ids, count, complexity
 
     def orchestrate(self, task: str, task_id: str = None, output_format: str = "md",
-                    preset: str = "auto") -> str:
-        """主入口：执行完整编排
+                    preset: str = "auto", mode: str = "design") -> str:
+        """主入口：执行编排（v1.0.0: 支持 check/design 双模式）
 
         Args:
             task: 技术任务描述
             task_id: 预设任务 ID（异步模式用）
-            output_format: 输出格式 — \"md\"(默认) / \"html\" / \"both\"
-                md: 仅 Markdown（~800 token 增量）
-                html: HTML 可视化报告 + Markdown（~2500 token 增量）
-                both: 同 html
+            output_format: 输出格式
+            preset: Agent 预设
+            mode: "check" = 只做预检（0.5ms）不编排
+                  "design" = 完整编排（预检+注入+3Agent+归档）
         """
+        if mode == "check":
+            # 轻量模式：只做知识预检，不启动编排
+            import uuid
+            check_id = f"check_{uuid.uuid4().hex[:8]}"
+            precheck = self.pre_check_knowledge(task)
+            # 存到临时状态
+            check_state = OrchestratorState(
+                task_id=check_id, original_task=task, phase="precheck_done"
+            )
+            check_state.precheck_result = precheck
+            self._states[check_id] = check_state
+            return check_id
         state = OrchestratorState(original_task=task)
         state.output_paths = {"format": output_format}
         if task_id:
@@ -249,6 +356,100 @@ class BrainstormOrchestrator:
             except Exception as e:
                 print(f"  [资产库] 索引失败（不阻塞主流程）: {e}")
 
+            # Phase 6.6: 因果记忆图记录
+            try:
+                self._record_causal_memory(state)
+            except Exception as e:
+                print(f"  [因果记忆] 记录失败（不阻塞主流程）: {e}")
+
+            # Phase 6.7: Agent Graph 自动记录
+            try:
+                if self._enable_agent_graph and self.agent_graph is not None:
+                    roles_used = [
+                        a.get("object_name", a.get("agent_role", ""))
+                        for a in state.agents
+                    ]
+                    # 提取任务标签
+                    task_lower = state.original_task.lower()
+                    kw_tags = [kw for kw in
+                        ["短链接","微服务","API","数据库","安全","前端","后端",
+                         "高并发","文件","博客","实时","搜索","Docker","部署"]
+                        if kw.lower() in task_lower]
+                    self.agent_graph.record_task(
+                        task_id=state.task_id,
+                        task_desc=state.original_task[:100],
+                        roles=roles_used or ["业务价值对象","技术架构对象","安全与合规对象"],
+                        success=True,
+                        tags=kw_tags,
+                    )
+            except Exception as e:
+                print(f"  [Agent图] 记录失败（不阻塞）: {e}")
+
+            # Phase 6.8: 工作流蓝图保存 (v1.4)
+            try:
+                if self.task_graph_store is not None and state.steps:
+                    blueprint = {
+                        "steps": [
+                            {"index": s.index, "name": s.name, "description": s.description}
+                            for s in state.steps
+                        ],
+                        "task_desc": state.original_task[:200],
+                    }
+                    self.task_graph_store.save(
+                        task_id=state.task_id,
+                        task_desc=state.original_task[:200],
+                        task_graph=blueprint,
+                        tags=[t.get("value", "") for t in getattr(state, "all_tags", [])],
+                    )
+            except Exception:
+                pass
+
+            # Phase 6.9: 睡眠巩固 (v1.7)
+            try:
+                if self.memory_consolidation is not None:
+                    self.memory_consolidation.sleep_consolidate()
+            except Exception:
+                pass
+
+            # Phase 6.10: Agent 能力记录 (v1.5-v2.0 基础数据)
+            try:
+                if self.agent_evolution is not None:
+                    # 提取任务标签
+                    task_lower = state.original_task.lower()
+                    task_tags = [kw for kw in
+                        ["短链接","微服务","API","数据库","安全","前端","后端",
+                         "高并发","文件","博客","实时","搜索","Docker","部署",
+                         "认证","缓存","架构","选型"]
+                        if kw.lower() in task_lower]
+
+                    # 为每个Agent记录执行结果
+                    for agent in self.agents:
+                        top1_score = 0
+                        if state.vote_results:
+                            top1 = next((r for r in state.vote_results if r.get("rank")==1), None)
+                            if top1:
+                                top1_score = top1.get("total_score", 0)
+
+                        self.agent_evolution.record_execution(
+                            agent_id=agent.agent_id,
+                            role=agent.role.value,
+                            task_desc=state.original_task[:100],
+                            success=top1_score > 7.0,
+                            score=top1_score,
+                            tags=task_tags,
+                        )
+
+                    # 记录团队组建
+                    agent_roles = [a.role.value for a in self.agents]
+                    self.agent_evolution.record_team(
+                        task_desc=state.original_task[:100],
+                        agents=agent_roles,
+                        success=state.phase == "done",
+                        task_tags=task_tags,
+                    )
+            except Exception:
+                pass
+
             # Phase 7: 渲染双文件输出（v3.2 新增）
             state.phase = "phase7_render"
             try:
@@ -282,6 +483,20 @@ class BrainstormOrchestrator:
         state_dict = self.get_state(task_id)
         if state_dict is None:
             return None
+
+        # v1.0.0: check 模式直接返回预检结果
+        if state_dict.get("phase") == "precheck_done" or task_id.startswith("check_"):
+            precheck = state_dict.get("precheck_result")
+            if precheck:
+                return {
+                    "task_id": task_id,
+                    "mode": "check",
+                    "task": state_dict.get("original_task", ""),
+                    "phase": "precheck_done",
+                    "precheck": precheck,
+                    "tip": "关联度 >0.5 可参考历史方案。使用 mode=design 启动完整编排。",
+                }
+
         return {
             "task_id": state_dict["task_id"],
             "original_task": state_dict["original_task"],
@@ -418,7 +633,44 @@ class BrainstormOrchestrator:
 
     def _proposals(self, state: OrchestratorState,
                    steps: List[Step]) -> Dict[str, PlanScheme]:
-        """阶段3: 并行提案 (ThreadPoolExecutor, 兼容同步/异步环境)"""
+        """阶段3: 并行提案 (ThreadPoolExecutor, 兼容同步/异步环境)
+        v0.5.0: 提案前自动注入知识上下文（如果有关联历史资产）
+        """
+        # 知识预检：检索关联历史资产
+        knowledge_context = ""
+        from src.prompts import SYSTEM_KNOWLEDGE_CONTEXT, DEFAULT_KNOWLEDGE_CONFIG
+        try:
+            precheck = self.pre_check_knowledge(state.original_task)
+            relevant = precheck.get("relevant_assets", [])
+            warnings = precheck.get("discarded_warnings", [])
+            threshold = self.knowledge_config.get("relevance_threshold", 0.3)
+
+            if relevant:
+                entries_text = []
+                for a in relevant[:3]:
+                    score = a.get("relevance_score", 0)
+                    if score >= threshold:
+                        tag_str = ", ".join(a.get("keywords", [])[:4])
+                        entries_text.append(
+                            f"- [{score:.2f}] {a.get('task', '')[:80]} [{tag_str}]"
+                        )
+                warn_text = []
+                for w in warnings[:2]:
+                    reasons = "; ".join(w.get("discard_reasons", [])) or "被Top1方案淘汰"
+                    warn_text.append(
+                        f"- ⚠️ {w.get('task', '')[:60]} (原因: {reasons})"
+                    )
+
+                if entries_text:
+                    knowledge_context = SYSTEM_KNOWLEDGE_CONTEXT.format(
+                        relevance_threshold=threshold,
+                        relevance_entries="\n".join(entries_text),
+                        discarded_warnings="\n".join(warn_text) if warn_text else "无",
+                    )
+                    print(f"  [知识注入] 注入 {len(entries_text)} 条历史参考 + {len(warn_text)} 条废案警告")
+        except Exception as e:
+            print(f"  [知识注入] 跳过（不阻塞主流程）: {e}")
+
         from concurrent.futures import as_completed
         futures = {}
         for agent in self.agents:
@@ -426,6 +678,7 @@ class BrainstormOrchestrator:
                 agent.generate_proposal,
                 state.original_task,
                 steps,
+                knowledge_context,
             )
             futures[future] = agent
 
@@ -519,13 +772,26 @@ class BrainstormOrchestrator:
     def _feasibility_brake(self, state: OrchestratorState,
                            schemes: Dict[str, PlanScheme],
                            steps: List[Step]) -> Dict[str, PlanScheme]:
-        """工程实现对象代言人对每个方案进行现实检验"""
+        """工程实现对象代言人对每个方案进行现实检验
+
+        v1.3: 添加收敛→整合验证门
+        """
         records = []
         for scheme_id, scheme in schemes.items():
             brake_agent = self.engineering_agent or self.agents[0]
             result = brake_agent.feasibility_brake(
                 state.original_task, scheme, steps, self.complexity_threshold,
             )
+            # v1.3: 检查因果预警和复杂度
+            if self.verification_gate is not None:
+                gate_ctx = {
+                    "causal_warnings": [],  # TODO: wire causal query
+                    "complexity_score": scheme.complexity_score,
+                    "max_complexity": self.complexity_threshold,
+                }
+                gate_result = self.verification_gate.check("converge_integrate", gate_ctx)
+                if not gate_result["passed"]:
+                    records.append(f"[验证门] {scheme_id}: {gate_result['checks']}")
             records.append({
                 "scheme_id": scheme_id,
                 "feasible": result.get("feasible", True),
@@ -1085,14 +1351,15 @@ class BrainstormOrchestrator:
         }
 
     def review_code(self, code: str, language: str = "python") -> dict:
-        """多视角代码审查"""
-        perspectives = [
+        """多视角代码审查（结果自动归档到 asset_library）"""
+        perspectives_def = [
             ("安全专家", "检查注入漏洞、权限控制、敏感数据泄露、依赖安全"),
             ("性能架构师", "检查N+1查询、缓存策略、内存泄漏、算法复杂度"),
             ("代码质量", "检查命名规范、SOLID原则、错误处理、圈复杂度"),
         ]
         findings = []
-        for role, focus in perspectives:
+        raw_perspectives = []
+        for role, focus in perspectives_def:
             ctx = (
                 f"你是{role}，专注{language}代码的{focus}。审查以下代码，输出JSON:\n"
                 f'{{"issues":[{{"severity":"high|medium|low","line":"描述位置",'
@@ -1102,8 +1369,10 @@ class BrainstormOrchestrator:
             try:
                 data = self.fast_llm.cached_call_json(ctx, temperature=0.1, max_tokens=1024)
                 findings.append({"reviewer": role, **data})
+                raw_perspectives.append({"role": role, "raw_data": data})
             except Exception as e:
                 findings.append({"reviewer": role, "error": str(e)})
+                raw_perspectives.append({"role": role, "raw_data": {"error": str(e)}})
 
         all_issues = []
         for f in findings:
@@ -1113,7 +1382,7 @@ class BrainstormOrchestrator:
         low = [i for i in all_issues if i.get("severity") == "low"]
         avg_score = sum(f.get("score", 5) for f in findings) / max(len(findings), 1)
 
-        return {
+        merged = {
             "mode": "review",
             "language": language,
             "total_issues": len(all_issues),
@@ -1122,16 +1391,25 @@ class BrainstormOrchestrator:
             "low": low,
             "overall_score": round(avg_score, 1),
         }
+        # v0.7.0: 自动归档
+        try:
+            task_id = self._save_tool_result(
+                "review", f"[{language}] {code[:200]}", raw_perspectives, merged)
+            merged["task_id"] = task_id
+        except Exception:
+            pass
+        return merged
 
     def decompose_task(self, task: str) -> dict:
-        """多视角任务拆解"""
-        perspectives = [
+        """多视角任务拆解（结果自动归档到 asset_library）"""
+        perspectives_def = [
             ("产品经理", "关注用户故事、验收标准、优先级排序"),
             ("架构师", "关注技术依赖、模块边界、接口定义"),
             ("工程专家", "关注实现路径、风险预估、工时估算"),
         ]
         plans = []
-        for role, focus in perspectives:
+        raw_perspectives = []
+        for role, focus in perspectives_def:
             ctx = (
                 f"你是{role}，{focus}。将以下任务拆解为可执行的任务清单，输出JSON:\n"
                 f'{{"tasks":[{{"id":1,"name":"任务名","description":"描述",'
@@ -1142,8 +1420,10 @@ class BrainstormOrchestrator:
             try:
                 data = self.fast_llm.cached_call_json(ctx, temperature=0.1, max_tokens=2048)
                 plans.append({"role": role, **data})
+                raw_perspectives.append({"role": role, "raw_data": data})
             except Exception as e:
                 plans.append({"role": role, "error": str(e)})
+                raw_perspectives.append({"role": role, "raw_data": {"error": str(e)}})
 
         # 去重合并
         seen = set()
@@ -1158,23 +1438,32 @@ class BrainstormOrchestrator:
         total_hours = sum(t.get("estimated_hours", 0) for t in merged_tasks)
         mvp_tasks = [t for t in merged_tasks if t.get("priority") == "high"]
 
-        return {
+        merged = {
             "mode": "plan",
             "total_tasks": len(merged_tasks),
             "total_hours": total_hours,
             "mvp_tasks": len(mvp_tasks),
             "tasks": merged_tasks,
         }
+        # v0.7.0: 自动归档
+        try:
+            task_id = self._save_tool_result(
+                "plan", task, raw_perspectives, merged)
+            merged["task_id"] = task_id
+        except Exception:
+            pass
+        return merged
 
     def diagnose(self, problem: str) -> dict:
-        """多视角问题诊断"""
-        perspectives = [
+        """多视角问题诊断（结果自动归档到 asset_library）"""
+        perspectives_def = [
             ("用户操作链", "从用户操作角度分析问题可能出在哪个环节"),
             ("系统依赖链", "从系统组件依赖关系分析故障点"),
             ("数据流", "从数据流转和状态变化分析异常"),
         ]
         trees = []
-        for angle, focus in perspectives:
+        raw_perspectives = []
+        for angle, focus in perspectives_def:
             ctx = (
                 f"你是故障诊断专家。从{angle}（{focus}）构建故障树，输出JSON:\n"
                 f'{{"root_causes":[{{"hypothesis":"根因假设","probability":"high|medium|low",'
@@ -1185,13 +1474,149 @@ class BrainstormOrchestrator:
             try:
                 data = self.fast_llm.cached_call_json(ctx, temperature=0.1, max_tokens=1536)
                 trees.append({"angle": angle, **data})
+                raw_perspectives.append({"role": angle, "raw_data": data})
             except Exception as e:
                 trees.append({"angle": angle, "error": str(e)})
+                raw_perspectives.append({"role": angle, "raw_data": {"error": str(e)}})
 
-        return {
+        merged = {
             "mode": "diagnose",
             "fault_trees": trees,
         }
+        # v0.7.0: 自动归档
+        try:
+            task_id = self._save_tool_result(
+                "diagnose", problem, raw_perspectives, merged)
+            merged["task_id"] = task_id
+        except Exception:
+            pass
+        return merged
+
+    # ==================== 工具结果持久化 (v0.7.0) ====================
+
+    def _save_tool_result(self, tool_name: str, input_text: str,
+                          perspectives: List[dict], merged_result: dict) -> str:
+        """将 review/diagnose/plan 结果持久化到磁盘。
+
+        保存路径:
+          data/states/{task_id}.json          — 会话状态
+          data/asset_library/{task_id}_{A/B/C}.json — 三Agent原始输出
+          data/outputs/{task_id}/report.md    — 合并报告
+          data/asset_library/index.json       — 增量更新索引
+
+        废案判定: 三Agent各自独立输出均保存为变体。
+          排名第1的Agent变体标记为 is_top1。
+          其余变体标记为 is_discarded=True（废案备选）。
+        """
+        import uuid
+        task_id = f"{tool_name}_{uuid.uuid4().hex[:12]}"
+
+        # 1. 保存会话状态
+        state_dir = self.data_dir / "states"
+        state_dir.mkdir(parents=True, exist_ok=True)
+        state = {
+            "task_id": task_id,
+            "tool": tool_name,
+            "input": input_text[:500],
+            "perspectives": [p.get("role", "") for p in perspectives],
+            "merged_result": merged_result,
+            "created_at": datetime.now().isoformat(),
+        }
+        with open(state_dir / f"{task_id}.json", "w", encoding="utf-8") as f:
+            json.dump(state, f, ensure_ascii=False, indent=2)
+
+        # 2. 增量更新资产库索引
+        asset_dir = self.data_dir / "asset_library"
+        asset_dir.mkdir(parents=True, exist_ok=True)
+        index_path = asset_dir / "index.json"
+        index = {}
+        if index_path.exists():
+            try:
+                with open(index_path, "r", encoding="utf-8") as f:
+                    index = json.load(f)
+            except Exception:
+                index = {}
+
+        keywords = self._extract_keywords_fallback(input_text)
+
+        # 废案判定：第一个视角默认为主方案，其余为废案备选
+        for i, p in enumerate(perspectives):
+            sid = chr(65 + i)  # A, B, C
+            entry_key = f"{task_id}_{sid}"
+            role = p.get("role", p.get("angle", f"视角{i+1}"))
+
+            # 保存原始输出副本
+            agent_data = {
+                "task_id": task_id,
+                "scheme_id": sid,
+                "tool": tool_name,
+                "input": input_text[:200],
+                "perspective": role,
+                "result": p.get("raw_data", p),
+            }
+            with open(asset_dir / f"{task_id}_{sid}.json", "w", encoding="utf-8") as f:
+                json.dump(agent_data, f, ensure_ascii=False, indent=2)
+
+            is_discarded = (i > 0)
+            index[entry_key] = {
+                "task_id": task_id,
+                "scheme_id": sid,
+                "task": input_text[:200],
+                "keywords": keywords,
+                "object_name": role,
+                "agent_role": role,
+                "total_score": 0,
+                "is_top1": (i == 0),
+                "is_discarded": is_discarded,
+                "discard_reasons": ["非主方案，保留为备选参考"] if is_discarded else [],
+                "rank": i + 1,
+                "summary": json.dumps(p.get("raw_data", p), ensure_ascii=False)[:500],
+                "created_at": datetime.now().isoformat(),
+                "success_outcome": None,
+            }
+
+        with open(index_path, "w", encoding="utf-8") as f:
+            json.dump(index, f, ensure_ascii=False, indent=2)
+
+        # 3. 保存合并报告
+        output_dir = self.data_dir / "outputs" / task_id
+        output_dir.mkdir(parents=True, exist_ok=True)
+        report_lines = [
+            f"# {tool_name} 报告",
+            f"Task ID: `{task_id}`",
+            f"创建时间: {datetime.now().isoformat()}",
+            "",
+            "## 输入",
+            input_text[:2000],
+            "",
+            "## 参与视角",
+        ]
+        for p in perspectives:
+            role = p.get("role", p.get("angle", "?"))
+            report_lines.append(f"- {role}")
+        report_lines += [
+            "",
+            "## 合并结果",
+            "```json",
+            json.dumps(merged_result, ensure_ascii=False, indent=2),
+            "```",
+        ]
+        with open(output_dir / "report.md", "w", encoding="utf-8") as f:
+            f.write("\n".join(report_lines))
+
+        # v0.7.0: 尝试同步向量索引
+        try:
+            if getattr(self, '_enable_vector', False) and self.vector_index is not None:
+                self._build_vector_index(full_index=index)
+        except Exception:
+            pass
+
+        n_discarded = sum(1 for v in index.values()
+                         if v.get("task_id") == task_id and v.get("is_discarded"))
+        print(f"  [归档] {tool_name} → {task_id} "
+              f"(3个变体, {n_discarded}个废案) → "
+              f"states/ + asset_library/ + outputs/")
+        return task_id
 
     def evaluate_options(self, options: list, context: str = "") -> dict:
         """多维度技术选型评估"""
@@ -1428,25 +1853,17 @@ class BrainstormOrchestrator:
             ),
         }
 
-    # ==================== v0.4.0: 废案资产库与语义检索 ====================
+    # ==================== v0.5.0: 废案资产库 — 增强版（5维标签+关联度+废案警告） ====================
 
-    def _index_scheme_assets(self, state: OrchestratorState):
-        """编排完成后，将所有方案按关键词索引到资产库"""
-        asset_dir = self.data_dir / "asset_library"
-        asset_dir.mkdir(parents=True, exist_ok=True)
-        index_path = asset_dir / "index.json"
+    def _extract_tags_llm(self, task: str, plan_text: str) -> List[dict]:
+        """标签提取（v0.5.5: 不再主动调 LLM，由调用方通过 collusion_asset_tag 注入）
+        保留此方法作为兼容接口，但返回空列表让调用方写入。
+        """
+        return []
 
-        # 加载现有索引
-        index = {}
-        if index_path.exists():
-            try:
-                with open(index_path, "r", encoding="utf-8") as f:
-                    index = json.load(f)
-            except Exception:
-                index = {}
-
-        # 提取关键词
-        task_lower = state.original_task.lower()
+    def _extract_keywords_fallback(self, task: str) -> List[str]:
+        """关键词回退提取（兼容旧版和LLM失败时）"""
+        task_lower = task.lower()
         keywords = []
         kw_patterns = [
             ("api", "API设计"), ("微服务", "微服务"), ("microservice", "微服务"),
@@ -1471,25 +1888,137 @@ class BrainstormOrchestrator:
         for pattern, tag in kw_patterns:
             if pattern in task_lower and tag not in keywords:
                 keywords.append(tag)
+        return keywords
 
-        # 为每个方案创建资产条目
+    def _build_yaml_frontmatter(self, entry: dict) -> str:
+        """为资产条目生成 YAML frontmatter（方案E：渐进式元数据）"""
+        tags = entry.get("tags", [])
+        keywords = entry.get("keywords", [])
+        # 从 tags 中按维度提取
+        tech_stack = [t["value"] for t in tags if isinstance(t, dict) and t.get("dimension") == "技术栈"]
+        domain = next((t["value"] for t in tags if isinstance(t, dict) and t.get("dimension") == "领域"), "")
+        arch = next((t["value"] for t in tags if isinstance(t, dict) and t.get("dimension") == "架构模式"), "")
+        security = [t["value"] for t in tags if isinstance(t, dict) and t.get("dimension") == "安全关注点"]
+        perf = [t["value"] for t in tags if isinstance(t, dict) and t.get("dimension") == "性能特征"]
+
+        parts = ["---"]
+        parts.append(f"name: {entry.get('task_id', '')}_{entry.get('scheme_id', '')}")
+        parts.append(f"description: {entry.get('task', '')[:120]}")
+        if tech_stack:
+            parts.append(f"tech_stack: [{', '.join(tech_stack)}]")
+        if domain:
+            parts.append(f"domain: {domain}")
+        if arch:
+            parts.append(f"arch_pattern: {arch}")
+        if security:
+            parts.append(f"security_focus: [{', '.join(security)}]")
+        if perf:
+            parts.append(f"performance: [{', '.join(perf)}]")
+        if keywords:
+            parts.append(f"keywords: [{', '.join(keywords)}]")
+        parts.append(f"created_at: {entry.get('created_at', '')}")
+        parts.append("---")
+        return "\n".join(parts)
+
+    def _migrate_old_entry(self, entry: dict) -> dict:
+        """将旧版 index.json 条目迁移到新版 5 维标签格式"""
+        if "tags" in entry and entry["tags"]:
+            return entry  # 已经是最新版
+        keywords = entry.get("keywords", [])
+        tags = []
+        # 从旧 keywords 推断标签维度
+        for kw in keywords:
+            dim = "领域"  # 默认
+            if kw in ("Go", "Python", "Redis", "PostgreSQL", "Docker", "SQL", "CDN"):
+                dim = "技术栈"
+            elif kw in ("微服务", "事件驱动", "单体"):
+                dim = "架构模式"
+            elif kw in ("安全", "认证", "OAuth"):
+                dim = "安全关注点"
+            elif kw in ("高并发", "低延迟", "扩展性"):
+                dim = "性能特征"
+            tags.append({"dimension": dim, "value": kw, "confidence": 0.6, "source": "migrated"})
+        entry["tags"] = tags
+        if "is_discarded" not in entry:
+            entry["is_discarded"] = False
+        if "discard_reasons" not in entry:
+            entry["discard_reasons"] = []
+        if "rank" not in entry:
+            entry["rank"] = 1 if entry.get("is_top1", False) else 0
+        return entry
+
+    def _index_scheme_assets(self, state: OrchestratorState):
+        """编排完成后，将所有方案按 5维标签索引到资产库 (v0.5.0)"""
+        asset_dir = self.data_dir / "asset_library"
+        asset_dir.mkdir(parents=True, exist_ok=True)
+        index_path = asset_dir / "index.json"
+
+        # 加载现有索引并迁移旧条目
+        index = {}
+        if index_path.exists():
+            try:
+                with open(index_path, "r", encoding="utf-8") as f:
+                    raw = json.load(f)
+                for k, v in raw.items():
+                    index[k] = self._migrate_old_entry(v)
+            except Exception:
+                index = {}
+
+        # 用 LLM 提取 5 维标签（仅在开启 auto_tagging 时）
+        auto_tagging = getattr(self, 'knowledge_config', {}).get('auto_tagging', True)
+        all_tags = []
+        if auto_tagging and state.top3_plans:
+            # 用 Top1 方案的集成内容提取标签
+            top1_sid = None
+            for r in state.vote_results:
+                if r.get("rank") == 1:
+                    top1_sid = r.get("plan_id")
+                    break
+            if top1_sid and top1_sid in state.schemes:
+                plan_text = state.schemes[top1_sid].get("integrated_content", "")
+                if len(plan_text) > 200:
+                    all_tags = self._extract_tags_llm(state.original_task, plan_text)
+
+        # 回退关键词
+        keywords = self._extract_keywords_fallback(state.original_task)
+
+        # 为每个方案创建增强版资产条目
         for sid, scheme in state.schemes.items():
             entry_key = f"{state.task_id}_{sid}"
             vote = next(
                 (v for v in state.vote_results if v.get("plan_id") == sid),
                 None,
             )
+            rank = vote.get("rank", 99) if vote else 99
+            is_top1 = rank == 1
+            # 废案判定：非Top1 且 非最高分代理人
+            is_discarded = not is_top1 and rank > 1
+
             entry = {
                 "task_id": state.task_id,
                 "scheme_id": sid,
                 "task": state.original_task[:200],
-                "keywords": keywords,
+                "tags": all_tags,  # 5维结构化标签
+                "keywords": keywords,  # 兼容旧版
                 "object_name": scheme.get("object_name", ""),
                 "agent_role": scheme.get("agent_role", ""),
                 "total_score": vote.get("total_score", 0) if vote else 0,
-                "is_top1": (vote.get("rank", 99) == 1) if vote else False,
+                "rank": rank,
+                "is_top1": is_top1,
+                "is_discarded": is_discarded,
+                "discard_reasons": [],  # 待用户在 refine 时填写
                 "summary": scheme.get("integrated_content", "")[:500],
                 "created_at": datetime.now().isoformat(),
+                "success_outcome": None,  # 用户后续更新
+                # v0.5.0+: YAML frontmatter（方案E渐进式元数据）
+                "yaml_meta": self._build_yaml_frontmatter({
+                    "task_id": state.task_id,
+                    "scheme_id": sid,
+                    "task": state.original_task[:200],
+                    "tags": all_tags,
+                    "keywords": keywords,
+                    "created_at": datetime.now().isoformat(),
+                }),
             }
             index[entry_key] = entry
 
@@ -1504,6 +2033,7 @@ class BrainstormOrchestrator:
                 "task_id": state.task_id,
                 "scheme_id": sid,
                 "task": state.original_task,
+                "tags": all_tags,
                 "keywords": keywords,
                 "scheme": scheme,
                 "vote": next(
@@ -1515,52 +2045,801 @@ class BrainstormOrchestrator:
             with open(scheme_path, "w", encoding="utf-8") as f:
                 json.dump(scheme_data, f, ensure_ascii=False, indent=2)
 
-        print(f"  [资产库] 索引了 {len(state.schemes)} 个方案 (关键词: {keywords})")
-        return keywords
+        # v0.7.0: 同步更新向量语义索引
+        try:
+            if self._enable_vector and self.vector_index is not None:
+                self._build_vector_index(full_index=index)
+        except Exception as e:
+            print(f"  [向量索引] 构建失败（不阻塞）: {e}")
+
+        tag_summary = [t["value"] for t in all_tags[:8]] if all_tags else keywords[:4]
+        print(f"  [资产库] 索引了 {len(state.schemes)} 个方案 (标签: {tag_summary})")
+        return all_tags if all_tags else keywords
+
+    def _build_vector_index(self, full_index: dict = None):
+        """从资产库重建向量语义索引"""
+        if self.vector_index is None:
+            return
+        if full_index is None:
+            # 从磁盘加载
+            idx_path = self.data_dir / "asset_library" / "index.json"
+            if not idx_path.exists():
+                return
+            with open(idx_path, "r", encoding="utf-8") as f:
+                full_index = json.load(f)
+
+        documents = []
+        for key, entry in full_index.items():
+            # 构建搜索文本：任务 + 标签 + 关键词 + 摘要
+            tags_text = " ".join(
+                t.get("value", "") for t in entry.get("tags", []) if isinstance(t, dict)
+            )
+            kw_text = " ".join(entry.get("keywords", []))
+            task_text = entry.get("task", "")
+            summary_text = (entry.get("summary", "") or "")[:300]
+            combined = f"{task_text} {tags_text} {kw_text} {summary_text}".strip()
+            if combined:
+                documents.append((key, combined))
+
+        if documents:
+            n = self.vector_index.build(documents)
+            vi_path = self.data_dir / "vector_index"
+            self.vector_index.save(str(vi_path))
+            print(f"  [向量索引] 构建 {n} 篇文档")
+
+    def _compute_relevance_score(self, query_tags: List[str],
+                                  entry: dict, weights: dict = None) -> float:
+        """计算查询与资产条目的关联度分数 (0-1)
+
+        公式 (Sanity.io + LLM Wiki 混合):
+          关联度 = w1 * 标签重合度(Sanity.io) + w2 * 技术栈相似度 + w3 * 因果记忆匹配度
+
+        标签重合度子公式 (Sanity.io Dropbox Dash 验证):
+          shared_tags = 查询词 ∩ 资产可搜索文本 的匹配数
+          relevance_tag = (shared_tags × 2) ÷ (len(query_tags) + len(asset_effective_tags))
+
+        取值范围 0-1，值越接近 1 代表关联越强。
+        """
+        if weights is None:
+            # v0.8.0: 使用 MAGE 自适应权重（如有）
+            if self._enable_evolution and self.evolution is not None:
+                weights = self.evolution.get_adaptive_weights()
+            else:
+                weights = {"tag_overlap": 0.4, "tech_similarity": 0.35, "causal_match": 0.25}
+
+        query_lower = [q.lower() for q in query_tags]
+        entry_tags = entry.get("tags", [])
+        entry_keywords = [k.lower() for k in entry.get("keywords", [])]
+        entry_task = entry.get("task", "").lower()
+        entry_summary = entry.get("summary", "").lower()
+
+        # 构建资产的有效标签集合（用于 Sanity.io 分母）
+        tag_values = [t.get("value", "").lower() for t in entry_tags if isinstance(t, dict)]
+        asset_effective = list(dict.fromkeys(tag_values + entry_keywords))  # 去重
+
+        # 构建可搜索文本（中文用子串匹配，不用分词）
+        searchable_text = " ".join(tag_values + entry_keywords) + " " + entry_task + " " + entry_summary
+
+        # 1. 标签重合度 — Sanity.io 公式
+        if query_lower and searchable_text:
+            shared = sum(1 for qt in query_lower if qt and qt in searchable_text)
+            # (shared × 2) ÷ (len(query) + len(asset_effective))
+            denominator = max(len(query_lower) + len(asset_effective), 1)
+            tag_overlap = min((shared * 2) / denominator, 1.0)
+        else:
+            tag_overlap = 0.0
+
+        # 2. 技术栈相似度（从 tags 中筛选 tech_stack 维度的标签）
+        tech_tags = [t.get("value", "").lower() for t in entry_tags
+                     if isinstance(t, dict) and t.get("dimension") == "技术栈"]
+        tech_overlap = 0.0
+        if tech_tags and query_lower:
+            tech_searchable = " ".join(tech_tags)
+            shared_tech = sum(1 for qt in query_lower if qt and qt in tech_searchable)
+            tech_denom = max(len(query_lower) + len(tech_tags), 1)
+            tech_overlap = min((shared_tech * 2) / tech_denom, 1.0)
+
+        # 3. 因果记忆匹配度（暂为 0，Phase 4 实现）
+        causal_match = 0.0
+
+        # 综合评分
+        relevance = (
+            weights["tag_overlap"] * tag_overlap
+            + weights["tech_similarity"] * tech_overlap
+            + weights["causal_match"] * causal_match
+        )
+
+        return min(relevance, 1.0)
+
+    # ==================== 方案B: 四信号复合关联度 (LLM Wiki 模型) ====================
+
+    def _compute_adamic_adar(self, query_tags: set, entry_tags: set,
+                              full_index: dict, entry_key: str) -> float:
+        """Adamic-Adar 共同邻居信号：共享邻居越稀有，信号越强
+
+        公式: Σ 1/log(degree(neighbor))
+        """
+        score = 0.0
+        common = query_tags & entry_tags
+        for tag in common:
+            # degree = 拥有该标签的资产数
+            degree = sum(1 for e in full_index.values()
+                         if any(t.get("value", "").lower() == tag
+                                for t in e.get("tags", []) if isinstance(t, dict))
+                         or tag in [k.lower() for k in e.get("keywords", [])])
+            if degree > 1:
+                score += 1.0 / __import__("math").log(degree + 1)
+        return min(score / max(len(common), 1), 1.0) if common else 0.0
+
+    def _compute_four_signal_relevance(self, query_key: str,
+                                        query_tags: List[str],
+                                        entry_key: str,
+                                        entry: dict,
+                                        full_index: dict) -> float:
+        """四信号复合关联度（LLM Wiki 开源实现 v0.3.1）
+
+        信号1: 直接链接 (weight=3.0) — 两个任务同源时触发
+        信号2: 来源重叠 (weight=4.0) — 来自同一份原始任务
+        信号3: Adamic-Adar (weight=1.5) — 共享罕见标签
+        信号4: 类型亲和 (weight=1.0) — 相同 Agent 角色
+        """
+        # 提取 task_id 前缀
+        q_task_id = query_key.split("_")[0] + "_" + query_key.split("_")[1] if "_" in query_key else ""
+        e_task_id = entry.get("task_id", "")
+
+        query_set = set(q.lower() for q in query_tags)
+        entry_tag_vals = set(
+            t.get("value", "").lower()
+            for t in entry.get("tags", []) if isinstance(t, dict)
+        )
+        entry_kw_set = set(k.lower() for k in entry.get("keywords", []))
+        entry_all_tags = entry_tag_vals | entry_kw_set
+
+        # Signal 1: 直接链接 (3.0)
+        direct_link_score = 0.0
+        if q_task_id and e_task_id and q_task_id == e_task_id:
+            direct_link_score = 3.0
+
+        # Signal 2: 来源重叠 (4.0) — 同 task_id
+        source_overlap = 0.0
+        if q_task_id and e_task_id and q_task_id == e_task_id:
+            source_overlap = 4.0
+
+        # Signal 3: Adamic-Adar (1.5)
+        aa_score = self._compute_adamic_adar(query_set, entry_all_tags,
+                                              full_index, entry_key)
+        signal_3 = aa_score * 1.5
+
+        # Signal 4: 类型亲和 (1.0)
+        q_role = ""  # query 没有 agent_role，可从 context 推断
+        e_role = entry.get("agent_role", "")
+        type_affinity = 1.0 if (q_role and e_role and q_role == e_role) else 0.0
+        signal_4 = type_affinity * 1.0
+
+        # 复合
+        raw = direct_link_score + source_overlap + signal_3 + signal_4
+        # 归一化到 0-1
+        max_possible = 3.0 + 4.0 + 1.5 + 1.0  # = 9.5
+        return min(raw / max_possible, 1.0)
 
     def search_assets(self, query: str, top_k: int = 5) -> list:
-        """语义检索资产库中的历史方案"""
+        """增强版语义检索 — 支持 5维标签 + 关联度评分 + 废案标记"""
         asset_dir = self.data_dir / "asset_library"
         index_path = asset_dir / "index.json"
         if not index_path.exists():
             return []
 
         with open(index_path, "r", encoding="utf-8") as f:
-            index = json.load(f)
+            raw_index = json.load(f)
 
+        # 迁移旧条目
+        index = {}
+        for k, v in raw_index.items():
+            index[k] = self._migrate_old_entry(v)
+
+        from src.prompts import DEFAULT_KNOWLEDGE_CONFIG
+        weights = DEFAULT_KNOWLEDGE_CONFIG["relevance_weights"]
+
+        # 提取查询关键词（支持中文：整句原文 + 常用中文关键词提取 + 英文技术词）
         query_lower = query.lower()
+
+        # 中文关键词自动提取：匹配预定义的中文技术/领域关键词
+        chinese_kw_patterns = [
+            "短链接", "微服务", "数据库", "前端", "后端", "安全", "认证",
+            "部署", "缓存", "消息队列", "高并发", "博客", "文件分享", "文件上传",
+            "待办事项", "API", "实时", "搜索", "支付", "CDN", "监控",
+            "容器", "Docker", "Kubernetes", "负载均衡", "网关",
+        ]
+        query_kw = []
+        for cp in chinese_kw_patterns:
+            if cp.lower() in query_lower and cp.lower() not in query_kw:
+                query_kw.append(cp.lower())
+
+        # 提取技术标记词（英文关键词独立提取）
+        tech_markers = ["go", "python", "rust", "java", "node", "react", "vue",
+                        "docker", "k8s", "redis", "postgresql", "mysql", "mongodb",
+                        "sqlite", "nginx", "aws", "gcp", "azure", "api", "crud",
+                        "oauth", "jwt", "sql", "cdn", "etl", "css", "html"]
+        query_tech = [w for w in query_lower.replace(",", " ").replace("#", " ").split()
+                      if w in tech_markers]
+
+        # 构建查询标签: 整句原文 + 中文关键词 + 英文技术词
+        query_tags = [query_lower] + query_kw + query_tech
+
+        # 预处理中文条目文本库用于更快匹配
+
         results = []
         for key, entry in index.items():
-            # 关键词匹配 + 任务描述匹配
+            # 关联度评分（主分数）
+            relevance = self._compute_relevance_score(query_tags, entry, weights)
+
+            # 兼容旧版：保留关键词匹配加分
             kw_match = sum(
                 1 for kw in entry.get("keywords", [])
                 if kw.lower() in query_lower
             )
-            task_match = sum(
-                1 for word in query_lower.split()
-                if word in entry.get("task", "").lower()
+            legacy_boost = kw_match * 0.05  # 小幅度加分
+
+            # v0.5.5: 四信号 Adamic-Adar 稀有标签加分
+            four_signal_boost = 0.0
+            query_set = set(q.lower() for q in query_tags)
+            entry_tag_vals = set(
+                t.get("value", "").lower()
+                for t in entry.get("tags", []) if isinstance(t, dict)
             )
-            summary_match = sum(
-                1 for word in query_lower.split()
-                if word in entry.get("summary", "").lower()
-            )
-            score = kw_match * 3 + task_match * 2 + summary_match * 1
-            if score > 0:
-                results.append({
+            entry_kw_set = set(k.lower() for k in entry.get("keywords", []))
+            entry_all_tags = entry_tag_vals | entry_kw_set
+            common = query_set & entry_all_tags
+            if common:
+                # 稀有标签加分：只出现1次的标签 → x2, 出现2次 → x1.5, 出现3次 → x1
+                rarity_bonus = 0.0
+                for tag in common:
+                    freq = sum(1 for e in index.values()
+                               if any(t.get("value", "").lower() == tag
+                                      for t in e.get("tags", []) if isinstance(t, dict))
+                               or tag in [k.lower() for k in e.get("keywords", [])])
+                    if freq == 1:
+                        rarity_bonus += 0.10  # 极稀有标签
+                    elif freq == 2:
+                        rarity_bonus += 0.05  # 稀有标签
+                four_signal_boost = min(rarity_bonus, 0.3)
+
+            score = round(relevance + legacy_boost + four_signal_boost, 4)
+
+            if score > 0.05:  # 低阈值也要返回
+                # 找一下废案原因
+                discard_reasons = entry.get("discard_reasons", [])
+                is_discarded = entry.get("is_discarded", False)
+
+                result = {
                     "key": key,
-                    "score": score,
+                    "relevance_score": score,
+                    "tag_overlap": relevance,
                     "task": entry.get("task", ""),
                     "scheme_id": entry.get("scheme_id", ""),
                     "object_name": entry.get("object_name", ""),
                     "keywords": entry.get("keywords", []),
+                    "tags": entry.get("tags", []),
                     "total_score": entry.get("total_score", 0),
                     "is_top1": entry.get("is_top1", False),
+                    "is_discarded": is_discarded,
+                    "discard_reasons": discard_reasons,
+                    "rank": entry.get("rank", 0),
                     "summary": entry.get("summary", "")[:200],
                     "created_at": entry.get("created_at", ""),
+                }
+                if is_discarded:
+                    result["warning"] = (
+                        f"⚠️ 这是一个废案（排名 #{entry.get('rank', '?')}），"
+                        f"被Top1方案淘汰"
+                        + (f"。原因: {'; '.join(discard_reasons)}" if discard_reasons else "")
+                    )
+                results.append(result)
+
+        # v0.7.0: 向量语义搜索融合（如启用）
+        if self._enable_vector and self.vector_index is not None and self.vector_index.size > 0:
+            try:
+                vec_results = self.vector_index.query(query_lower, top_k=top_k * 2)
+                vec_scores = {r["doc_id"]: r["score"] for r in vec_results}
+
+                for r in results:
+                    key = r["key"]
+                    if key in vec_scores:
+                        # 向量分融合：0.3 权重
+                        r["vector_score"] = vec_scores[key]
+                        r["relevance_score"] = round(
+                            r["relevance_score"] * 0.7 + vec_scores[key] * 0.3, 4
+                        )
+                    else:
+                        r["vector_score"] = 0.0
+
+                # 重新排序
+                results.sort(key=lambda x: x["relevance_score"], reverse=True)
+            except Exception as e:
+                print(f"  [向量索引] 查询失败（优雅降级）: {e}")
+
+        # v0.8.0: MAGE Bandit 探索 — epsilon-greedy 提升低排名但高历史回报的资产
+        if self._enable_evolution and self.evolution is not None and len(results) >= 2:
+            try:
+                if self.evolution.should_explore():
+                    # 从排名 3+ 的资产中选一个 bandit 评分最高的提升到第 2 位
+                    tail = results[min(2, len(results)-1):]
+                    if tail:
+                        best_tail = max(tail, key=lambda r: self.evolution.get_asset_score(r["key"]))
+                        if best_tail in results:
+                            results.remove(best_tail)
+                            results.insert(1, best_tail)
+            except Exception:
+                pass
+
+        results.sort(key=lambda x: x["relevance_score"], reverse=True)
+        top_results = results[:top_k]
+
+        # v0.8.0: 自动记录到 MAGE 自进化引擎
+        if self._enable_evolution and self.evolution is not None:
+            try:
+                self.evolution.record_search(query, top_results)
+            except Exception:
+                pass
+
+        return top_results
+
+    def check_discarded_warnings(self, query: str, top_k: int = 3) -> list:
+        """专门检索废案，返回类似方案的警告"""
+        asset_dir = self.data_dir / "asset_library"
+        index_path = asset_dir / "index.json"
+        if not index_path.exists():
+            return []
+
+        with open(index_path, "r", encoding="utf-8") as f:
+            raw_index = json.load(f)
+
+        # 迁移旧条目
+        index = {}
+        for k, v in raw_index.items():
+            index[k] = self._migrate_old_entry(v)
+
+        query_lower = query.lower()
+
+        # 中文关键词预提取
+        chinese_kw_patterns = [
+            "短链接", "微服务", "数据库", "前端", "后端", "安全", "认证",
+            "部署", "缓存", "消息队列", "高并发", "博客", "文件分享", "文件上传",
+            "待办事项", "API", "实时", "搜索", "支付", "CDN", "监控",
+        ]
+        query_kw = [cp for cp in chinese_kw_patterns if cp.lower() in query_lower]
+
+        warnings = []
+        for key, entry in index.items():
+            is_discarded = entry.get("is_discarded", False)
+            rank = entry.get("rank", 0)
+            total_score = entry.get("total_score", 0)
+
+            # 只关注：明确标记废案 或 排名>1但有评分 或 未评分但非Top1
+            if not is_discarded and rank <= 1:
+                continue
+            if not is_discarded and total_score == 0:
+                continue
+
+            entry_task = entry.get("task", "").lower()
+            entry_kw = [k.lower() for k in entry.get("keywords", [])]
+
+            # 检查与查询的相关性（子串匹配，支持中文）
+            kw_match = [k for k in entry_kw if k and k in query_lower]
+            kw_match += [k for k in query_kw if k in entry_task]
+            task_match = query_lower in entry_task or any(k in entry_task for k in [query_lower])
+
+            if kw_match or task_match:
+                warnings.append({
+                    "key": key,
+                    "task": entry.get("task", ""),
+                    "keywords": entry.get("keywords", []),
+                    "discard_reasons": entry.get("discard_reasons", []),
+                    "rank": rank,
+                    "total_score": total_score,
+                    "matched_terms": list(set(kw_match)) if kw_match else ["(task match)"],
+                    "warning_type": is_discarded and "explicit_discard" or "alternative",
                 })
+
+        warnings.sort(key=lambda x: len(x.get("matched_terms", [])), reverse=True)
+        return warnings[:top_k]
+
+    def update_asset_tags(self, task_id: str, tags: List[dict]) -> dict:
+        """由调用方（Reasonix AI）直接写入 5 维标签到资产库
+
+        Args:
+            task_id: 任务ID (如 task_abc123)
+            tags: 标签列表，格式同 KnowledgeTag.to_dict()
+                   [{"dimension":"技术栈","value":"Go","confidence":0.95}, ...]
+
+        Returns:
+            {"updated": n_entries, "task_id": task_id}
+        """
+        asset_dir = self.data_dir / "asset_library"
+        index_path = asset_dir / "index.json"
+        if not index_path.exists():
+            return {"error": "资产库不存在", "task_id": task_id}
+
+        with open(index_path, "r", encoding="utf-8") as f:
+            index = json.load(f)
+
+        updated = 0
+        for key, entry in index.items():
+            if entry.get("task_id") == task_id:
+                entry["tags"] = tags
+                entry["keywords"] = list(dict.fromkeys(
+                    [t["value"] for t in tags if isinstance(t, dict)]
+                    + entry.get("keywords", [])
+                ))
+                # 刷新 YAML 元数据
+                entry["yaml_meta"] = self._build_yaml_frontmatter(entry)
+                updated += 1
+
+        if updated > 0:
+            with open(index_path, "w", encoding="utf-8") as f:
+                json.dump(index, f, ensure_ascii=False, indent=2)
+            return {"updated": updated, "task_id": task_id}
+        return {"error": f"任务 {task_id} 未找到", "task_id": task_id}
+
+    def record_search_evolution(self, query: str, results: list):
+        """记录一次搜索到 MAGE 自进化引擎"""
+        if self._enable_evolution and self.evolution is not None:
+            try:
+                self.evolution.record_search(query, results)
+            except Exception:
+                pass
+
+    def get_knowledge_stats(self) -> dict:
+        """获取知识库综合统计"""
+        stats = {"version": "1.0.0"}
+
+        # 资产库统计
+        idx_path = self.data_dir / "asset_library" / "index.json"
+        if idx_path.exists():
+            import json
+            with open(idx_path, "r", encoding="utf-8") as f:
+                idx = json.load(f)
+            stats["assets"] = {
+                "total": len(idx),
+                "top1": sum(1 for e in idx.values() if e.get("is_top1")),
+                "discarded": sum(1 for e in idx.values() if e.get("is_discarded")),
+                "with_tags": sum(1 for e in idx.values() if e.get("tags")),
+            }
+            # 标签种类
+            all_dims = set()
+            all_vals = set()
+            for e in idx.values():
+                for t in e.get("tags", []):
+                    if isinstance(t, dict):
+                        all_dims.add(t.get("dimension", ""))
+                        all_vals.add(t.get("value", ""))
+            stats["assets"]["tag_dimensions"] = len(all_dims)
+            stats["assets"]["tag_values"] = len(all_vals)
+
+        # 因果图统计
+        causal_path = self.data_dir / "causal_memory" / "graph.json"
+        if causal_path.exists():
+            import json
+            with open(causal_path, "r", encoding="utf-8") as f:
+                graph = json.load(f)
+            node_types = {}
+            for n in graph.get("nodes", {}).values():
+                nt = n.get("node_type", "unknown")
+                node_types[nt] = node_types.get(nt, 0) + 1
+            stats["causal"] = {
+                "total_nodes": len(graph.get("nodes", {})),
+                "total_edges": len(graph.get("edges", [])),
+                "node_types": node_types,
+            }
+
+        # Agent 图统计
+        if self._enable_agent_graph and self.agent_graph is not None:
+            ag = self.agent_graph.get_stats()
+            stats["agent_graph"] = ag
+
+        # 进化统计
+        if self._enable_evolution and self.evolution is not None:
+            ev = self.evolution.get_stats()
+            stats["evolution"] = {
+                "total_searches": ev["total_searches"],
+                "adoption_rate": ev["adoption_rate"],
+                "epsilon": ev["epsilon"],
+                "weight_version": ev["weights"].get("version", 1),
+            }
+
+        # 向量索引统计
+        if self._enable_vector and self.vector_index is not None:
+            stats["vector_index"] = {"documents": self.vector_index.size}
+
+        return stats
+
+    def get_evolution_stats(self) -> dict:
+        """获取 MAGE 自进化统计"""
+        if self._enable_evolution and self.evolution is not None:
+            return self.evolution.get_stats()
+        return {"status": "disabled"}
+
+    def search_project_kb(self, query: str, top_k: int = 5) -> list:
+        """搜索项目知识库 (Collusion_知识库/) 中的文档
+
+        使用文件名和内容的子串匹配，返回匹配的文件列表
+        """
+        vault_path = self.knowledge_config.get("obsidian_vault_path", "")
+        if not vault_path or not os.path.isdir(vault_path):
+            return []
+
+        query_lower = query.lower()
+        results = []
+
+        for root, dirs, files in os.walk(vault_path):
+            # 跳过 .git, 参考材料中的代码库
+            dirs[:] = [d for d in dirs if not d.startswith('.') and d != '__pycache__']
+            for f in files:
+                if not f.endswith('.md'):
+                    continue
+                fpath = os.path.join(root, f)
+                rel = os.path.relpath(fpath, vault_path)
+
+                # 文件名匹配
+                fname_score = 1.0 if query_lower in f.lower().replace('.md', '') else 0
+
+                # 内容匹配 (只读前 2000 字符)
+                try:
+                    with open(fpath, 'r', encoding='utf-8') as fh:
+                        head = fh.read(2000)
+                    content_score = 0
+                    for word in query_lower.split():
+                        if word in head.lower():
+                            content_score += 0.5
+                    content_score = min(content_score, 2.0)
+                except Exception:
+                    content_score = 0
+
+                total = fname_score + content_score
+                if total > 0:
+                    results.append({
+                        "path": rel,
+                        "filename": f,
+                        "score": round(total, 2),
+                        "match_type": "filename" if fname_score > 0 else "content",
+                    })
 
         results.sort(key=lambda x: x["score"], reverse=True)
         return results[:top_k]
+
+    def pre_check_knowledge(self, task: str) -> dict:
+        """新任务启动时的知识预检：检索关联资产 + 废案警告
+
+        返回:
+            {"relevant_assets": [...], "discarded_warnings": [...], "relevance_summary": "..."}
+        """
+        relevant = self.search_assets(task, top_k=5)
+        discarded = self.check_discarded_warnings(task, top_k=3)
+
+        # 生成摘要
+        parts = []
+        if relevant:
+            top = relevant[0]
+            parts.append(f"发现 {len(relevant)} 个相关历史方案")
+            if top["relevance_score"] > 0.3:
+                parts.append(f"最高关联度: {top['relevance_score']:.2f} ({top['task'][:40]}...)")
+
+        if discarded:
+            parts.append(f"⚠️ 发现 {len(discarded)} 个类似废案需注意")
+
+        return {
+            "relevant_assets": relevant,
+            "discarded_warnings": discarded,
+            "relevance_summary": " | ".join(parts) if parts else "无匹配历史资产",
+        }
+
+    # ==================== Phase 4: 因果记忆图 Prism ====================
+
+    def _load_causal_graph(self) -> dict:
+        """加载因果记忆图"""
+        path = self.data_dir / "causal_memory" / "graph.json"
+        if path.exists():
+            try:
+                with open(path, "r", encoding="utf-8") as f:
+                    return json.load(f)
+            except Exception:
+                pass
+        return {"nodes": {}, "edges": [], "version": "0.5.0"}
+
+    def _save_causal_graph(self, graph: dict):
+        """保存因果记忆图"""
+        path = self.data_dir / "causal_memory"
+        path.mkdir(parents=True, exist_ok=True)
+        with open(path / "graph.json", "w", encoding="utf-8") as f:
+            json.dump(graph, f, ensure_ascii=False, indent=2)
+
+    def _record_causal_memory(self, state):
+        """编排完成后，保存 Top1 方案原文供调用方分析（v0.7.0: 不再主动调 LLM）
+        调用方通过 collusion_causal_record 写入已分析的数据。
+        """
+        if not self.knowledge_config.get("enable_causal_memory", True):
+            return
+
+        top1_sid = None
+        for r in state.vote_results:
+            if r.get("rank") == 1:
+                top1_sid = r.get("plan_id")
+                break
+        if not top1_sid or top1_sid not in state.schemes:
+            return
+
+        plan_text = state.schemes[top1_sid].get("integrated_content", "")
+        if len(plan_text) < 200:
+            return
+
+        # 保存方案原文到临时文件，供调用方后续分析
+        causal_dir = self.data_dir / "causal_memory"
+        causal_dir.mkdir(parents=True, exist_ok=True)
+        pending = {
+            "task_id": state.task_id,
+            "original_task": state.original_task[:200],
+            "plan_text": plan_text[:5000],
+            "status": "pending_analysis",
+        }
+        with open(causal_dir / f"pending_{state.task_id}.json", "w", encoding="utf-8") as f:
+            json.dump(pending, f, ensure_ascii=False, indent=2)
+        print(f"  [因果记忆] 待分析: {state.task_id}（调用方可使用 collusion_causal_record 写入）")
+
+    def save_causal_data(self, task_id: str, decisions: list, constraints: list = None,
+                          outcomes: list = None, risks: list = None) -> dict:
+        """由调用方（Reasonix AI）直接写入因果记忆数据
+
+        Args:
+            task_id: 任务ID
+            decisions: [{"label","description","tags","outcome_score"}, ...]
+            constraints: [{"label","description","tags"}, ...]
+            outcomes: [{"label","description","tags","score"}, ...]
+            risks: [{"label","description","tags","severity"}, ...]
+
+        Returns:
+            {"saved": n_nodes, "task_id": task_id}
+        """
+        graph = self._load_causal_graph()
+        constraints = constraints or []
+        outcomes = outcomes or []
+        risks = risks or []
+        n_initial = len(graph["nodes"])
+
+        # 决策节点
+        for d in decisions:
+            nid = f"dec_{task_id}_{len(graph['nodes'])}"
+            graph["nodes"][nid] = {
+                "id": nid, "node_type": "decision",
+                "label": d.get("label", ""), "description": d.get("description", ""),
+                "tags": d.get("tags", []), "task_id": task_id,
+                "created_at": time.time(), "outcome_score": d.get("outcome_score"),
+            }
+
+        # 约束节点
+        for c in constraints:
+            nid = f"con_{task_id}_{len(graph['nodes'])}"
+            graph["nodes"][nid] = {
+                "id": nid, "node_type": "constraint",
+                "label": c.get("label", ""), "description": c.get("description", ""),
+                "tags": c.get("tags", []), "task_id": task_id,
+                "created_at": time.time(),
+            }
+
+        # 结果节点
+        for o in outcomes:
+            nid = f"out_{task_id}_{len(graph['nodes'])}"
+            graph["nodes"][nid] = {
+                "id": nid, "node_type": "outcome",
+                "label": o.get("label", ""), "description": o.get("description", ""),
+                "tags": o.get("tags", []), "task_id": task_id,
+                "created_at": time.time(), "outcome_score": o.get("score"),
+            }
+
+        # 风险节点
+        for r in risks:
+            nid = f"risk_{task_id}_{len(graph['nodes'])}"
+            graph["nodes"][nid] = {
+                "id": nid, "node_type": "risk",
+                "label": r.get("label", ""), "description": r.get("description", ""),
+                "tags": r.get("tags", []), "task_id": task_id,
+                "created_at": time.time(), "severity": r.get("severity", "中"),
+            }
+
+        # 自动添加因果边：决策 → 结果
+        new_node_ids = list(graph["nodes"].keys())[n_initial:]
+        dec_ids = [n for n in new_node_ids if graph["nodes"][n]["node_type"] == "decision"]
+        out_ids = [n for n in new_node_ids if graph["nodes"][n]["node_type"] == "outcome"]
+        for d_id in dec_ids:
+            for o_id in out_ids:
+                graph["edges"].append({
+                    "source_id": d_id, "target_id": o_id,
+                    "relation": "leads_to", "weight": 1.0,
+                    "description": f"{graph['nodes'][d_id]['label']} → {graph['nodes'][o_id]['label']}",
+                    "task_id": task_id,
+                })
+
+        self._save_causal_graph(graph)
+        n_saved = len(graph["nodes"]) - n_initial
+
+        # 清理待分析标记
+        causal_dir = self.data_dir / "causal_memory"
+        pending_file = causal_dir / f"pending_{task_id}.json"
+        if pending_file.exists():
+            pending_file.unlink()
+
+        return {"saved": n_saved, "task_id": task_id, "total_nodes": len(graph["nodes"])}
+
+    def query_causal_memory(self, query_tags: List[str], top_k: int = 5) -> list:
+        """查询因果记忆图，返回与给定标签相关的历史决策-结果信息
+        """
+        graph = self._load_causal_graph()
+        if not graph["nodes"]:
+            return []
+
+        query_lower = [q.lower() for q in query_tags]
+        scored = []
+
+        for nid, node in graph["nodes"].items():
+            node_tags = [t.lower() for t in node.get("tags", [])]
+            node_label = node.get("label", "").lower()
+            node_desc = node.get("description", "").lower()
+
+            # 标签重叠（Sanity.io 风格）
+            shared = sum(1 for qt in query_lower if qt in node_tags or qt in node_label or qt in node_desc)
+            if shared == 0:
+                continue
+
+            total = max(len(query_lower) + max(len(node_tags), 1), 1)
+            score = (shared * 2) / total
+
+            scored.append({
+                "node_id": nid,
+                "node_type": node.get("node_type", ""),
+                "label": node.get("label", ""),
+                "description": node.get("description", "")[:100],
+                "tags": node.get("tags", []),
+                "outcome_score": node.get("outcome_score"),
+                "severity": node.get("severity", ""),
+                "task_id": node.get("task_id", ""),
+                "relevance": round(score, 4),
+            })
+
+        scored.sort(key=lambda x: x["relevance"], reverse=True)
+        return scored[:top_k]
+
+    def causal_risk_warning(self, task: str) -> list:
+        """为新任务检查因果记忆中的风险预警
+        返回: [{"risk": "...", "past_decision": "...", "relevance": 0.xx}, ...]
+        """
+        # 提取查询标签
+        query_lower = task.lower()
+        chinese_kw = ["短链接", "微服务", "数据库", "安全", "认证", "部署", "缓存",
+                       "高并发", "文件分享", "API", "实时", "搜索", "支付"]
+        query_kw = [cp for cp in chinese_kw if cp.lower() in query_lower]
+        query_tags = [query_lower] + query_kw
+
+        results = self.query_causal_memory(query_tags, top_k=10)
+        warnings = []
+        for r in results:
+            if r["node_type"] == "risk":
+                warnings.append({
+                    "risk": r["label"],
+                    "description": r["description"],
+                    "severity": r["severity"],
+                    "past_task": r["task_id"],
+                    "relevance": r["relevance"],
+                })
+            elif r["node_type"] == "outcome" and r.get("outcome_score", 0) is not None and r["outcome_score"] < 0:
+                warnings.append({
+                    "risk": f"负面结果: {r['label']}",
+                    "description": r["description"],
+                    "severity": "中",
+                    "past_task": r["task_id"],
+                    "relevance": r["relevance"],
+                })
+
+        warnings.sort(key=lambda x: x["relevance"], reverse=True)
+        return warnings[:5]
 
     # ==================== v3.2: 反馈回路 ====================
 
