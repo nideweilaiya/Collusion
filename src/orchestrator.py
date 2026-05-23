@@ -529,13 +529,16 @@ class BrainstormOrchestrator:
                     strict_mode=strict_mode,
                 )
 
-            # 5. 保存到状态（兼容 brainstorm_status 等旧工具）
+            # 5. 保存到状态（兼容 brainstorm_status / collusion_render 等工具）
             from src.models import OrchestratorState
             state = OrchestratorState(
                 task_id=task_id,
                 original_task=task,
                 phase="done",
             )
+            state_dict = state.to_dict()
+            state_dict["decision_card"] = card.to_dict()
+            state.decision_card = card.to_dict()  # type: ignore
             self._states[task_id] = state
             self._save_state(state)
 

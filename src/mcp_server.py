@@ -31,6 +31,7 @@ from mcp.types import Tool, TextContent
 from src.orchestrator import BrainstormOrchestrator
 from src.models import OrchestratorState
 from src.blackboard import BlackboardOrchestrator
+from src.tools_registry import TOOL_REGISTRY, TOOL_GROUPS, LEGACY_NAME_MAP, resolve_handler
 
 _blackboard = BlackboardOrchestrator()
 
@@ -183,6 +184,65 @@ async def list_tools():
                     },
                 },
                 "required": ["task_id", "answers"],
+            },
+        ),
+        # v0.6: 检查点引擎工具
+        Tool(
+            name="collusion_assess",
+            description="轻量决策评估 — v0.6 主入口。检索→压缩→核心检查点链→决策卡片。4-5次LLM调用，≤15k token。默认不跑深度检查点。",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "task": {
+                        "type": "string",
+                        "description": "技术任务描述",
+                    },
+                    "deep": {
+                        "type": "string",
+                        "description": "深度模式: auto(默认,按风险自动)/force(强制深度)/never(仅核心)",
+                        "default": "auto",
+                    },
+                    "strict_mode": {
+                        "type": "boolean",
+                        "description": "True=warning升级为blocking",
+                        "default": False,
+                    },
+                },
+                "required": ["task"],
+            },
+        ),
+        Tool(
+            name="collusion_check",
+            description="运行单个检查点。可独立调用任一核心/深度检查点。",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "task": {"type": "string", "description": "任务描述"},
+                    "task_id": {"type": "string", "description": "已有任务ID（复用快照）"},
+                    "checkpoint": {
+                        "type": "string",
+                        "description": "检查点ID: semantic_consistency/interface_conflict/pattern_match",
+                    },
+                    "strict_mode": {"type": "boolean", "default": False},
+                    "artifacts": {"type": "object", "description": "设计草案(接口定义/Schema等)"},
+                },
+                "required": ["checkpoint"],
+            },
+        ),
+        Tool(
+            name="collusion_render",
+            description="渲染决策卡片或方案为 Markdown/HTML 报告。",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "task_id": {"type": "string", "description": "任务ID"},
+                    "format": {
+                        "type": "string",
+                        "description": "输出格式: md/html/both",
+                        "default": "md",
+                    },
+                },
+                "required": ["task_id"],
             },
         ),
         Tool(
@@ -380,11 +440,79 @@ async def list_tools():
                 "required": ["project_path"],
             },
         ),
+        Tool(
+            name="collusion_mod_goal",
+            description="【MC Mod】为 AICompanion Mod 生成 Goal 模板。输入自然语言任务描述，自动匹配模板并生成可执行的 GoalRunner 配置。",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "task": {"type": "string", "description": "开发任务描述, 如「添加一个新技能 AutoFish」"},
+                    "params": {
+                        "type": "object",
+                        "description": "模板参数 (选填, 如 name/description 等)",
+                        "default": {},
+                    },
+                },
+                "required": ["task"],
+            },
+        ),
+        Tool(
+            name="collusion_goal_start",
+            description="【GoalRunner】启动自动化执行闭环。输入Goal配置，自动执行：Coder改代码→Evaluator验证→Reviewer审查→蓝图归档。生成与评估分离架构。",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "goal_config": {
+                        "type": "object",
+                        "description": "Goal配置JSON",
+                        "properties": {
+                            "goal_id": {"type": "string", "description": "Goal标识"},
+                            "description": {"type": "string", "description": "任务描述"},
+                            "verification": {"type": "object", "description": "验证命令配置"},
+                            "review": {"type": "object", "description": "审查配置"},
+                            "constraints": {"type": "object", "description": "文件约束"},
+                        },
+                        "required": ["goal_id", "description", "verification"],
+                    },
+                },
+                "required": ["goal_config"],
+            },
+        ),
+        Tool(
+            name="collusion_goal_status",
+            description="查询 GoalRunner 执行进度。返回当前迭代次数、错误信息、状态。",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "goal_id": {"type": "string", "description": "goal_start 返回的 goal_id"},
+                },
+                "required": ["goal_id"],
+            },
+        ),
+        Tool(
+            name="collusion_route",
+            description="【v1.2】双关联路由。给定起点文件和终点需求，通过结构图谱计算需要阅读的最小文件集合。5层fallback确保永不无路可走。",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "start_file": {"type": "string", "description": "起点文件路径 (相对于项目根目录)"},
+                    "goal": {"type": "string", "description": "终点需求描述"},
+                    "project_root": {"type": "string", "description": "项目根目录（Windows绝对路径）"},
+                },
+                "required": ["start_file", "goal", "project_root"],
+            },
+        ),
     ]
 
 
 @server.call_tool()
 async def call_tool(name: str, arguments: dict):
+    # v0.6: 结构化分发 → 新注册表优先
+    handler = resolve_handler(name)
+    if handler is not None:
+        return await handler(arguments, _orchestrator, _blackboard, _executor)
+
+    # 旧分发链 (逐步迁移)
     if name == "collusion_branch":
         parent_id = arguments["parent_task_id"]
         branch_point = arguments.get("branch_point", "top1")
@@ -697,6 +825,49 @@ async def call_tool(name: str, arguments: dict):
         return [TextContent(type="text", text=json.dumps(
             result, ensure_ascii=False, indent=2,
         ))]
+
+    if name == "collusion_mod_goal":
+        from src.mod_goals import ModAnalyzer
+        analyzer = ModAnalyzer("D:/AI_Workbench/integrations/minecraft/forge-mod")
+        suggestion = analyzer.suggest_goal(arguments["task"])
+        params = arguments.get("params", {})
+        template = suggestion.get("goal_config")
+        if template and params:
+            template["goal_id"] = template["goal_id"].format(**params)
+            template["description"] = template["description"].format(**params)
+        return [TextContent(type="text", text=json.dumps({
+            "task": arguments["task"],
+            "template": suggestion["template"],
+            "goal_config": template,
+            "suggestion": suggestion["suggestion"],
+            "how_to_use": "将此 goal_config 传给 collusion_goal_start 即可自动化执行",
+        }, ensure_ascii=False, indent=2))]
+
+    if name == "collusion_goal_start":
+        from src.goal_runner import GoalConfig
+        cfg = GoalConfig.from_dict(arguments["goal_config"])
+        goal_id = _orchestrator.goal_runner.start_goal(cfg)
+        return [TextContent(type="text", text=json.dumps({
+            "goal_id": goal_id,
+            "status": "started",
+            "message": "GoalRunner ready. Use collusion_goal_status to poll.",
+        }, ensure_ascii=False, indent=2))]
+
+    if name == "collusion_goal_status":
+        result = _orchestrator.goal_runner.get_status(arguments["goal_id"])
+        if result:
+            return [TextContent(type="text", text=json.dumps(result, ensure_ascii=False, indent=2))]
+        return [TextContent(type="text", text=json.dumps({"error": "goal_id not found"}))]
+
+    if name == "collusion_route":
+        from src.structure_graph import route
+        result = route(
+            start_file=arguments["start_file"],
+            goal_description=arguments["goal"],
+            project_root=arguments["project_root"],
+            orchestrator=_orchestrator,
+        )
+        return [TextContent(type="text", text=json.dumps(result, ensure_ascii=False, indent=2))]
 
     return [TextContent(type="text", text=f"Unknown tool: {name}")]
 

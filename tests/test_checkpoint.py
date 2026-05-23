@@ -835,3 +835,112 @@ class TestAssessIntegration:
 
         assert result["decision_card"] is not None, f"错误: {result.get('error')}"
         assert result["mode"] == "deep"
+
+
+# ============================================================
+# Phase 5: MCP 工具重组测试
+# ============================================================
+
+class TestToolsRegistry:
+    """工具注册表测试"""
+
+    def test_resolve_handler_known_tool(self):
+        from src.tools_registry import resolve_handler
+        handler = resolve_handler("collusion_assess")
+        assert handler is not None
+
+    def test_resolve_handler_legacy_name(self):
+        from src.tools_registry import resolve_handler
+        handler = resolve_handler("brainstorm_orchestrate")
+        assert handler is None  # 未迁移的旧名走旧链
+
+    def test_resolve_handler_legacy_search(self):
+        from src.tools_registry import resolve_handler
+        handler = resolve_handler("brainstorm_search_assets")
+        assert handler is not None  # 已映射到新名
+
+    def test_legacy_name_map_complete(self):
+        from src.tools_registry import LEGACY_NAME_MAP
+        assert "brainstorm_orchestrate" in LEGACY_NAME_MAP
+        assert "brainstorm_search_assets" in LEGACY_NAME_MAP
+
+    def test_tool_groups_exist(self):
+        from src.tools_registry import TOOL_GROUPS
+        assert "probe" in TOOL_GROUPS
+        assert "check" in TOOL_GROUPS
+        assert "plan" in TOOL_GROUPS
+        assert "collusion_assess" in TOOL_GROUPS["check"]
+        assert "collusion_search_assets" in TOOL_GROUPS["probe"]
+
+
+class TestRender:
+    """渲染模块测试"""
+
+    def test_render_decision_card_md(self):
+        from src.render import render_decision_card
+        from src.models import DecisionCard
+        card = DecisionCard(
+            task="测试API设计",
+            task_summary="设计测试API",
+            explicit_constraints=["PostgreSQL"],
+            overall_risk="low",
+            overall_confidence=0.85,
+        )
+        paths = render_decision_card(card.to_dict(), fmt="md")
+        assert "markdown" in paths
+        import os
+        assert os.path.exists(paths["markdown"])
+
+    def test_render_decision_card_html(self):
+        from src.render import render_decision_card
+        from src.models import DecisionCard
+        card = DecisionCard(task="测试", task_summary="测试")
+        paths = render_decision_card(card.to_dict(), fmt="html")
+        assert "html" in paths
+        import os
+        assert os.path.exists(paths["html"])
+
+    def test_render_with_pitfalls_and_assumptions(self):
+        from src.render import render_decision_card
+        from src.models import DecisionCard
+        card = DecisionCard(
+            task="支付系统设计",
+            task_summary="支付系统",
+            pitfalls=[{"pitfall": "SQL注入", "fix": "使用参数化查询"}],
+            assumptions=[{"assumption": "PCI合规需要", "impact_if_wrong": "high", "validation": "确认合规要求"}],
+            overall_risk="high",
+        )
+        paths = render_decision_card(card.to_dict(), fmt="md")
+        import os
+        assert os.path.exists(paths["markdown"])
+        content = open(paths["markdown"], encoding="utf-8").read()
+        assert "SQL注入" in content
+        assert "PCI合规" in content
+
+
+class TestAssessStateIntegration:
+    """assess() 状态持久化 + render 集成测试"""
+
+    def test_assess_store_and_render(self):
+        from src.orchestrator import BrainstormOrchestrator
+        from src.render import render_decision_card
+
+        orch = BrainstormOrchestrator()
+        result = orch.assess("设计文件上传API", deep="never")
+        assert result["decision_card"] is not None
+
+        # 状态中应存有 decision_card
+        task_id = result["task_id"]
+        state = orch.get_state(task_id)
+        assert state is not None
+
+        # 渲染
+        paths = render_decision_card(
+            result["decision_card"],
+            fmt="md",
+            data_dir=orch.data_dir,
+            task_id=task_id,
+        )
+        assert "markdown" in paths
+        import os
+        assert os.path.exists(paths["markdown"])
