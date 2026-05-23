@@ -556,6 +556,12 @@ class BrainstormOrchestrator:
             self._states[task_id] = state
             self._save_state(state)
 
+            # 6. v0.6.1: 决策卡片归档到资产库 + 因果记忆
+            try:
+                self._archive_assess_result(task_id, task, card, snapshot)
+            except Exception as e:
+                print(f"  [归档] assess结果归档失败（不阻塞）: {e}")
+
             return {
                 "task_id": task_id,
                 "decision_card": card.to_dict(),
@@ -1670,6 +1676,82 @@ class BrainstormOrchestrator:
         return merged
 
     # ==================== 工具结果持久化 (v0.7.0) ====================
+
+    def _archive_assess_result(self, task_id: str, task: str,
+                               card, snapshot) -> str:
+        """v0.6.1: 将 assess() 的决策卡片归档到资产库 + 因果记忆
+
+        与 orchestrate() 的归档互补：assess 归档轻量评估结果，
+        orchestrate 归档完整方案。
+        """
+        from datetime import datetime
+
+        # 1. 资产库索引
+        asset_dir = self.data_dir / "asset_library"
+        asset_dir.mkdir(parents=True, exist_ok=True)
+
+        keywords = self._extract_keywords_fallback(task)
+        index_path = asset_dir / "index.json"
+        index = {}
+        if index_path.exists():
+            try:
+                with open(index_path, "r", encoding="utf-8") as f:
+                    index = json.load(f)
+            except Exception:
+                pass
+
+        # 保存决策卡片摘要
+        card_summary = (
+            card.suggested_approach[:300] if hasattr(card, 'suggested_approach')
+            else str(card.to_dict().get('suggested_approach', ''))[:300]
+        )
+        index[f"{task_id}_assess"] = {
+            "task_id": task_id,
+            "scheme_id": "assess",
+            "task": task[:200],
+            "keywords": keywords,
+            "tags": [],
+            "object_name": "决策评估",
+            "agent_role": "CheckpointEngine",
+            "total_score": card.overall_confidence if hasattr(card, 'overall_confidence') else 0.5,
+            "is_top1": True,
+            "is_discarded": False,
+            "discard_reasons": [],
+            "rank": 1,
+            "summary": card_summary[:500],
+            "created_at": datetime.now().isoformat(),
+        }
+        with open(index_path, "w", encoding="utf-8") as f:
+            json.dump(index, f, ensure_ascii=False, indent=2)
+
+        # 保存完整决策卡片
+        card_path = asset_dir / f"{task_id}_assess.json"
+        with open(card_path, "w", encoding="utf-8") as f:
+            json.dump(card.to_dict(), f, ensure_ascii=False, indent=2)
+
+        # 2. 因果记忆记录
+        if self.knowledge_config.get("enable_causal_memory", True):
+            causal_dir = self.data_dir / "causal_memory"
+            causal_dir.mkdir(parents=True, exist_ok=True)
+
+            # 记录检查点发现作为因果节点
+            pending = {
+                "task_id": task_id,
+                "task": task[:200],
+                "checkpoint_results": card.checkpoint_results if hasattr(card, 'checkpoint_results') else [],
+                "overall_risk": card.overall_risk if hasattr(card, 'overall_risk') else "unknown",
+                "confidence": card.overall_confidence if hasattr(card, 'overall_confidence') else 0.0,
+                "status": "pending_analysis",
+                "created_at": datetime.now().isoformat(),
+            }
+            with open(causal_dir / f"pending_assess_{task_id}.json", "w", encoding="utf-8") as f:
+                json.dump(pending, f, ensure_ascii=False, indent=2)
+
+        n_pitfalls = len(card.pitfalls) if hasattr(card, 'pitfalls') else 0
+        print(f"  [归档] assess → {task_id} "
+              f"(风险:{card.overall_risk}, 坑点:{n_pitfalls}, "
+              f"检查点:{len(getattr(card, 'checkpoints_run', []))})")
+        return task_id
 
     def _save_tool_result(self, tool_name: str, input_text: str,
                           perspectives: List[dict], merged_result: dict) -> str:
