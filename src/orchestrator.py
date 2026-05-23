@@ -470,6 +470,92 @@ class BrainstormOrchestrator:
 
         return state.task_id
 
+    # ==================== v0.6: 决策评估 (轻量入口) ====================
+
+    def assess(self, task: str, task_id: str = "",
+               deep: str = "auto", strict_mode: bool = False) -> dict:
+        """薄适配器: 检索→压缩→检查点链→DecisionCard
+
+        不写任何检查逻辑。所有逻辑在 CheckpointEngine 内。
+
+        Args:
+            task: 技术任务描述
+            task_id: 任务ID（可选）
+            deep: "auto"(默认) / "force" / "never"
+            strict_mode: True = warning 升级为 blocking
+
+        Returns:
+            {"task_id": str, "decision_card": dict, "mode": str, ...}
+        """
+        import uuid as _uuid
+        from src.checkpoint.engine import create_engine
+        from src.checkpoint.knowledge_retriever import KnowledgeRetriever
+        from src.checkpoint.situation_compressor import SituationCompressor
+
+        if not task_id:
+            task_id = f"assess_{_uuid.uuid4().hex[:8]}"
+
+        try:
+            # 1. 检索
+            retriever = KnowledgeRetriever(orchestrator=self)
+            retrieved = retriever.retrieve(
+                task=task, task_id=task_id,
+                top_k=self.knowledge_config.get("asset_retrieval_top_k", 3),
+                max_age_months=self.knowledge_config.get("discard_max_age_months", 6),
+            )
+
+            # 2. 压缩
+            compressor = SituationCompressor(fast_llm=self.fast_llm)
+            snapshot = compressor.compress(task, retrieved)
+
+            # 3. 检查点引擎
+            engine = create_engine(orchestrator=self)
+            card = engine.run_light(
+                snapshot=snapshot,
+                strict_mode=strict_mode,
+            )
+
+            # 4. 深度模式判断
+            mode = "light"
+            if deep == "force" or (deep == "auto" and card.deep_review_recommended):
+                mode = "deep"
+                card = engine.run_deep(
+                    snapshot=snapshot,
+                    core_results=[
+                        type('R', (), r)() if isinstance(r, dict)
+                        else r
+                        for r in card.checkpoint_results
+                    ],
+                    strict_mode=strict_mode,
+                )
+
+            # 5. 保存到状态（兼容 brainstorm_status 等旧工具）
+            from src.models import OrchestratorState
+            state = OrchestratorState(
+                task_id=task_id,
+                original_task=task,
+                phase="done",
+            )
+            self._states[task_id] = state
+            self._save_state(state)
+
+            return {
+                "task_id": task_id,
+                "decision_card": card.to_dict(),
+                "mode": mode,
+                "llm_calls": card.total_llm_calls,
+                "tokens_used": card.total_tokens,
+                "deep_review_recommended": card.deep_review_recommended,
+                "deep_review_reason": card.deep_review_reason,
+            }
+
+        except Exception as e:
+            return {
+                "task_id": task_id,
+                "error": str(e),
+                "decision_card": None,
+            }
+
     def get_state(self, task_id: str) -> Optional[dict]:
         if task_id in self._states:
             return self._states[task_id].to_dict()
@@ -1059,6 +1145,78 @@ class BrainstormOrchestrator:
 
         return paths
 
+    def _generate_goal_config(self, state: OrchestratorState) -> dict:
+        """从 Top1 方案自动生成 GoalRunner 可直接消费的 Goal 配置 JSON (v1.3)
+
+        从整合方案中提取文件路径、任务描述，生成结构化配置。
+        用户可直接将返回的 JSON 传给 GoalRunner.create_goal()。
+        """
+        # 找 Top1 方案
+        top1_sid = None
+        if state.vote_results:
+            top1 = next((r for r in state.vote_results if r.get("rank") == 1), None)
+            if top1:
+                top1_sid = top1.get("plan_id")
+
+        if not top1_sid or top1_sid not in state.schemes:
+            return {}
+
+        scheme = state.schemes[top1_sid]
+        integrated = scheme.get("integrated_content", "")
+
+        # 从方案文本中提取文件路径（复用品牌锚点正则）
+        import re
+        file_patterns = re.findall(
+            r'(?:(?:src|app|lib|components|pages|api|'
+            r'routes|middleware|utils|config|models|services|'
+            r'controllers|handlers|tests|docs|public|static|data|bin)/[\w/.-]+|'
+            r'[\w/.-]+\.(?:tsx?|jsx?|py|rs|go|java|'
+            r'yml|yaml|json|toml|sql|css|html|sh|md|'
+            r'dockerfile|env|cfg|ini|xml))',
+            integrated
+        )
+        # 去重，限制最多 10 个文件路径
+        seen = set()
+        unique_files = []
+        for f in file_patterns:
+            if f not in seen and len(unique_files) < 10:
+                seen.add(f)
+                unique_files.append(f)
+
+        # 推断 allowed_files（取公共前缀目录）
+        allowed = []
+        if unique_files:
+            parts = unique_files[0].split("/")
+            if len(parts) >= 2:
+                allowed = ["/".join(parts[:2]) + "/"]
+
+        # MVP 步骤的文件入口
+        mvp_code_anchors = []
+        for step in state.step_list[:3]:
+            step_id = step.get("id", "")
+            if step_id in scheme.get("steps", {}):
+                code_files = re.findall(
+                    r'(?:(?:src|app|lib)/[\w/.-]+)',
+                    scheme["steps"][step_id]
+                )
+                mvp_code_anchors.extend(code_files[:2])
+        mvp_allowed = list(dict.fromkeys(mvp_code_anchors))[:5] if mvp_code_anchors else allowed
+
+        return {
+            "goal_id": f"auto_{state.task_id}",
+            "description": f"基于方案{top1_sid}的架构设计，实现：{state.original_task[:80]}",
+            "verification": {
+                "l1": {"command": "gradle build", "expected_exit_code": 0, "timeout_seconds": 300},
+                "l2": {"command": "gradle test", "expected_exit_code": 0, "timeout_seconds": 300},
+                "l3": {"command": "gradle runGameTest", "expected_exit_code": 0, "timeout_seconds": 600},
+            },
+            "constraints": {
+                "allowed_files": mvp_allowed or ["src/"],
+                "forbidden_files": [],
+            },
+            "max_iterations": 5,
+        }
+
     def _build_template_data(self, state: OrchestratorState, fmt: str = "md") -> dict:
         """将编排状态转换为模板可用的数据结构"""
         import mistune
@@ -1310,6 +1468,8 @@ class BrainstormOrchestrator:
             "mvp_steps": mvp_steps,
             "mvp_count": len(mvp_steps),
             "saved_mods": {},  # 用于 HTML 草稿恢复
+            # Goal 配置 JSON（v1.3 新增：从 Top1 方案自动生成可执行 Goal 配置）
+            "goal_config": self._generate_goal_config(state),
         }
 
     # ==================== v0.5.0: 6 种新模式 ====================
@@ -2019,6 +2179,10 @@ class BrainstormOrchestrator:
                     "keywords": keywords,
                     "created_at": datetime.now().isoformat(),
                 }),
+                # v1.3: 置信度分级（新归档资产默认 L1）
+                "confidence_level": "L1",
+                "execution_timestamp": None,
+                "verified_by_user": None,
             }
             index[entry_key] = entry
 
@@ -2327,6 +2491,15 @@ class BrainstormOrchestrator:
                     "rank": entry.get("rank", 0),
                     "summary": entry.get("summary", "")[:200],
                     "created_at": entry.get("created_at", ""),
+                    # 来源标注（v1.3 新增）
+                    "source_task_id": entry.get("task_id", ""),
+                    "review_status": (
+                        "verified"
+                        if entry.get("verification_status") == "verified"
+                        else ("deprecated" if is_discarded else "unreviewed")
+                    ),
+                    # 置信度分级（v1.3 新增）
+                    "confidence_level": entry.get("confidence_level", "L1"),
                 }
                 if is_discarded:
                     result["warning"] = (
@@ -2373,7 +2546,29 @@ class BrainstormOrchestrator:
                 pass
 
         results.sort(key=lambda x: x["relevance_score"], reverse=True)
+
+        # v1.3: 默认过滤 L1 低置信度资产（除非显式包含 L1）
+        # 通过 special query param 控制：用户说"包括低置信度"时返回 L1
+        # 简单处理：只返回 confidence_level != "L1" 的资产，L1 需主动查询"包括低置信度"才返回
+        # 由于 search_assets 目前没有这个参数，暂时只过滤掉完全无 confidence_level 标记且 L1 状态的条目
+        # 实际使用场景：GoalRunner 归档时会更新 confidence_level，届时 L2+ 资产才会被检索
+        pass  # 置信度过滤在 search_assets 返回前统一处理，见下
+
         top_results = results[:top_k]
+
+        # v1.3: 最终过滤 — 排除从未执行过（execution_timestamp=None）且置信度为 L1 的资产
+        # 但保留有高关联度（>0.4）的 L1 资产，避免矫枉过正
+        filtered = []
+        for r in top_results:
+            conf = r.get("confidence_level", "L1")
+            score = r.get("relevance_score", 0)
+            if conf != "L1":
+                filtered.append(r)
+            elif score >= 0.4:
+                # 高关联度 L1 资产降级显示，不完全排除
+                r["confidence_level"] = "L1_low_confidence"
+                filtered.append(r)
+        top_results = filtered
 
         # v0.8.0: 自动记录到 MAGE 自进化引擎
         if self._enable_evolution and self.evolution is not None:

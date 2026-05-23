@@ -80,3 +80,39 @@ PREFIX tokens: ~1000
 v3.0/v3.1 旧模式: 每次输入 2000-8000 tokens，全部按全价
 新模式: 每次输入 100 + 200-500 = 300-600 tokens (下降 80-95%)
 """
+
+# ============================================================
+# v0.6: 检查点引擎缓存前缀
+# ============================================================
+CHECKPOINT_PREFIX = """你是 Collusion v0.6 检查点引擎中的一个检查点执行器。
+
+你的任务是从特定视角审查技术决策上下文，输出结构化的检查结果。
+
+## 输出格式
+
+所有检查点必须输出严格JSON:
+{
+  "severity": "pass|advisory|warning|blocking",
+  "summary": "≤80字的一句话结论",
+  "findings": [
+    {
+      "type": "gap|conflict|risk|pattern",
+      "target": "涉及的需求/组件/接口",
+      "detail": "具体发现",
+      "suggestion": "建议行动"
+    }
+  ],
+  "risk_score": 0.0,    // 0=无风险, 1=最高风险
+  "confidence": 1.0,     // 自身结论的自信度
+  "uncertainty_flags": [], // 无法判断的模糊点
+  "activation_gate": false // 是否应激活深度检查
+}
+
+## 核心规则
+
+1. 只依赖输入的 CompressedSnapshot，不假设任何外部信息
+2. 不确定时标注 uncertainty_flags，不编造
+3. 若前置条件不满足（如缺少设计草案），返回 pass + uncertainty_flags
+4. 只做检查，不提出完整方案"""
+
+CHECKPOINT_PREFIX_LENGTH = len(CHECKPOINT_PREFIX)

@@ -1,0 +1,103 @@
+[
+  {
+    "id": "scenario_01_crud_api",
+    "task": "设计一个博客平台的后端 API，支持文章的增删改查、用户认证和评论功能",
+    "retrieved_assets": [
+      {
+        "task": "设计一个支持CRUD的后台管理系统API",
+        "relevance_score": 0.85,
+        "is_discarded": false,
+        "discard_reasons": [],
+        "tags": [{"dimension":"技术栈","value":"PostgreSQL"},{"dimension":"技术栈","value":"FastAPI"},{"dimension":"领域","value":"CRUD"}]
+      }
+    ],
+    "discard_warnings": [
+      {
+        "task": "使用MongoDB设计博客后端（被弃用）",
+        "relevance_score": 0.72,
+        "discard_reasons": ["MongoDB文档模型不适合文章间复杂关联查询，换回PostgreSQL"]
+      }
+    ],
+    "expected_constraints": ["CRUD API", "用户认证", "PostgreSQL技术栈"],
+    "expected_pitfalls": ["MongoDB不适合文章间复杂关联查询"],
+    "min_relevance_recall": 0.7
+  },
+  {
+    "id": "scenario_02_performance_critical",
+    "task": "设计一个支持10万QPS的短链接生成服务，要求低延迟、高可用",
+    "retrieved_assets": [
+      {
+        "task": "设计高并发短链接服务",
+        "relevance_score": 0.92,
+        "is_discarded": false,
+        "discard_reasons": [],
+        "tags": [{"dimension":"技术栈","value":"Redis"},{"dimension":"技术栈","value":"Go"},{"dimension":"性能特征","value":"高并发"}]
+      }
+    ],
+    "discard_warnings": [
+      {
+        "task": "用随机字符串生成短链接（被弃用）",
+        "relevance_score": 0.88,
+        "discard_reasons": ["随机字符串在高并发时碰撞率急剧上升，改用Snowflake ID"]
+      }
+    ],
+    "expected_constraints": ["10万QPS", "低延迟", "高可用", "短链接"],
+    "expected_pitfalls": ["随机字符串高并发时碰撞率急剧上升"],
+    "min_relevance_recall": 0.7
+  },
+  {
+    "id": "scenario_03_bug_fix",
+    "task": "修复登录接口的Token刷新问题：用户在Token过期后无法自动续期",
+    "retrieved_assets": [
+      {
+        "task": "实现JWT Token刷新机制",
+        "relevance_score": 0.75,
+        "is_discarded": false,
+        "discard_reasons": [],
+        "tags": [{"dimension":"技术栈","value":"JWT"},{"dimension":"安全关注点","value":"认证"}]
+      }
+    ],
+    "discard_warnings": [
+      {
+        "task": "在客户端存储refresh_token（被弃用）",
+        "relevance_score": 0.68,
+        "discard_reasons": ["客户端存储refresh_token存在XSS泄露风险，改用httpOnly cookie"]
+      }
+    ],
+    "expected_constraints": ["Token刷新", "JWT", "自动续期"],
+    "expected_pitfalls": ["客户端存储refresh_token存在XSS泄露风险"],
+    "min_relevance_recall": 0.6
+  },
+  {
+    "id": "scenario_04_architecture_redesign",
+    "task": "将单体Django应用拆分为微服务架构，先拆出用户服务和订单服务",
+    "retrieved_assets": [
+      {
+        "task": "单体应用微服务化拆分方案",
+        "relevance_score": 0.88,
+        "is_discarded": false,
+        "discard_reasons": [],
+        "tags": [{"dimension":"架构模式","value":"微服务"},{"dimension":"技术栈","value":"Django"}]
+      }
+    ],
+    "discard_warnings": [
+      {
+        "task": "一次性拆分全部微服务（被弃用）",
+        "relevance_score": 0.81,
+        "discard_reasons": ["全部拆分迁移成本过高，团队2人无法维护，建议逐步拆分"]
+      }
+    ],
+    "expected_constraints": ["微服务拆分", "Django", "用户服务", "订单服务"],
+    "expected_pitfalls": ["全部拆分迁移成本过高", "小团队无法维护多服务"],
+    "min_relevance_recall": 0.7
+  },
+  {
+    "id": "scenario_05_empty_context",
+    "task": "写一个Python脚本，每天凌晨3点自动备份指定目录到阿里云OSS",
+    "retrieved_assets": [],
+    "discard_warnings": [],
+    "expected_constraints": ["Python脚本", "定时备份", "阿里云OSS"],
+    "expected_pitfalls": [],
+    "min_relevance_recall": 0.5
+  }
+]
