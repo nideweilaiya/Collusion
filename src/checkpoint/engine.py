@@ -218,15 +218,45 @@ class CheckpointEngine:
         if max_risk < self.config.activation_threshold and uncertainty_count == 0:
             return []
 
-        # 选激活条件匹配的深度检查点
+        # 选激活条件匹配的深度检查点 (按匹配强度排序取 top 2)
+        scored = []
         for d_id in self.config.deep_checkpoints:
             cfg = self.config.checkpoint_configs.get(d_id)
             if cfg and not cfg.enabled:
                 continue
-            if self._should_activate_deep(d_id, snapshot, max_risk, uncertainty_count):
-                candidates.append(d_id)
+            score = self._activation_score(d_id, snapshot, max_risk, uncertainty_count)
+            if score > 0:
+                scored.append((score, d_id))
 
-        return candidates[:2]
+        scored.sort(key=lambda x: x[0], reverse=True)
+        return [d_id for _, d_id in scored[:2]]
+
+    def _activation_score(self, checkpoint_id: str,
+                          snapshot: CompressedSnapshot,
+                          risk_score: float,
+                          uncertainty_count: int) -> float:
+        """计算深度检查点的激活匹配强度 0-1"""
+        score = 0.0
+        uf = snapshot.uncertainty_flags
+        c = snapshot.constraints
+
+        if checkpoint_id == "architecture_review":
+            if risk_score > 0.4:
+                score += risk_score
+            score += 0.15 * sum(1 for u in uf if "架构" in u or "选型" in u or "模块" in u)
+        elif checkpoint_id == "security_audit":
+            score += 0.3 * sum(1 for u in uf if "安全" in u or "认证" in u or "auth" in u.lower())
+            score += 0.3 * sum(1 for cw in c if "安全" in cw or "认证" in cw or "PCI" in cw or "GDPR" in cw)
+        elif checkpoint_id == "business_alignment":
+            if risk_score > 0.5:
+                score += risk_score
+            score += 0.2 * sum(1 for u in uf if "业务" in u or "需求" in u or "用户" in u)
+        elif checkpoint_id == "complexity_brake":
+            if risk_score > 0.6:
+                score += risk_score + 0.2
+            score += 0.2 * sum(1 for u in uf if "复杂度" in u or "可行性" in u)
+
+        return min(score, 1.0)
 
     def _should_activate_deep(self, checkpoint_id: str,
                               snapshot: CompressedSnapshot,
@@ -460,11 +490,19 @@ def create_engine(orchestrator=None, config: EngineConfig = None) -> CheckpointE
     from src.checkpoint.checkpoints.semantic_consistency import SemanticConsistencyCheckpoint
     from src.checkpoint.checkpoints.interface_conflict import InterfaceConflictCheckpoint
     from src.checkpoint.checkpoints.pattern_match import PatternMatchCheckpoint
+    from src.checkpoint.checkpoints.complexity_brake import ComplexityBrakeCheckpoint
+    from src.checkpoint.checkpoints.business_alignment import BusinessAlignmentCheckpoint
+    from src.checkpoint.checkpoints.security_audit import SecurityAuditCheckpoint
+    from src.checkpoint.checkpoints.architecture_review import ArchitectureReviewCheckpoint
 
     registry = CheckpointRegistry()
     registry.register(SemanticConsistencyCheckpoint)
     registry.register(InterfaceConflictCheckpoint)
     registry.register(PatternMatchCheckpoint)
+    registry.register(ComplexityBrakeCheckpoint)
+    registry.register(BusinessAlignmentCheckpoint)
+    registry.register(SecurityAuditCheckpoint)
+    registry.register(ArchitectureReviewCheckpoint)
 
     fast_llm = orchestrator.fast_llm if orchestrator else None
     strong_llm = orchestrator.strong_llm if orchestrator else None

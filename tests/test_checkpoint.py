@@ -944,3 +944,168 @@ class TestAssessStateIntegration:
         assert "markdown" in paths
         import os
         assert os.path.exists(paths["markdown"])
+
+
+# ============================================================
+# Phase 4: 深度检查点测试
+# ============================================================
+
+class TestComplexityBrake:
+    """可行性/复杂度门控测试"""
+
+    def test_checkpoint_metadata(self):
+        from src.checkpoint.checkpoints.complexity_brake import ComplexityBrakeCheckpoint
+        cp = ComplexityBrakeCheckpoint()
+        assert cp.checkpoint_id == "complexity_brake"
+        assert cp.category.value == "deep"
+        assert "complexity_assessment" in cp.provides
+        assert "semantic_gaps" in cp.requires
+
+    def test_run_without_llm(self):
+        from src.checkpoint.checkpoints.complexity_brake import ComplexityBrakeCheckpoint
+        from src.models import CompressedSnapshot
+
+        cp = ComplexityBrakeCheckpoint(fast_llm=None)
+        snap = CompressedSnapshot(
+            task_summary="设计微服务架构",
+            constraints=["Docker部署", "2人团队"],
+            risk_score=0.7,
+        )
+        result = cp.run(snap)
+        assert result.checkpoint_id == "complexity_brake"
+        assert result.provides == ["complexity_assessment"]
+        assert result.llm_calls == 1  # 进入了 _analyze
+
+    def test_simplification_suggestions(self):
+        from src.checkpoint.checkpoints.complexity_brake import ComplexityBrakeCheckpoint
+        from src.models import CompressedSnapshot
+
+        cp = ComplexityBrakeCheckpoint(fast_llm=None)
+        snap = CompressedSnapshot(
+            task_summary="设计支持全平台的消息推送系统",
+            constraints=["2人团队", "预算有限"],
+            risk_score=0.6,
+            uncertainty_flags=["复杂度可能过高"],
+        )
+        result = cp.run(snap)
+        assert result.checkpoint_id == "complexity_brake"
+
+
+class TestBusinessAlignment:
+    """业务对齐检查点测试"""
+
+    def test_checkpoint_metadata(self):
+        from src.checkpoint.checkpoints.business_alignment import BusinessAlignmentCheckpoint
+        cp = BusinessAlignmentCheckpoint()
+        assert cp.checkpoint_id == "business_alignment"
+        assert cp.category.value == "deep"
+        assert cp.requires == []
+
+    def test_run_without_llm(self):
+        from src.checkpoint.checkpoints.business_alignment import BusinessAlignmentCheckpoint
+        from src.models import CompressedSnapshot
+
+        cp = BusinessAlignmentCheckpoint(fast_llm=None)
+        snap = CompressedSnapshot(
+            task_summary="设计AI推荐引擎",
+            constraints=["提升用户留存", "MVP先上线"],
+            risk_score=0.5,
+        )
+        result = cp.run(snap)
+        assert result.checkpoint_id == "business_alignment"
+        assert result.provides == ["business_alignment"]
+
+
+class TestSecurityAudit:
+    """安全审计检查点测试"""
+
+    def test_checkpoint_metadata(self):
+        from src.checkpoint.checkpoints.security_audit import SecurityAuditCheckpoint
+        cp = SecurityAuditCheckpoint()
+        assert cp.checkpoint_id == "security_audit"
+        assert cp.category.value == "deep"
+        assert "security_threats" in cp.provides
+
+    def test_run_without_llm(self):
+        from src.checkpoint.checkpoints.security_audit import SecurityAuditCheckpoint
+        from src.models import CompressedSnapshot
+
+        cp = SecurityAuditCheckpoint(fast_llm=None)
+        snap = CompressedSnapshot(
+            task_summary="设计支付API",
+            constraints=["PCI合规", "JWT认证"],
+            uncertainty_flags=["数据加密方案待定"],
+            risk_score=0.6,
+        )
+        result = cp.run(snap)
+        assert result.checkpoint_id == "security_audit"
+        assert result.llm_calls == 1
+
+
+class TestArchitectureReview:
+    """架构审查检查点测试"""
+
+    def test_checkpoint_metadata(self):
+        from src.checkpoint.checkpoints.architecture_review import ArchitectureReviewCheckpoint
+        cp = ArchitectureReviewCheckpoint()
+        assert cp.checkpoint_id == "architecture_review"
+        assert cp.category.value == "deep"
+        assert "semantic_gaps" in cp.requires
+
+    def test_run_without_llm(self):
+        from src.checkpoint.checkpoints.architecture_review import ArchitectureReviewCheckpoint
+        from src.models import CompressedSnapshot
+
+        cp = ArchitectureReviewCheckpoint(fast_llm=None)
+        snap = CompressedSnapshot(
+            task_summary="将单体拆分为微服务",
+            constraints=["Docker", "Kubernetes", "3人团队"],
+            risk_score=0.8,
+            uncertainty_flags=["架构选型不明确", "服务边界模糊"],
+        )
+        result = cp.run(snap)
+        assert result.checkpoint_id == "architecture_review"
+        assert result.provides == ["architecture_review"]
+
+
+class TestDeepCheckpointActivation:
+    """深度检查点激活逻辑集成测试"""
+
+    def test_all_deep_checkpoints_registered(self):
+        from src.checkpoint.engine import create_engine
+        engine = create_engine(orchestrator=None)
+        assert engine.registry.get("complexity_brake") is not None
+        assert engine.registry.get("business_alignment") is not None
+        assert engine.registry.get("security_audit") is not None
+        assert engine.registry.get("architecture_review") is not None
+
+    def test_engine_deep_mode_runs_extra_checkpoints(self):
+        from src.checkpoint.engine import create_engine
+        from src.models import CompressedSnapshot
+
+        engine = create_engine(orchestrator=None)
+        snap = CompressedSnapshot(
+            task_summary="设计支付系统",
+            constraints=["PCI合规", "99.99%可用", "3人团队"],
+            risk_score=0.75,
+            uncertainty_flags=["安全合规方案未确定", "架构选型不明确"],
+        )
+        engine.config.activation_threshold = 0.3
+
+        activated = engine._select_deep_checkpoints(snap, [])
+        assert len(activated) >= 1, f"高风险应激活至少1个深度检查点, 实际: {activated}"
+        assert len(activated) <= 2
+
+    def test_high_risk_activates_complexity_brake(self):
+        from src.checkpoint.engine import create_engine
+        from src.models import CompressedSnapshot
+
+        engine = create_engine(orchestrator=None)
+        snap = CompressedSnapshot(
+            task_summary="设计全平台实时同步系统",
+            risk_score=0.85,
+            constraints=["2人团队", "预算紧张"],
+        )
+        activated = engine._select_deep_checkpoints(snap, [])
+        # risk_score > 0.6 should trigger complexity_brake
+        assert "complexity_brake" in activated
