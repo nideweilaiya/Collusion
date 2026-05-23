@@ -1,0 +1,45 @@
+{
+  "num_agents": 3,
+  "max_consensus_rounds": 2,
+  "max_modification_rounds": 1,
+  "enable_second_round": false,
+  "similarity_threshold": 0.85,
+  "enable_feasibility_brake": true,
+  "enable_owner_integration": true,
+  "business_anchor_agent": "agent_2",
+  "complexity_threshold": 5,
+  "object_coverage_threshold": 0.5,
+  "llm": {
+    "strong": {
+      "provider": "deepseek",
+      "model": "deepseek-chat",
+      "api_key": "",
+      "base_url": "https://api.deepseek.com/v1"
+    },
+    "fast": {
+      "provider": "deepseek",
+      "model": "deepseek-chat",
+      "api_key": "",
+      "base_url": "https://api.deepseek.com/v1"
+    }
+  },
+  "data_dir": "D:/BrainstormOrchestrator/data",
+  "knowledge": {
+    "obsidian_vault_path": "D:\\Reasonix\\Collusion_知识库",
+    "enable_causal_memory": true,
+    "asset_retrieval_top_k": 3,
+    "auto_tagging": true,
+    "relevance_weights": {
+      "tag_overlap": 0.4,
+      "tech_similarity": 0.35,
+      "causal_match": 0.25
+    },
+    "relevance_threshold": 0.3,
+    "warn_on_discarded": true,
+    "enable_vector_search": false,
+    "enable_evolution": true,
+    "enable_advanced": true,
+    "enable_agent_evolution": true,
+    "enable_goal_runner": true
+  }
+}

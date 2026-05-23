@@ -107,7 +107,7 @@ class BrainstormOrchestrator:
         if self.knowledge_config.get("enable_goal_runner", True):
             try:
                 from src.goal_runner import GoalRunner
-                self.goal_runner = GoalRunner(orchestrator=self, data_dir=str(self.data_dir))
+                self.goal_runner = GoalRunner(data_dir=str(self.data_dir))
             except Exception:
                 self.goal_runner = None
         if self._enable_vector:
