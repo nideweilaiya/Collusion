@@ -80,11 +80,12 @@ class CheckpointEngine:
     """
 
     def __init__(self, registry=None, fast_llm=None, strong_llm=None,
-                 config: EngineConfig = None):
+                 config: EngineConfig = None, agent_graph=None):
         self.registry = registry
         self.fast_llm = fast_llm
         self.strong_llm = strong_llm
         self.config = config or EngineConfig()
+        self.agent_graph = agent_graph  # v0.6: 动态角色选择
 
     # ==================== 公共 API ====================
 
@@ -134,8 +135,9 @@ class CheckpointEngine:
             checkpoints_run=[],
         )
 
-        # 1. 创建检查点实例
-        instances = self._instantiate(checkpoint_ids, strict_mode)
+        # 1. 创建检查点实例 (深度检查点注入角色选择)
+        task_tags = self._extract_task_tags(snapshot)
+        instances = self._instantiate(checkpoint_ids, strict_mode, task_tags)
         if not instances:
             card.total_llm_calls = 0
             card.total_tokens = 0
@@ -287,19 +289,47 @@ class CheckpointEngine:
 
     # ==================== 内部方法 ====================
 
+    @staticmethod
+    def _extract_task_tags(snapshot: CompressedSnapshot) -> List[str]:
+        """从快照中提取任务标签，用于角色匹配"""
+        tags = []
+        frag = snapshot.to_prompt_fragment()
+        kw_patterns = [
+            "架构", "微服务", "API", "数据库", "安全", "认证",
+            "高并发", "性能", "缓存", "扩展", "部署", "Docker",
+            "前端", "后端", "文件", "实时", "搜索", "支付",
+            "合规", "加密", "用户", "体验",
+        ]
+        for kw in kw_patterns:
+            if kw in frag:
+                tags.append(kw)
+        return tags
+
     def _instantiate(self, checkpoint_ids: List[str],
-                     strict_mode: bool) -> List[BaseCheckpoint]:
-        """从注册表实例化检查点"""
+                     strict_mode: bool,
+                     task_tags: List[str] = None) -> List[BaseCheckpoint]:
+        """从注册表实例化检查点，深度检查点注入动态角色选择"""
         instances = []
         if self.registry is None:
             return instances
         for cid in checkpoint_ids:
             cls = self.registry.get(cid)
             if cls is not None:
+                agent_roles = None
+                cls_category = getattr(cls, 'category', None)
+                is_deep = (
+                    cls_category and
+                    str(cls_category) == 'deep'
+                )
+                if is_deep and self.agent_graph and task_tags:
+                    agent_roles = self.agent_graph.select_agents_for_checkpoint(
+                        cid, task_tags=task_tags, top_k=2,
+                    )
                 instances.append(cls(
                     fast_llm=self.fast_llm,
                     strong_llm=self.strong_llm,
                     strict_mode=strict_mode,
+                    agent_roles=agent_roles,
                 ))
         return instances
 
@@ -506,10 +536,12 @@ def create_engine(orchestrator=None, config: EngineConfig = None) -> CheckpointE
 
     fast_llm = orchestrator.fast_llm if orchestrator else None
     strong_llm = orchestrator.strong_llm if orchestrator else None
+    agent_graph = orchestrator.agent_graph if orchestrator else None
 
     return CheckpointEngine(
         registry=registry,
         fast_llm=fast_llm,
         strong_llm=strong_llm,
         config=config or EngineConfig(),
+        agent_graph=agent_graph,
     )

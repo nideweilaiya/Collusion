@@ -73,10 +73,12 @@ class BaseCheckpoint(ABC):
     requires: List[str] = []      # 前置依赖能力清单
     provides: List[str] = []      # 产出能力清单
 
-    def __init__(self, fast_llm=None, strong_llm=None, strict_mode: bool = False):
+    def __init__(self, fast_llm=None, strong_llm=None,
+                 strict_mode: bool = False, agent_roles: list = None):
         self.fast_llm = fast_llm
         self.strong_llm = strong_llm
         self.strict_mode = strict_mode
+        self.agent_roles = agent_roles  # v0.6: 动态角色选择
 
     def run(self, snapshot: CompressedSnapshot,
             artifacts: dict = None) -> CheckpointResult:

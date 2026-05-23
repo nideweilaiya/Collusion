@@ -1109,3 +1109,110 @@ class TestDeepCheckpointActivation:
         activated = engine._select_deep_checkpoints(snap, [])
         # risk_score > 0.6 should trigger complexity_brake
         assert "complexity_brake" in activated
+
+
+# ============================================================
+# Phase 6: 动态角色选择测试
+# ============================================================
+
+class TestAgentGraphCheckpointSelection:
+    """agent_graph 检查点角色选择测试"""
+
+    def test_checkpoint_role_map_complete(self):
+        from src.agent_graph import AgentGraph
+        ag = AgentGraph()
+        for cp_id in ["architecture_review", "security_audit",
+                       "business_alignment", "complexity_brake",
+                       "semantic_consistency", "interface_conflict", "pattern_match"]:
+            roles = ag.CHECKPOINT_ROLE_MAP.get(cp_id, [])
+            assert len(roles) >= 1, f"{cp_id} 缺少推荐角色"
+
+    def test_select_agents_for_checkpoint_no_history(self):
+        """无历史数据时返回默认推荐"""
+        from src.agent_graph import AgentGraph
+        ag = AgentGraph()
+        roles = ag.select_agents_for_checkpoint(
+            "architecture_review",
+            task_tags=["架构", "微服务"],
+        )
+        assert len(roles) >= 1
+        assert "技术架构对象" in roles
+
+    def test_select_agents_for_complexity_brake(self):
+        from src.agent_graph import AgentGraph
+        ag = AgentGraph()
+        roles = ag.select_agents_for_checkpoint(
+            "complexity_brake",
+            task_tags=["复杂度", "成本"],
+        )
+        assert len(roles) >= 1
+        assert "工程实现对象" in roles
+
+    def test_role_tag_map_has_all_checkpoint_roles(self):
+        from src.agent_graph import AgentGraph
+        ag = AgentGraph()
+        all_roles = set()
+        for roles in ag.CHECKPOINT_ROLE_MAP.values():
+            all_roles.update(roles)
+        for role in all_roles:
+            tags = ag.ROLE_TAG_MAP.get(role, [])
+            assert len(tags) >= 1, f"{role} 缺少关注标签"
+
+
+class TestBaseCheckpointAgentRoles:
+    """BaseCheckpoint agent_roles 支持测试"""
+
+    def test_agent_roles_passed_to_init(self):
+        from src.checkpoint.base import BaseCheckpoint, CheckpointResult, CheckpointCategory
+
+        class TestCp(BaseCheckpoint):
+            checkpoint_id = "test_cp"
+            category = CheckpointCategory.DEEP
+
+            def _analyze(self, snapshot, artifacts):
+                return CheckpointResult(
+                    checkpoint_id=self.checkpoint_id,
+                    summary=f"roles: {self.agent_roles}",
+                )
+
+        cp = TestCp(agent_roles=["技术架构对象", "安全与合规对象"])
+        assert cp.agent_roles == ["技术架构对象", "安全与合规对象"]
+
+    def test_agent_roles_default_none(self):
+        from src.checkpoint.checkpoints.semantic_consistency import SemanticConsistencyCheckpoint
+        cp = SemanticConsistencyCheckpoint()
+        assert cp.agent_roles is None  # 核心检查点默认不设角色
+
+
+class TestEngineAgentSelection:
+    """引擎集成角色选择测试"""
+
+    def test_extract_task_tags(self):
+        from src.checkpoint.engine import CheckpointEngine
+        from src.models import CompressedSnapshot
+
+        snap = CompressedSnapshot(
+            task_summary="设计高并发微服务API网关",
+            constraints=["安全认证", "Docker部署"],
+        )
+        tags = CheckpointEngine._extract_task_tags(snap)
+        assert "API" in tags
+        assert "微服务" in tags
+        assert "安全" in tags
+        assert "Docker" in tags
+
+    def test_engine_instantiate_with_agent_graph(self):
+        from src.checkpoint.engine import create_engine
+
+        # 使用空 orchestrator (无 agent_graph) 创建引擎
+        engine = create_engine(orchestrator=None)
+        assert engine.agent_graph is None
+
+        # 核心检查点实例化不受影响
+        cps = engine._instantiate(
+            ["semantic_consistency", "pattern_match"],
+            strict_mode=False,
+        )
+        assert len(cps) == 2
+        # 核心检查点 agent_roles 为 None
+        assert cps[0].agent_roles is None
