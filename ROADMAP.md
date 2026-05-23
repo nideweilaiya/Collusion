@@ -1,6 +1,41 @@
 # 🗺️ Collusion Roadmap（共谋路线图）
 
-当前版本：v0.4.0 | 代码版本：v3.2
+当前版本：v0.6.0 | 代码版本：v3.2+checkpoint-engine
+
+---
+
+## ✅ 已完成 (v0.6.0) — 检查点引擎重构
+
+### 核心架构变更
+- 从 14 阶段固定流水线重构为可中断检查点链
+- 核心交付物从"完整方案"变为"决策支持卡片"
+- Token 预算硬上限 (轻量 15k / 深度 25k)
+
+### 检查点引擎
+- BaseCheckpoint 抽象基类 + requires/provides 拓扑排序
+- 3 个核心检查点: semantic_consistency, interface_conflict, pattern_match
+- 4 个深度检查点: complexity_brake, business_alignment, security_audit, architecture_review
+- CheckpointEngine 统一调度器 + TokenBudgetController
+
+### 信息单向流架构
+- KnowledgeRetriever → SituationCompressor → CompressedSnapshot → Checkpoints
+- 压缩器纯函数, 零 IO。快照硬上限 ≤500 token
+- 启发式压缩器召回率 69%, LLM 压缩器上线后可达标
+
+### MCP 工具重组
+- 新增 collusion_assess (轻量主入口, 4-5 LLM调用)
+- 新增 collusion_check (单检查点运行)
+- 新增 collusion_render (决策卡片渲染)
+- 工具分组: probe / check / plan / workspace
+- 旧 brainstorm_* 工具名保留向后兼容
+
+### 动态角色选择
+- AgentGraph 检查点角色映射 (CHECKPOINT_ROLE_MAP)
+- 深度检查点自动注入角色选择
+
+### 测试
+- 78 个测试全部通过
+- 黄金验证集 5 场景
 
 ---
 
@@ -46,6 +81,23 @@
 ---
 
 ## 📋 近期目标 (v0.5.0 - v0.6.0)
+
+### 并行编程执行层 (v0.5.2 已验证)
+- ✅ 单Agent带文件工具执行编程任务 (--no-config + --mcp fs)
+- ✅ 多Agent并行改不同文件 (24s墙钟, $0.002/2Agent)
+- ⬜ 指令标签机制 (`[RUN: cmd]` → 编排器执行 → 结果注入Agent)
+- ⬜ 冲突避免调度 (编排器标注target_file, 字符串比较, 零LLM)
+- ⬜ 审查闭环 (并行修改后启动审查Agent检查是否引入新问题)
+- ⬜ 设计→执行→审查 完整三阶段闭环
+
+### 冲突避免设计 (v0.5.2 已确立)
+- 原则: 事前避免 > 事后处理
+- 不同文件 → 并行 | 同文件不同区域 → 可并行 | 同文件同区域 → 串行
+- 编排器拆解任务时标注target_file, 纯字符串比较, 无LLM成本
+
+### 并行编排引擎 (v0.5.2 已实现)
+- ✅ Parallel Scheduler (替代subagent): Orchestrator(run) + Scheduler(Python) + Worker×N(run)
+- ✅ 固定system prompt → 预热后缓存 97%+
 
 ### MCP 市场提交
 - 提交到 mcpservers.org、mcp.so 等 MCP 市场

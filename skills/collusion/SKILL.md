@@ -1,40 +1,140 @@
 ---
 name: collusion
-description: 多视角协作引擎。6 种模式（scheme/enhance/review/plan/diagnose/choose），全部由 Claude Code 原生 Agent 并行驱动。零外部依赖。
+description: v0.6 检查点引擎。轻量决策评估→按需深度审查。78 测试通过。信息单向流架构。
 type: skill
-version: v0.4.0
+version: v2.0.0
 ---
 
-# Collusion (共谋)
+# Collusion (共谋) v2.0
 
-> 零依赖。利用宿主原生多 Agent 并行能力。核心机制：多视角独立提案 → 交叉审查 → 可行性收束 → 输出。
+> 检查点引擎 + 决策支持。核心：先检后设 → 情境压缩 → 检查点链 → 决策卡片。
+> 轻量模式 ≤15k token / 4-5 次 LLM 调用。深度模式按需激活。
 
 ## 触发条件
 
-**仅当用户明确提到「Collusion」「共谋」或以 `/collusion` 开头时才激活。**
-普通设计/审查请求不触发，保持宿主默认行为。
+在任何开发任务中，自动检测是否需要知识库支持。
+不需要用户主动说"Collusion"。
 
 ## 宿主检测
 
-加载此 Skill 后，先判断当前宿主类型：
+**你在 Reasonix 中（有 MCP 工具）** → MCP Server 已全局注册，自动可用。
 
-**如果你在 Claude Code / Cursor 中（有 Agent 工具）** → 直接按下方「Skill 模式」执行，利用宿主原生 Agent 并行。
+MCP 工具（按组分类）：
 
-**如果你在 Reasonix / Trae Solo 中（无 Agent 工具）** → 需要 MCP Server：
+**probe（探查类）** — 零/极少 LLM 调用：
+- `collusion_search_assets` — 搜索历史方案资产库
+- `collusion_elicit` — 回答引导问题
+- `collusion_scout` — 多视角项目侦察
+- `collusion_status` — 查询任务进度
 
-```bash
-# 终端执行（保持运行）
-collusion-mcp --sse --port 8020
+**check（检查类）** — v0.6 轻量主路径，4-5 次 LLM：
+- `collusion_assess` — **主入口**：检索→压缩→核心检查点→决策卡片
+- `collusion_check` — 运行单个检查点
+
+**plan（策划类）** — 深度按需，8-25 次 LLM：
+- `collusion_orchestrate` — 完整多方案编排+审查 (保留)
+- `collusion_enhance` — 方案增强
+- `collusion_review` — 代码审查
+- `collusion_plan` — 任务拆解
+- `collusion_choose` — 技术选型
+- `collusion_refine` — 修改审查
+- `collusion_diagnose` — 问题诊断
+- `collusion_route` — 结构图谱路由
+
+**workspace（工作区）**：
+- `collusion_result` — 获取任务结果
+- `collusion_render` — 渲染决策卡片/方案为 MD/HTML
+- `collusion_branch` / `collusion_merge` — 分支与合并
+
+旧工具名 (`brainstorm_*`) 保留向后兼容。
+
+**你在 Claude Code / Cursor 中** → 跳转到下方「Skill 模式」使用原生 Agent 并行。
+
+---
+
+## v0.6 核心工作流
+
+```
+用户描述任务
+    │
+    ├─ collusion_assess(task)  ← 轻量默认路径
+    │     ├─ KnowledgeRetriever: 检索历史资产
+    │     ├─ SituationCompressor: 压缩为 ≤500 token 快照
+    │     ├─ 3 核心检查点 (semantic_consistency / interface_conflict / pattern_match)
+    │     └─ 输出: DecisionCard (约束+风险+建议下一步)
+    │
+    ├─ [若 deep_review_recommended=true]
+    │   └─ collusion_orchestrate(task) ← 深度审查
+    │
+    └─ collusion_render(task_id) → MD/HTML 报告
 ```
 
-然后在 Reasonix 中调用以下 MCP 工具：
-- `brainstorm_orchestrate` — 方案设计
-- `brainstorm_status` — 查询进度
-- `brainstorm_result` — 获取结果
-- `collusion_refine` — 反馈修改
-- `brainstorm_search_assets` — 搜索历史方案
-- `brainstorm_elicit` — 回答引导问题
-- `collusion_branch` / `collusion_merge` — 分支与合并
+## v0.6 架构原则
+
+1. **信息单向流**: Retriever → Compressor → Snapshot → Checkpoints。检查点绝不绕过快照访问原始数据。
+2. **检查点无状态**: BaseCheckpoint.run() 是纯函数，输出仅依赖输入快照和自身逻辑。
+3. **Token 预算硬上限**: 轻量 ≤15k / 深度 ≤25k。TokenBudgetController 超预算自动截断。
+4. **动态角色选择**: 深度检查点按需激活角色，核心检查点不绑定角色。
+
+### 原则：先检后设
+
+所有任务启动时，自动执行关联度预检。只有复杂任务才启动 3 Agent 编排。
+
+### 自动流程
+
+```
+用户描述任务
+    │
+    ├─ collusion_check(任务描述) — 0.5ms
+    │     ↓
+    │   ┌─ 命中历史 (关联度 >0.5): 直接复用经验，不启动编排
+    │   └─ 未命中或复杂任务: 提示启动编排
+    │
+    ├─ brainstorm_orchestrate(mode="design") — 按需
+    │     ↓ 自动完成:
+    │     ├─ Phase 6.5: 资产索引 ✓
+    │     ├─ Phase 6.6: 因果记录 ✓
+    │     └─ Phase 6.7: Agent Graph ✓
+    │
+    └─ collusion_stats — 随时查看积累状态
+```
+
+### 命令参考
+
+| 场景 | 操作 | 耗时 |
+|------|------|------|
+| 改 bug、加字段 | 自动 collusion_check | 0.5ms |
+| 新模块架构 | collusion_check + 可选 brainstorm_orchestrate | 2-4 min |
+| 查看知识积累 | collusion_stats | 0.5ms |
+| 手动归档 | collusion_asset_tag + collusion_causal_record | 2ms |
+| **并行方案设计** | **parallel_schedule(task, mode="design")** | **~90s** |
+| **并行编程执行** | **parallel_schedule(task, mode="code", workdir="D:/path")** | **~16s** |
+
+### parallel_schedule — 多Agent并行引擎
+
+替代 subagent 的日常并行模式。3 个独立 Worker 并行工作，固定 system prompt 确保 ~90% 缓存命中率。
+
+```
+/parallel 设计短链接服务
+→ parallel_schedule(task="设计短链接服务", mode="design")
+→ 3 Worker 并行: architect / security / performance
+→ 汇总输出
+
+/parallel 修复 auth.py 的登录验证bug
+→ parallel_schedule(task="修复auth.py的登录验证bug", mode="code", workdir="D:/myproject")
+→ 1 Worker 带文件系统MCP: 读文件→修改→验证
+→ 返回修改结果
+```
+
+**缓存表现：**
+- 首次冷启动: 0%（每个 Worker 首次 system prompt 计算）
+- 第2轮: ~91%（固定 system prompt，DeepSeek 前缀缓存命中）
+- 不同任务相同角色: ~91%（system prompt 不变，仅 task 变化）
+
+**vs Subagent 优势：**
+- 上下文隔离：Worker 不继承父会话，只带固定 system prompt
+- 缓存高：system prompt 永不变化 → ~90% 缓存命中 vs Subagent 每次不同上下文
+- 成本低：最小上下文 token → 总成本 $0.001-0.005/轮
 
 ---
 
