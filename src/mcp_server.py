@@ -44,7 +44,7 @@ _sampling_enabled = (
     or _orchestrator.config.get("sampling", {}).get("enabled", False)
 )
 
-server = Server("collusion-v0.4.0")
+server = Server("collusion-v0.6.1")
 
 
 @server.list_tools()
