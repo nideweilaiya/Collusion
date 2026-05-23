@@ -1,0 +1,28 @@
+{
+  "goal_id": "test_goal",
+  "description": "全链路测试",
+  "verification": {
+    "command": "echo ok",
+    "expected_exit_code": 0,
+    "max_iterations": 2,
+    "timeout_seconds": 30
+  },
+  "constraints": {
+    "allowed_files": [],
+    "forbidden_files": []
+  },
+  "iterations": 1,
+  "execution_path": [
+    {
+      "iteration": 1,
+      "step": "coder",
+      "result": {
+        "success": true,
+        "task_info": {
+          "goal": "全链路测试"
+        }
+      }
+    }
+  ],
+  "created_at": 1779264340.9112415
+}

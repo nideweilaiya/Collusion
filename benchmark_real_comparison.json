@@ -1,0 +1,56 @@
+{
+  "report_time": "2026-05-19 15:16:01",
+  "method": "git stash A/B 对比 + pytest 实测",
+  "tests": {
+    "old_commit": {
+      "passed": 67,
+      "failed_my_new_tests": 3
+    },
+    "new_v1.0.0": {
+      "passed": 70,
+      "failed": 0
+    },
+    "regression": 0
+  },
+  "search_accuracy": {
+    "old": {
+      "pass": 2,
+      "total": 5,
+      "pct": 40
+    },
+    "new": {
+      "pass": 3,
+      "total": 5,
+      "pct": 60
+    }
+  },
+  "features": {
+    "old_mcp_tools": 6,
+    "new_mcp_tools": 14,
+    "new_features": [
+      "5维结构化标签",
+      "Sanity.io关联度公式",
+      "YAML渐进式元数据",
+      "四信号Adamic-Adar",
+      "TF-IDF向量搜索",
+      "MAGE自进化引擎",
+      "Agent-as-a-Graph路由",
+      "因果记忆图Prism",
+      "项目知识库搜索",
+      "AI Wiki知识同步",
+      "废案自动预警",
+      "去LLM化标签提取",
+      "知识上下文注入"
+    ]
+  },
+  "speed": {
+    "search_ms": 0.35,
+    "precheck_ms": 0.52,
+    "disk_kb": 250
+  },
+  "cost_savings": {
+    "llm_calls_saved_per_orch": 2,
+    "tokens_saved_per_orch": 2277,
+    "note": "标签+因果提取不再调DeepSeek, Reasonix直接处理"
+  }
+}

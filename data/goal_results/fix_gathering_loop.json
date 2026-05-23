@@ -1,0 +1,48 @@
+{
+  "goal_id": "fix_gathering_loop",
+  "config": {
+    "goal_id": "fix_gathering_loop",
+    "description": "修复采集系统三个问题: 不停循环、不流畅、目标锁定丢失 + 面板重叠 + 拾取降频",
+    "verification": {
+      "l1": {
+        "command": "cd /d \"D:\\AI_Workbench\\integrations\\minecraft\\forge-mod\" && gradlew build -x test",
+        "expected_exit_code": 0,
+        "timeout_seconds": 300
+      },
+      "l2": {
+        "command": "cd /d \"D:\\AI_Workbench\\integrations\\minecraft\\forge-mod\" && gradlew test",
+        "expected_exit_code": 0,
+        "timeout_seconds": 300
+      },
+      "l3": {
+        "command": "cd /d \"D:\\AI_Workbench\\integrations\\minecraft\\forge-mod\" && gradlew runGameTest --tests *GatheringTest*",
+        "expected_exit_code": 0,
+        "timeout_seconds": 600
+      }
+    },
+    "allowed_files": [
+      "src/main/java/com/aiworkbench/companion/entity/goal/BTreeGatherGoal.java",
+      "src/main/java/com/aiworkbench/companion/skill/atomic/BreakBlockAction.java",
+      "src/main/java/com/aiworkbench/companion/client/gui/CompanionSettingsScreen.java",
+      "src/main/java/com/aiworkbench/companion/skill/atomic/CollectItemsAction.java"
+    ],
+    "forbidden_files": [],
+    "max_iterations": 5,
+    "strategy_switch_threshold": 3,
+    "cooldown_seconds": 0,
+    "tags": [
+      "#采集",
+      "#目标锁定",
+      "#行为树",
+      "#面板重叠"
+    ]
+  },
+  "status": "idle",
+  "current_verification": "l1",
+  "iteration": 0,
+  "error_history": {},
+  "started_at": 1779358521.6090927,
+  "completed_at": null,
+  "history": [],
+  "last_error": ""
+}

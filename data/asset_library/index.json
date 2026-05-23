@@ -11,7 +11,18 @@
     "total_score": 0,
     "is_top1": false,
     "summary": "{}",
-    "created_at": "2026-05-17T16:40:11.907058"
+    "created_at": "2026-05-17T16:40:11.907058",
+    "tags": [
+      {
+        "dimension": "领域",
+        "value": "API设计",
+        "confidence": 0.6,
+        "source": "migrated"
+      }
+    ],
+    "is_discarded": false,
+    "discard_reasons": [],
+    "rank": 0
   },
   "task_de67fcea48b7_B": {
     "task_id": "task_de67fcea48b7",
@@ -25,7 +36,18 @@
     "total_score": 0,
     "is_top1": false,
     "summary": "{}",
-    "created_at": "2026-05-17T16:40:11.907058"
+    "created_at": "2026-05-17T16:40:11.907058",
+    "tags": [
+      {
+        "dimension": "领域",
+        "value": "API设计",
+        "confidence": 0.6,
+        "source": "migrated"
+      }
+    ],
+    "is_discarded": false,
+    "discard_reasons": [],
+    "rank": 0
   },
   "task_de67fcea48b7_C": {
     "task_id": "task_de67fcea48b7",
@@ -39,29 +61,71 @@
     "total_score": 0,
     "is_top1": false,
     "summary": "{}",
-    "created_at": "2026-05-17T16:40:11.907058"
+    "created_at": "2026-05-17T16:40:11.907058",
+    "tags": [
+      {
+        "dimension": "领域",
+        "value": "API设计",
+        "confidence": 0.6,
+        "source": "migrated"
+      }
+    ],
+    "is_discarded": false,
+    "discard_reasons": [],
+    "rank": 0
   },
   "task_8b825c4c4ccc_A": {
     "task_id": "task_8b825c4c4ccc",
     "scheme_id": "A",
     "task": "设计一个短链接服务，要求支持自定义短码，Docker单命令部署",
     "keywords": [
+      "Go",
+      "Redis",
+      "短链接",
+      "单体",
       "部署",
-      "Docker",
-      "短链接"
+      "Docker"
     ],
     "object_name": "业务价值对象",
     "agent_role": "UX/产品专家",
     "total_score": 8.35,
     "is_top1": true,
     "summary": "# 短链接服务技术方案\n\n## 1. 业务需求与锚点确认\n\n### 1.1 核心需求\n- 支持用户自定义短码（4-16位字母数字，正则`^[a-zA-Z0-9]{4,16}$`）\n- 支持系统自动生成短码（6位随机字符串，使用`crypto/rand`）\n- 支持Docker单命令部署（`docker-compose up -d`）\n- 提供短链接重定向服务（301/302重定向）\n- 支持访问统计（总点击次数、最后访问时间）\n\n### 1.2 业务边界与简化锚点\n- **不包含**：用户认证系统、多租户、API密钥管理\n- **不包含**：分布式追踪、消息队列、微服务拆分\n- **不包含**：管理后台UI（仅提供RESTful API）\n- **聚焦**：核心短链接生成、重定向、基础统计\n\n## 2. 技术选型与架构设计\n\n### 2.1 技术栈\n| 组件 | 选型 | 版本 | 理由 |\n|------|------|------|------|\n| 编程语言 | Go | 1.21+ | 高性能、编译快、镜像小（最终二进制<20MB）、并发模型适合IO密集型 |\n| 缓存层 | ",
-    "created_at": "2026-05-17T17:00:28.419540"
+    "created_at": "2026-05-17T17:00:28.419540",
+    "tags": [
+      {
+        "dimension": "技术栈",
+        "value": "Go",
+        "confidence": 0.95
+      },
+      {
+        "dimension": "技术栈",
+        "value": "Redis",
+        "confidence": 0.85
+      },
+      {
+        "dimension": "领域",
+        "value": "短链接",
+        "confidence": 0.95
+      },
+      {
+        "dimension": "架构模式",
+        "value": "单体",
+        "confidence": 0.7
+      }
+    ],
+    "is_discarded": false,
+    "discard_reasons": [],
+    "rank": 1,
+    "yaml_meta": "---\nname: task_8b825c4c4ccc_A\ndescription: 设计一个短链接服务，要求支持自定义短码，Docker单命令部署\ntech_stack: [Go, Redis]\ndomain: 短链接\narch_pattern: 单体\nkeywords: [Go, Redis, 短链接, 单体, 部署, Docker]\ncreated_at: 2026-05-17T17:00:28.419540\n---"
   },
   "task_f675bcec5b4b_A": {
     "task_id": "task_f675bcec5b4b",
     "scheme_id": "A",
     "task": "设计一个简单的RESTful待办事项API，支持增删改查",
     "keywords": [
+      "Python",
+      "认证",
       "API设计"
     ],
     "object_name": "技术架构对象",
@@ -69,13 +133,31 @@
     "total_score": 6.95,
     "is_top1": false,
     "summary": "# 待办事项API技术方案文档\n\n## 1. 需求分析与资源定义\n\n### 数据模型\n使用Python dataclass定义Todo实体，包含以下字段：\n- `id`: UUID格式（UUID v4），自动生成\n- `title`: 字符串，非空，长度1-200字符\n- `completed`: 布尔值，默认为False\n- `owner_id`: 字符串，关联用户身份（API Key映射）\n- `created_at`: datetime（UTC），自动记录创建时间（审计用途）\n- `updated_at`: datetime（UTC），自动记录最后修改时间（审计用途）\n\n### 存储层设计\n采用Repository模式，定义接口`ITodoRepository`：\n- `create(todo: Todo) -> Todo`\n- `get_by_id(todo_id: UUID) -> Todo | None`\n- `get_all(owner_id: str, completed: bool | None, page: int, limit: int) -> tuple[lis",
-    "created_at": "2026-05-17T17:06:22.647259"
+    "created_at": "2026-05-17T17:06:22.647259",
+    "tags": [
+      {
+        "dimension": "技术栈",
+        "value": "Python",
+        "confidence": 0.9
+      },
+      {
+        "dimension": "领域",
+        "value": "认证",
+        "confidence": 0.85
+      }
+    ],
+    "is_discarded": false,
+    "discard_reasons": [],
+    "rank": 0,
+    "yaml_meta": "---\nname: task_f675bcec5b4b_A\ndescription: 设计一个简单的RESTful待办事项API，支持增删改查\ntech_stack: [Python]\ndomain: 认证\nkeywords: [Python, 认证, API设计]\ncreated_at: 2026-05-17T17:06:22.647259\n---"
   },
   "task_f675bcec5b4b_B": {
     "task_id": "task_f675bcec5b4b",
     "scheme_id": "B",
     "task": "设计一个简单的RESTful待办事项API，支持增删改查",
     "keywords": [
+      "Python",
+      "认证",
       "API设计"
     ],
     "object_name": "业务价值对象",
@@ -83,13 +165,31 @@
     "total_score": 8.15,
     "is_top1": true,
     "summary": "# 待办事项API技术方案文档\n\n## 1. 概述\n\n本文档定义了一个简单、可用的RESTful待办事项API，面向个人开发者、小型团队及REST API初学者。核心目标是提供一个最小可行产品（MVP），支持基本的增删改查操作，同时确保安全性、可测试性和可扩展性。本方案由业务价值对象代言人整合，聚焦于用户价值与商业目标，避免过度设计。\n\n## 2. 数据模型\n\n### Todo对象\n```json\n{\n  \"id\": \"uuid-string (UUID v4格式，36字符)\",\n  \"title\": \"string (最大200字符，最小1字符)\",\n  \"completed\": \"boolean (默认false)\",\n  \"created_at\": \"string (ISO 8601格式，如2024-01-01T00:00:00Z)\"\n}\n```\n\n### 存储选择\n- **初始阶段**：使用Python内存列表（list），便于快速原型验证。最大容量建议不超过10000条记录，超出后需迁移至持久化存储。\n- **后续迁移**：存储层设计为可替换接口（定义`TodoReposit",
-    "created_at": "2026-05-17T17:06:22.648432"
+    "created_at": "2026-05-17T17:06:22.648432",
+    "tags": [
+      {
+        "dimension": "技术栈",
+        "value": "Python",
+        "confidence": 0.9
+      },
+      {
+        "dimension": "领域",
+        "value": "认证",
+        "confidence": 0.85
+      }
+    ],
+    "is_discarded": false,
+    "discard_reasons": [],
+    "rank": 1,
+    "yaml_meta": "---\nname: task_f675bcec5b4b_B\ndescription: 设计一个简单的RESTful待办事项API，支持增删改查\ntech_stack: [Python]\ndomain: 认证\nkeywords: [Python, 认证, API设计]\ncreated_at: 2026-05-17T17:06:22.648432\n---"
   },
   "task_f675bcec5b4b_C": {
     "task_id": "task_f675bcec5b4b",
     "scheme_id": "C",
     "task": "设计一个简单的RESTful待办事项API，支持增删改查",
     "keywords": [
+      "Python",
+      "认证",
       "API设计"
     ],
     "object_name": "安全与合规对象",
@@ -97,7 +197,23 @@
     "total_score": 7.35,
     "is_top1": false,
     "summary": "# 待办事项API技术方案文档\n\n## 1. 系统概述\n\n本方案设计一个RESTful待办事项API，支持个人用户管理日常待办事项。系统采用JWT无状态认证实现用户隔离，使用PostgreSQL 15存储数据，通过Docker Compose容器化部署。核心功能包括创建、读取、更新、删除待办事项，支持分页查询，并内置安全防护机制。API服务运行在8080端口，所有通信强制使用TLS 1.2+。\n\n## 2. 数据模型与存储设计\n\n### 2.1 数据库表结构\n\n```sql\n-- 用户表（假设已存在，此处仅作参考）\nCREATE TABLE users (\n    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),\n    username VARCHAR(50) UNIQUE NOT NULL,\n    password_hash VARCHAR(255) NOT NULL,\n    created_at TIMESTAMPTZ DEFAULT NOW()\n);\n\n-- 待办事项表\nCREATE TABLE todos (\n    id UU",
-    "created_at": "2026-05-17T17:06:22.648432"
+    "created_at": "2026-05-17T17:06:22.648432",
+    "tags": [
+      {
+        "dimension": "技术栈",
+        "value": "Python",
+        "confidence": 0.9
+      },
+      {
+        "dimension": "领域",
+        "value": "认证",
+        "confidence": 0.85
+      }
+    ],
+    "is_discarded": false,
+    "discard_reasons": [],
+    "rank": 0,
+    "yaml_meta": "---\nname: task_f675bcec5b4b_C\ndescription: 设计一个简单的RESTful待办事项API，支持增删改查\ntech_stack: [Python]\ndomain: 认证\nkeywords: [Python, 认证, API设计]\ncreated_at: 2026-05-17T17:06:22.648432\n---"
   },
   "task_6befe4a08e2d_A": {
     "task_id": "task_6befe4a08e2d",
@@ -109,7 +225,11 @@
     "total_score": 8.25,
     "is_top1": false,
     "summary": "# 文件分享服务技术方案文档\n\n## 一、方案概述\n\n本方案设计一个完整的文件分享服务，核心功能包括：用户上传文件、生成可配置的分享链接（支持过期时间和访问密码）、链接管理与监控。系统采用微服务架构，兼顾安全性、可扩展性与用户体验。\n\n---\n\n## 二、用户故事与功能流程\n\n### 2.1 用户上传与生成分享链接\n\n**流程描述：**\n1. 用户登录后，进入文件管理页面或直接通过上传入口选择文件\n2. 上传过程中显示进度条、速度与剩余时间，支持拖拽上传（带视觉反馈）\n3. 上传成功后，文件出现在文件列表中；用户也可在上传完成后立即点击“生成分享链接”\n4. 系统弹出配置面板，提供以下选项：\n   - **过期时间**：预设选项（1小时/1天/7天）或自定义日期选择器（精确到分钟，最长不超过365天）\n   - **访问密码**：可选，输入时显示密码强度指示器（弱/中/强），密码长度6-32位，支持字母、数字、特殊字符\n   - **最大访问次数**：可选，设置后链接在达到次数后自动失效（1-10000次）\n   - **IP白名单**：可选，支持CIDR格式（如192.168.1.0",
-    "created_at": "2026-05-17T18:31:10.641664"
+    "created_at": "2026-05-17T18:31:10.641664",
+    "tags": [],
+    "is_discarded": false,
+    "discard_reasons": [],
+    "rank": 0
   },
   "task_6befe4a08e2d_B": {
     "task_id": "task_6befe4a08e2d",
@@ -121,7 +241,11 @@
     "total_score": 8.05,
     "is_top1": false,
     "summary": "# 文件分享服务技术方案文档（终审润色版）\n\n## 一、系统概述\n\n本方案设计一个安全、合规、可扩展的文件分享服务，核心功能包括：用户上传文件、生成带过期时间和访问密码的分享链接、链接管理、安全扫描与审计。系统采用微服务架构，强调数据安全、用户隐私保护和操作可追溯性。所有服务间通信使用gRPC（内部）或HTTPS（外部），默认超时设置为5秒。\n\n---\n\n## 二、用户身份与权限管理\n\n### 2.1 认证方式\n- **邮箱注册+密码登录**：密码使用bcrypt哈希存储（成本因子12），支持密码强度校验（至少8位，含大小写字母和数字，建议至少1个特殊字符）。\n- **OAuth 2.0**：支持Google和GitHub第三方登录，使用标准OAuth 2.0授权码流程，获取用户邮箱作为唯一标识。令牌有效期1小时，刷新令牌有效期7天。\n- **JWT令牌**：API请求携带JWT（RS256签名算法），有效期1小时；刷新令牌有效期7天，存储于HTTP-only Secure Cookie中，路径为`/api/auth/refresh`。\n\n### 2.2 用户角色\n- **普通用户**",
-    "created_at": "2026-05-17T18:31:10.641664"
+    "created_at": "2026-05-17T18:31:10.641664",
+    "tags": [],
+    "is_discarded": false,
+    "discard_reasons": [],
+    "rank": 0
   },
   "task_6befe4a08e2d_C": {
     "task_id": "task_6befe4a08e2d",
@@ -133,6 +257,1596 @@
     "total_score": 8.65,
     "is_top1": true,
     "summary": "# 文件分享服务技术架构方案（终审润色版）\n\n## 一、系统总体架构\n\n本方案采用微服务架构，核心组件包括：\n\n- **API Gateway**：统一入口，负责路由、限流（令牌桶算法，每秒1000请求/节点）、认证令牌校验\n- **分享服务**：核心业务逻辑，管理分享链接的生成、校验、生命周期\n- **文件服务**：处理文件上传、下载、存储管理\n- **安全扫描服务**：异步文件病毒扫描（ClamAV 0.103+，扫描超时300秒）\n- **用户服务**：身份认证与权限管理（OAuth 2.0 + JWT）\n- **审计服务**：日志收集与分析（ELK Stack 7.17+，日志保留180天）\n- **数据层**：Redis Cluster 6.2+（热数据缓存，16个分片，3副本）、分布式SQL数据库（TiDB 6.0+，元数据持久化）、对象存储（MinIO 2023+ / AWS S3，存储桶策略：私有读写）\n\n## 二、详细步骤设计\n\n### 步骤1：用户上传文件\n\n**设计内容**：\n- 用户通过API Gateway上传文件，请求携带JWT令牌（RS256签名，有效期1",
-    "created_at": "2026-05-17T18:31:10.641664"
+    "created_at": "2026-05-17T18:31:10.641664",
+    "tags": [],
+    "is_discarded": false,
+    "discard_reasons": [],
+    "rank": 1
+  },
+  "task_c3e6880317f6_A": {
+    "task_id": "task_c3e6880317f6",
+    "scheme_id": "A",
+    "task": "Design a TODO app",
+    "tags": [
+      {
+        "dimension": "领域",
+        "value": "待办事项",
+        "confidence": 0.6,
+        "source": "migrated"
+      }
+    ],
+    "keywords": [
+      "待办事项"
+    ],
+    "object_name": "技术架构对象",
+    "agent_role": "性能架构师",
+    "total_score": 0,
+    "rank": 0,
+    "is_top1": false,
+    "is_discarded": false,
+    "discard_reasons": [],
+    "summary": "{}",
+    "created_at": "2026-05-19T13:41:05.277009",
+    "success_outcome": null
+  },
+  "task_c3e6880317f6_B": {
+    "task_id": "task_c3e6880317f6",
+    "scheme_id": "B",
+    "task": "Design a TODO app",
+    "tags": [
+      {
+        "dimension": "领域",
+        "value": "待办事项",
+        "confidence": 0.6,
+        "source": "migrated"
+      }
+    ],
+    "keywords": [
+      "待办事项"
+    ],
+    "object_name": "安全与合规对象",
+    "agent_role": "安全专家",
+    "total_score": 0,
+    "rank": 0,
+    "is_top1": false,
+    "is_discarded": false,
+    "discard_reasons": [],
+    "summary": "{}",
+    "created_at": "2026-05-19T13:41:05.277009",
+    "success_outcome": null
+  },
+  "task_c3e6880317f6_C": {
+    "task_id": "task_c3e6880317f6",
+    "scheme_id": "C",
+    "task": "Design a TODO app",
+    "tags": [
+      {
+        "dimension": "领域",
+        "value": "待办事项",
+        "confidence": 0.6,
+        "source": "migrated"
+      }
+    ],
+    "keywords": [
+      "待办事项"
+    ],
+    "object_name": "业务价值对象",
+    "agent_role": "UX/产品专家",
+    "total_score": 0,
+    "rank": 0,
+    "is_top1": false,
+    "is_discarded": false,
+    "discard_reasons": [],
+    "summary": "{}",
+    "created_at": "2026-05-19T13:41:05.277009",
+    "success_outcome": null
+  },
+  "task_2f50e622a015_A": {
+    "task_id": "task_2f50e622a015",
+    "scheme_id": "A",
+    "task": "Design a TODO app",
+    "tags": [
+      {
+        "dimension": "领域",
+        "value": "待办事项",
+        "confidence": 0.6,
+        "source": "migrated"
+      }
+    ],
+    "keywords": [
+      "待办事项"
+    ],
+    "object_name": "安全与合规对象",
+    "agent_role": "安全专家",
+    "total_score": 0,
+    "rank": 0,
+    "is_top1": false,
+    "is_discarded": false,
+    "discard_reasons": [],
+    "summary": "{}",
+    "created_at": "2026-05-19T13:42:16.646128",
+    "success_outcome": null
+  },
+  "task_2f50e622a015_B": {
+    "task_id": "task_2f50e622a015",
+    "scheme_id": "B",
+    "task": "Design a TODO app",
+    "tags": [
+      {
+        "dimension": "领域",
+        "value": "待办事项",
+        "confidence": 0.6,
+        "source": "migrated"
+      }
+    ],
+    "keywords": [
+      "待办事项"
+    ],
+    "object_name": "业务价值对象",
+    "agent_role": "UX/产品专家",
+    "total_score": 0,
+    "rank": 0,
+    "is_top1": false,
+    "is_discarded": false,
+    "discard_reasons": [],
+    "summary": "{}",
+    "created_at": "2026-05-19T13:42:16.646128",
+    "success_outcome": null
+  },
+  "task_2f50e622a015_C": {
+    "task_id": "task_2f50e622a015",
+    "scheme_id": "C",
+    "task": "Design a TODO app",
+    "tags": [
+      {
+        "dimension": "领域",
+        "value": "待办事项",
+        "confidence": 0.6,
+        "source": "migrated"
+      }
+    ],
+    "keywords": [
+      "待办事项"
+    ],
+    "object_name": "技术架构对象",
+    "agent_role": "性能架构师",
+    "total_score": 0,
+    "rank": 0,
+    "is_top1": false,
+    "is_discarded": false,
+    "discard_reasons": [],
+    "summary": "{}",
+    "created_at": "2026-05-19T13:42:16.646128",
+    "success_outcome": null
+  },
+  "task_bb0cf1b76a1b_A": {
+    "task_id": "task_bb0cf1b76a1b",
+    "scheme_id": "A",
+    "task": "Design a TODO app",
+    "tags": [
+      {
+        "dimension": "领域",
+        "value": "待办事项",
+        "confidence": 0.6,
+        "source": "migrated"
+      }
+    ],
+    "keywords": [
+      "待办事项"
+    ],
+    "object_name": "安全与合规对象",
+    "agent_role": "安全专家",
+    "total_score": 0,
+    "rank": 0,
+    "is_top1": false,
+    "is_discarded": false,
+    "discard_reasons": [],
+    "summary": "{}",
+    "created_at": "2026-05-19T14:05:42.514515",
+    "success_outcome": null,
+    "yaml_meta": "---\nname: task_bb0cf1b76a1b_A\ndescription: Design a TODO app\nkeywords: [待办事项]\ncreated_at: 2026-05-19T14:05:42.514515\n---"
+  },
+  "task_bb0cf1b76a1b_B": {
+    "task_id": "task_bb0cf1b76a1b",
+    "scheme_id": "B",
+    "task": "Design a TODO app",
+    "tags": [
+      {
+        "dimension": "领域",
+        "value": "待办事项",
+        "confidence": 0.6,
+        "source": "migrated"
+      }
+    ],
+    "keywords": [
+      "待办事项"
+    ],
+    "object_name": "技术架构对象",
+    "agent_role": "性能架构师",
+    "total_score": 0,
+    "rank": 0,
+    "is_top1": false,
+    "is_discarded": false,
+    "discard_reasons": [],
+    "summary": "{}",
+    "created_at": "2026-05-19T14:05:42.514515",
+    "success_outcome": null,
+    "yaml_meta": "---\nname: task_bb0cf1b76a1b_B\ndescription: Design a TODO app\nkeywords: [待办事项]\ncreated_at: 2026-05-19T14:05:42.514515\n---"
+  },
+  "task_bb0cf1b76a1b_C": {
+    "task_id": "task_bb0cf1b76a1b",
+    "scheme_id": "C",
+    "task": "Design a TODO app",
+    "tags": [
+      {
+        "dimension": "领域",
+        "value": "待办事项",
+        "confidence": 0.6,
+        "source": "migrated"
+      }
+    ],
+    "keywords": [
+      "待办事项"
+    ],
+    "object_name": "业务价值对象",
+    "agent_role": "UX/产品专家",
+    "total_score": 0,
+    "rank": 0,
+    "is_top1": false,
+    "is_discarded": false,
+    "discard_reasons": [],
+    "summary": "{}",
+    "created_at": "2026-05-19T14:05:42.514515",
+    "success_outcome": null,
+    "yaml_meta": "---\nname: task_bb0cf1b76a1b_C\ndescription: Design a TODO app\nkeywords: [待办事项]\ncreated_at: 2026-05-19T14:05:42.514515\n---"
+  },
+  "task_935bc299cb80_A": {
+    "task_id": "task_935bc299cb80",
+    "scheme_id": "A",
+    "task": "Design a TODO app",
+    "tags": [
+      {
+        "dimension": "领域",
+        "value": "待办事项",
+        "confidence": 0.6,
+        "source": "migrated"
+      }
+    ],
+    "keywords": [
+      "待办事项"
+    ],
+    "object_name": "安全与合规对象",
+    "agent_role": "安全专家",
+    "total_score": 0,
+    "rank": 0,
+    "is_top1": false,
+    "is_discarded": false,
+    "discard_reasons": [],
+    "summary": "{}",
+    "created_at": "2026-05-19T14:20:46.509676",
+    "success_outcome": null,
+    "yaml_meta": "---\nname: task_935bc299cb80_A\ndescription: Design a TODO app\nkeywords: [待办事项]\ncreated_at: 2026-05-19T14:20:46.509676\n---"
+  },
+  "task_935bc299cb80_B": {
+    "task_id": "task_935bc299cb80",
+    "scheme_id": "B",
+    "task": "Design a TODO app",
+    "tags": [
+      {
+        "dimension": "领域",
+        "value": "待办事项",
+        "confidence": 0.6,
+        "source": "migrated"
+      }
+    ],
+    "keywords": [
+      "待办事项"
+    ],
+    "object_name": "业务价值对象",
+    "agent_role": "UX/产品专家",
+    "total_score": 0,
+    "rank": 0,
+    "is_top1": false,
+    "is_discarded": false,
+    "discard_reasons": [],
+    "summary": "{}",
+    "created_at": "2026-05-19T14:20:46.509676",
+    "success_outcome": null,
+    "yaml_meta": "---\nname: task_935bc299cb80_B\ndescription: Design a TODO app\nkeywords: [待办事项]\ncreated_at: 2026-05-19T14:20:46.509676\n---"
+  },
+  "task_935bc299cb80_C": {
+    "task_id": "task_935bc299cb80",
+    "scheme_id": "C",
+    "task": "Design a TODO app",
+    "tags": [
+      {
+        "dimension": "领域",
+        "value": "待办事项",
+        "confidence": 0.6,
+        "source": "migrated"
+      }
+    ],
+    "keywords": [
+      "待办事项"
+    ],
+    "object_name": "技术架构对象",
+    "agent_role": "性能架构师",
+    "total_score": 0,
+    "rank": 0,
+    "is_top1": false,
+    "is_discarded": false,
+    "discard_reasons": [],
+    "summary": "{}",
+    "created_at": "2026-05-19T14:20:46.509676",
+    "success_outcome": null,
+    "yaml_meta": "---\nname: task_935bc299cb80_C\ndescription: Design a TODO app\nkeywords: [待办事项]\ncreated_at: 2026-05-19T14:20:46.509676\n---"
+  },
+  "task_45d831f9230d_A": {
+    "task_id": "task_45d831f9230d",
+    "scheme_id": "A",
+    "task": "Design a TODO app",
+    "tags": [
+      {
+        "dimension": "领域",
+        "value": "待办事项",
+        "confidence": 0.6,
+        "source": "migrated"
+      }
+    ],
+    "keywords": [
+      "待办事项"
+    ],
+    "object_name": "技术架构对象",
+    "agent_role": "性能架构师",
+    "total_score": 0,
+    "rank": 0,
+    "is_top1": false,
+    "is_discarded": false,
+    "discard_reasons": [],
+    "summary": "{}",
+    "created_at": "2026-05-19T14:38:32.055776",
+    "success_outcome": null,
+    "yaml_meta": "---\nname: task_45d831f9230d_A\ndescription: Design a TODO app\nkeywords: [待办事项]\ncreated_at: 2026-05-19T14:38:32.055776\n---"
+  },
+  "task_45d831f9230d_B": {
+    "task_id": "task_45d831f9230d",
+    "scheme_id": "B",
+    "task": "Design a TODO app",
+    "tags": [
+      {
+        "dimension": "领域",
+        "value": "待办事项",
+        "confidence": 0.6,
+        "source": "migrated"
+      }
+    ],
+    "keywords": [
+      "待办事项"
+    ],
+    "object_name": "安全与合规对象",
+    "agent_role": "安全专家",
+    "total_score": 0,
+    "rank": 0,
+    "is_top1": false,
+    "is_discarded": false,
+    "discard_reasons": [],
+    "summary": "{}",
+    "created_at": "2026-05-19T14:38:32.055776",
+    "success_outcome": null,
+    "yaml_meta": "---\nname: task_45d831f9230d_B\ndescription: Design a TODO app\nkeywords: [待办事项]\ncreated_at: 2026-05-19T14:38:32.055776\n---"
+  },
+  "task_45d831f9230d_C": {
+    "task_id": "task_45d831f9230d",
+    "scheme_id": "C",
+    "task": "Design a TODO app",
+    "tags": [
+      {
+        "dimension": "领域",
+        "value": "待办事项",
+        "confidence": 0.6,
+        "source": "migrated"
+      }
+    ],
+    "keywords": [
+      "待办事项"
+    ],
+    "object_name": "业务价值对象",
+    "agent_role": "UX/产品专家",
+    "total_score": 0,
+    "rank": 0,
+    "is_top1": false,
+    "is_discarded": false,
+    "discard_reasons": [],
+    "summary": "{}",
+    "created_at": "2026-05-19T14:38:32.055776",
+    "success_outcome": null,
+    "yaml_meta": "---\nname: task_45d831f9230d_C\ndescription: Design a TODO app\nkeywords: [待办事项]\ncreated_at: 2026-05-19T14:38:32.055776\n---"
+  },
+  "task_9473efba0d79_A": {
+    "task_id": "task_9473efba0d79",
+    "scheme_id": "A",
+    "task": "Design a TODO app",
+    "tags": [
+      {
+        "dimension": "领域",
+        "value": "待办事项",
+        "confidence": 0.6,
+        "source": "migrated"
+      }
+    ],
+    "keywords": [
+      "待办事项"
+    ],
+    "object_name": "技术架构对象",
+    "agent_role": "性能架构师",
+    "total_score": 0,
+    "rank": 0,
+    "is_top1": false,
+    "is_discarded": false,
+    "discard_reasons": [],
+    "summary": "{}",
+    "created_at": "2026-05-19T14:46:43.004902",
+    "success_outcome": null,
+    "yaml_meta": "---\nname: task_9473efba0d79_A\ndescription: Design a TODO app\nkeywords: [待办事项]\ncreated_at: 2026-05-19T14:46:43.004902\n---"
+  },
+  "task_9473efba0d79_B": {
+    "task_id": "task_9473efba0d79",
+    "scheme_id": "B",
+    "task": "Design a TODO app",
+    "tags": [
+      {
+        "dimension": "领域",
+        "value": "待办事项",
+        "confidence": 0.6,
+        "source": "migrated"
+      }
+    ],
+    "keywords": [
+      "待办事项"
+    ],
+    "object_name": "业务价值对象",
+    "agent_role": "UX/产品专家",
+    "total_score": 0,
+    "rank": 0,
+    "is_top1": false,
+    "is_discarded": false,
+    "discard_reasons": [],
+    "summary": "{}",
+    "created_at": "2026-05-19T14:46:43.004902",
+    "success_outcome": null,
+    "yaml_meta": "---\nname: task_9473efba0d79_B\ndescription: Design a TODO app\nkeywords: [待办事项]\ncreated_at: 2026-05-19T14:46:43.004902\n---"
+  },
+  "task_9473efba0d79_C": {
+    "task_id": "task_9473efba0d79",
+    "scheme_id": "C",
+    "task": "Design a TODO app",
+    "tags": [
+      {
+        "dimension": "领域",
+        "value": "待办事项",
+        "confidence": 0.6,
+        "source": "migrated"
+      }
+    ],
+    "keywords": [
+      "待办事项"
+    ],
+    "object_name": "安全与合规对象",
+    "agent_role": "安全专家",
+    "total_score": 0,
+    "rank": 0,
+    "is_top1": false,
+    "is_discarded": false,
+    "discard_reasons": [],
+    "summary": "{}",
+    "created_at": "2026-05-19T14:46:43.004902",
+    "success_outcome": null,
+    "yaml_meta": "---\nname: task_9473efba0d79_C\ndescription: Design a TODO app\nkeywords: [待办事项]\ncreated_at: 2026-05-19T14:46:43.004902\n---"
+  },
+  "task_a9b5fca7c25b_A": {
+    "task_id": "task_a9b5fca7c25b",
+    "scheme_id": "A",
+    "task": "Design a TODO app",
+    "tags": [
+      {
+        "dimension": "领域",
+        "value": "待办事项",
+        "confidence": 0.6,
+        "source": "migrated"
+      }
+    ],
+    "keywords": [
+      "待办事项"
+    ],
+    "object_name": "技术架构对象",
+    "agent_role": "性能架构师",
+    "total_score": 0,
+    "rank": 0,
+    "is_top1": false,
+    "is_discarded": false,
+    "discard_reasons": [],
+    "summary": "{}",
+    "created_at": "2026-05-19T16:10:24.734247",
+    "success_outcome": null,
+    "yaml_meta": "---\nname: task_a9b5fca7c25b_A\ndescription: Design a TODO app\nkeywords: [待办事项]\ncreated_at: 2026-05-19T16:10:24.734247\n---"
+  },
+  "task_a9b5fca7c25b_B": {
+    "task_id": "task_a9b5fca7c25b",
+    "scheme_id": "B",
+    "task": "Design a TODO app",
+    "tags": [
+      {
+        "dimension": "领域",
+        "value": "待办事项",
+        "confidence": 0.6,
+        "source": "migrated"
+      }
+    ],
+    "keywords": [
+      "待办事项"
+    ],
+    "object_name": "业务价值对象",
+    "agent_role": "UX/产品专家",
+    "total_score": 0,
+    "rank": 0,
+    "is_top1": false,
+    "is_discarded": false,
+    "discard_reasons": [],
+    "summary": "{}",
+    "created_at": "2026-05-19T16:10:24.734247",
+    "success_outcome": null,
+    "yaml_meta": "---\nname: task_a9b5fca7c25b_B\ndescription: Design a TODO app\nkeywords: [待办事项]\ncreated_at: 2026-05-19T16:10:24.734247\n---"
+  },
+  "task_a9b5fca7c25b_C": {
+    "task_id": "task_a9b5fca7c25b",
+    "scheme_id": "C",
+    "task": "Design a TODO app",
+    "tags": [
+      {
+        "dimension": "领域",
+        "value": "待办事项",
+        "confidence": 0.6,
+        "source": "migrated"
+      }
+    ],
+    "keywords": [
+      "待办事项"
+    ],
+    "object_name": "安全与合规对象",
+    "agent_role": "安全专家",
+    "total_score": 0,
+    "rank": 0,
+    "is_top1": false,
+    "is_discarded": false,
+    "discard_reasons": [],
+    "summary": "{}",
+    "created_at": "2026-05-19T16:10:24.734247",
+    "success_outcome": null,
+    "yaml_meta": "---\nname: task_a9b5fca7c25b_C\ndescription: Design a TODO app\nkeywords: [待办事项]\ncreated_at: 2026-05-19T16:10:24.734247\n---"
+  },
+  "task_552bacc46981_A": {
+    "task_id": "task_552bacc46981",
+    "scheme_id": "A",
+    "task": "Design a TODO app",
+    "tags": [
+      {
+        "dimension": "领域",
+        "value": "待办事项",
+        "confidence": 0.6,
+        "source": "migrated"
+      }
+    ],
+    "keywords": [
+      "待办事项"
+    ],
+    "object_name": "安全与合规对象",
+    "agent_role": "安全专家",
+    "total_score": 0,
+    "rank": 0,
+    "is_top1": false,
+    "is_discarded": false,
+    "discard_reasons": [],
+    "summary": "{}",
+    "created_at": "2026-05-20T14:42:06.151978",
+    "success_outcome": null,
+    "yaml_meta": "---\nname: task_552bacc46981_A\ndescription: Design a TODO app\nkeywords: [待办事项]\ncreated_at: 2026-05-20T14:42:06.151978\n---"
+  },
+  "task_552bacc46981_B": {
+    "task_id": "task_552bacc46981",
+    "scheme_id": "B",
+    "task": "Design a TODO app",
+    "tags": [
+      {
+        "dimension": "领域",
+        "value": "待办事项",
+        "confidence": 0.6,
+        "source": "migrated"
+      }
+    ],
+    "keywords": [
+      "待办事项"
+    ],
+    "object_name": "业务价值对象",
+    "agent_role": "UX/产品专家",
+    "total_score": 0,
+    "rank": 0,
+    "is_top1": false,
+    "is_discarded": false,
+    "discard_reasons": [],
+    "summary": "{}",
+    "created_at": "2026-05-20T14:42:06.151978",
+    "success_outcome": null,
+    "yaml_meta": "---\nname: task_552bacc46981_B\ndescription: Design a TODO app\nkeywords: [待办事项]\ncreated_at: 2026-05-20T14:42:06.151978\n---"
+  },
+  "task_552bacc46981_C": {
+    "task_id": "task_552bacc46981",
+    "scheme_id": "C",
+    "task": "Design a TODO app",
+    "tags": [
+      {
+        "dimension": "领域",
+        "value": "待办事项",
+        "confidence": 0.6,
+        "source": "migrated"
+      }
+    ],
+    "keywords": [
+      "待办事项"
+    ],
+    "object_name": "技术架构对象",
+    "agent_role": "性能架构师",
+    "total_score": 0,
+    "rank": 0,
+    "is_top1": false,
+    "is_discarded": false,
+    "discard_reasons": [],
+    "summary": "{}",
+    "created_at": "2026-05-20T14:42:06.151978",
+    "success_outcome": null,
+    "yaml_meta": "---\nname: task_552bacc46981_C\ndescription: Design a TODO app\nkeywords: [待办事项]\ncreated_at: 2026-05-20T14:42:06.151978\n---"
+  },
+  "task_1c4eaca1a6ca_A": {
+    "task_id": "task_1c4eaca1a6ca",
+    "scheme_id": "A",
+    "task": "Design a TODO app",
+    "tags": [
+      {
+        "dimension": "领域",
+        "value": "待办事项",
+        "confidence": 0.6,
+        "source": "migrated"
+      }
+    ],
+    "keywords": [
+      "待办事项"
+    ],
+    "object_name": "安全与合规对象",
+    "agent_role": "安全专家",
+    "total_score": 0,
+    "rank": 0,
+    "is_top1": false,
+    "is_discarded": false,
+    "discard_reasons": [],
+    "summary": "{}",
+    "created_at": "2026-05-20T14:53:24.103344",
+    "success_outcome": null,
+    "yaml_meta": "---\nname: task_1c4eaca1a6ca_A\ndescription: Design a TODO app\nkeywords: [待办事项]\ncreated_at: 2026-05-20T14:53:24.103344\n---"
+  },
+  "task_1c4eaca1a6ca_B": {
+    "task_id": "task_1c4eaca1a6ca",
+    "scheme_id": "B",
+    "task": "Design a TODO app",
+    "tags": [
+      {
+        "dimension": "领域",
+        "value": "待办事项",
+        "confidence": 0.6,
+        "source": "migrated"
+      }
+    ],
+    "keywords": [
+      "待办事项"
+    ],
+    "object_name": "技术架构对象",
+    "agent_role": "性能架构师",
+    "total_score": 0,
+    "rank": 0,
+    "is_top1": false,
+    "is_discarded": false,
+    "discard_reasons": [],
+    "summary": "{}",
+    "created_at": "2026-05-20T14:53:24.103344",
+    "success_outcome": null,
+    "yaml_meta": "---\nname: task_1c4eaca1a6ca_B\ndescription: Design a TODO app\nkeywords: [待办事项]\ncreated_at: 2026-05-20T14:53:24.103344\n---"
+  },
+  "task_1c4eaca1a6ca_C": {
+    "task_id": "task_1c4eaca1a6ca",
+    "scheme_id": "C",
+    "task": "Design a TODO app",
+    "tags": [
+      {
+        "dimension": "领域",
+        "value": "待办事项",
+        "confidence": 0.6,
+        "source": "migrated"
+      }
+    ],
+    "keywords": [
+      "待办事项"
+    ],
+    "object_name": "业务价值对象",
+    "agent_role": "UX/产品专家",
+    "total_score": 0,
+    "rank": 0,
+    "is_top1": false,
+    "is_discarded": false,
+    "discard_reasons": [],
+    "summary": "{}",
+    "created_at": "2026-05-20T14:53:24.103344",
+    "success_outcome": null,
+    "yaml_meta": "---\nname: task_1c4eaca1a6ca_C\ndescription: Design a TODO app\nkeywords: [待办事项]\ncreated_at: 2026-05-20T14:53:24.103344\n---"
+  },
+  "task_f67181365d72_A": {
+    "task_id": "task_f67181365d72",
+    "scheme_id": "A",
+    "task": "Design a TODO app",
+    "tags": [
+      {
+        "dimension": "领域",
+        "value": "待办事项",
+        "confidence": 0.6,
+        "source": "migrated"
+      }
+    ],
+    "keywords": [
+      "待办事项"
+    ],
+    "object_name": "技术架构对象",
+    "agent_role": "性能架构师",
+    "total_score": 0,
+    "rank": 0,
+    "is_top1": false,
+    "is_discarded": false,
+    "discard_reasons": [],
+    "summary": "{}",
+    "created_at": "2026-05-20T14:59:45.335963",
+    "success_outcome": null,
+    "yaml_meta": "---\nname: task_f67181365d72_A\ndescription: Design a TODO app\nkeywords: [待办事项]\ncreated_at: 2026-05-20T14:59:45.335963\n---"
+  },
+  "task_f67181365d72_B": {
+    "task_id": "task_f67181365d72",
+    "scheme_id": "B",
+    "task": "Design a TODO app",
+    "tags": [
+      {
+        "dimension": "领域",
+        "value": "待办事项",
+        "confidence": 0.6,
+        "source": "migrated"
+      }
+    ],
+    "keywords": [
+      "待办事项"
+    ],
+    "object_name": "业务价值对象",
+    "agent_role": "UX/产品专家",
+    "total_score": 0,
+    "rank": 0,
+    "is_top1": false,
+    "is_discarded": false,
+    "discard_reasons": [],
+    "summary": "{}",
+    "created_at": "2026-05-20T14:59:45.336963",
+    "success_outcome": null,
+    "yaml_meta": "---\nname: task_f67181365d72_B\ndescription: Design a TODO app\nkeywords: [待办事项]\ncreated_at: 2026-05-20T14:59:45.336963\n---"
+  },
+  "task_f67181365d72_C": {
+    "task_id": "task_f67181365d72",
+    "scheme_id": "C",
+    "task": "Design a TODO app",
+    "tags": [
+      {
+        "dimension": "领域",
+        "value": "待办事项",
+        "confidence": 0.6,
+        "source": "migrated"
+      }
+    ],
+    "keywords": [
+      "待办事项"
+    ],
+    "object_name": "安全与合规对象",
+    "agent_role": "安全专家",
+    "total_score": 0,
+    "rank": 0,
+    "is_top1": false,
+    "is_discarded": false,
+    "discard_reasons": [],
+    "summary": "{}",
+    "created_at": "2026-05-20T14:59:45.336963",
+    "success_outcome": null,
+    "yaml_meta": "---\nname: task_f67181365d72_C\ndescription: Design a TODO app\nkeywords: [待办事项]\ncreated_at: 2026-05-20T14:59:45.336963\n---"
+  },
+  "task_447755e3184b_A": {
+    "task_id": "task_447755e3184b",
+    "scheme_id": "A",
+    "task": "Design a TODO app",
+    "tags": [
+      {
+        "dimension": "领域",
+        "value": "待办事项",
+        "confidence": 0.6,
+        "source": "migrated"
+      }
+    ],
+    "keywords": [
+      "待办事项"
+    ],
+    "object_name": "安全与合规对象",
+    "agent_role": "安全专家",
+    "total_score": 0,
+    "rank": 0,
+    "is_top1": false,
+    "is_discarded": false,
+    "discard_reasons": [],
+    "summary": "{}",
+    "created_at": "2026-05-20T15:16:27.174063",
+    "success_outcome": null,
+    "yaml_meta": "---\nname: task_447755e3184b_A\ndescription: Design a TODO app\nkeywords: [待办事项]\ncreated_at: 2026-05-20T15:16:27.174063\n---"
+  },
+  "task_447755e3184b_B": {
+    "task_id": "task_447755e3184b",
+    "scheme_id": "B",
+    "task": "Design a TODO app",
+    "tags": [
+      {
+        "dimension": "领域",
+        "value": "待办事项",
+        "confidence": 0.6,
+        "source": "migrated"
+      }
+    ],
+    "keywords": [
+      "待办事项"
+    ],
+    "object_name": "业务价值对象",
+    "agent_role": "UX/产品专家",
+    "total_score": 0,
+    "rank": 0,
+    "is_top1": false,
+    "is_discarded": false,
+    "discard_reasons": [],
+    "summary": "{}",
+    "created_at": "2026-05-20T15:16:27.174063",
+    "success_outcome": null,
+    "yaml_meta": "---\nname: task_447755e3184b_B\ndescription: Design a TODO app\nkeywords: [待办事项]\ncreated_at: 2026-05-20T15:16:27.174063\n---"
+  },
+  "task_447755e3184b_C": {
+    "task_id": "task_447755e3184b",
+    "scheme_id": "C",
+    "task": "Design a TODO app",
+    "tags": [
+      {
+        "dimension": "领域",
+        "value": "待办事项",
+        "confidence": 0.6,
+        "source": "migrated"
+      }
+    ],
+    "keywords": [
+      "待办事项"
+    ],
+    "object_name": "技术架构对象",
+    "agent_role": "性能架构师",
+    "total_score": 0,
+    "rank": 0,
+    "is_top1": false,
+    "is_discarded": false,
+    "discard_reasons": [],
+    "summary": "{}",
+    "created_at": "2026-05-20T15:16:27.174063",
+    "success_outcome": null,
+    "yaml_meta": "---\nname: task_447755e3184b_C\ndescription: Design a TODO app\nkeywords: [待办事项]\ncreated_at: 2026-05-20T15:16:27.174063\n---"
+  },
+  "task_c7dd43cd778b_A": {
+    "task_id": "task_c7dd43cd778b",
+    "scheme_id": "A",
+    "task": "Design a TODO app",
+    "tags": [
+      {
+        "dimension": "领域",
+        "value": "待办事项",
+        "confidence": 0.6,
+        "source": "migrated"
+      }
+    ],
+    "keywords": [
+      "待办事项"
+    ],
+    "object_name": "安全与合规对象",
+    "agent_role": "安全专家",
+    "total_score": 0,
+    "rank": 0,
+    "is_top1": false,
+    "is_discarded": false,
+    "discard_reasons": [],
+    "summary": "{}",
+    "created_at": "2026-05-20T15:39:37.623123",
+    "success_outcome": null,
+    "yaml_meta": "---\nname: task_c7dd43cd778b_A\ndescription: Design a TODO app\nkeywords: [待办事项]\ncreated_at: 2026-05-20T15:39:37.623123\n---"
+  },
+  "task_c7dd43cd778b_B": {
+    "task_id": "task_c7dd43cd778b",
+    "scheme_id": "B",
+    "task": "Design a TODO app",
+    "tags": [
+      {
+        "dimension": "领域",
+        "value": "待办事项",
+        "confidence": 0.6,
+        "source": "migrated"
+      }
+    ],
+    "keywords": [
+      "待办事项"
+    ],
+    "object_name": "技术架构对象",
+    "agent_role": "性能架构师",
+    "total_score": 0,
+    "rank": 0,
+    "is_top1": false,
+    "is_discarded": false,
+    "discard_reasons": [],
+    "summary": "{}",
+    "created_at": "2026-05-20T15:39:37.623123",
+    "success_outcome": null,
+    "yaml_meta": "---\nname: task_c7dd43cd778b_B\ndescription: Design a TODO app\nkeywords: [待办事项]\ncreated_at: 2026-05-20T15:39:37.623123\n---"
+  },
+  "task_c7dd43cd778b_C": {
+    "task_id": "task_c7dd43cd778b",
+    "scheme_id": "C",
+    "task": "Design a TODO app",
+    "tags": [
+      {
+        "dimension": "领域",
+        "value": "待办事项",
+        "confidence": 0.6,
+        "source": "migrated"
+      }
+    ],
+    "keywords": [
+      "待办事项"
+    ],
+    "object_name": "业务价值对象",
+    "agent_role": "UX/产品专家",
+    "total_score": 0,
+    "rank": 0,
+    "is_top1": false,
+    "is_discarded": false,
+    "discard_reasons": [],
+    "summary": "{}",
+    "created_at": "2026-05-20T15:39:37.623123",
+    "success_outcome": null,
+    "yaml_meta": "---\nname: task_c7dd43cd778b_C\ndescription: Design a TODO app\nkeywords: [待办事项]\ncreated_at: 2026-05-20T15:39:37.623123\n---"
+  },
+  "task_c480e5913fcb_A": {
+    "task_id": "task_c480e5913fcb",
+    "scheme_id": "A",
+    "task": "Design a TODO app",
+    "tags": [
+      {
+        "dimension": "领域",
+        "value": "待办事项",
+        "confidence": 0.6,
+        "source": "migrated"
+      }
+    ],
+    "keywords": [
+      "待办事项"
+    ],
+    "object_name": "业务价值对象",
+    "agent_role": "UX/产品专家",
+    "total_score": 0,
+    "rank": 0,
+    "is_top1": false,
+    "is_discarded": false,
+    "discard_reasons": [],
+    "summary": "{}",
+    "created_at": "2026-05-20T15:43:12.701355",
+    "success_outcome": null,
+    "yaml_meta": "---\nname: task_c480e5913fcb_A\ndescription: Design a TODO app\nkeywords: [待办事项]\ncreated_at: 2026-05-20T15:43:12.701355\n---"
+  },
+  "task_c480e5913fcb_B": {
+    "task_id": "task_c480e5913fcb",
+    "scheme_id": "B",
+    "task": "Design a TODO app",
+    "tags": [
+      {
+        "dimension": "领域",
+        "value": "待办事项",
+        "confidence": 0.6,
+        "source": "migrated"
+      }
+    ],
+    "keywords": [
+      "待办事项"
+    ],
+    "object_name": "安全与合规对象",
+    "agent_role": "安全专家",
+    "total_score": 0,
+    "rank": 0,
+    "is_top1": false,
+    "is_discarded": false,
+    "discard_reasons": [],
+    "summary": "{}",
+    "created_at": "2026-05-20T15:43:12.701355",
+    "success_outcome": null,
+    "yaml_meta": "---\nname: task_c480e5913fcb_B\ndescription: Design a TODO app\nkeywords: [待办事项]\ncreated_at: 2026-05-20T15:43:12.701355\n---"
+  },
+  "task_c480e5913fcb_C": {
+    "task_id": "task_c480e5913fcb",
+    "scheme_id": "C",
+    "task": "Design a TODO app",
+    "tags": [
+      {
+        "dimension": "领域",
+        "value": "待办事项",
+        "confidence": 0.6,
+        "source": "migrated"
+      }
+    ],
+    "keywords": [
+      "待办事项"
+    ],
+    "object_name": "技术架构对象",
+    "agent_role": "性能架构师",
+    "total_score": 0,
+    "rank": 0,
+    "is_top1": false,
+    "is_discarded": false,
+    "discard_reasons": [],
+    "summary": "{}",
+    "created_at": "2026-05-20T15:43:12.701355",
+    "success_outcome": null,
+    "yaml_meta": "---\nname: task_c480e5913fcb_C\ndescription: Design a TODO app\nkeywords: [待办事项]\ncreated_at: 2026-05-20T15:43:12.701355\n---"
+  },
+  "task_42d6d7d54a0c_A": {
+    "task_id": "task_42d6d7d54a0c",
+    "scheme_id": "A",
+    "task": "Design a TODO app",
+    "tags": [
+      {
+        "dimension": "领域",
+        "value": "待办事项",
+        "confidence": 0.6,
+        "source": "migrated"
+      }
+    ],
+    "keywords": [
+      "待办事项"
+    ],
+    "object_name": "技术架构对象",
+    "agent_role": "性能架构师",
+    "total_score": 0,
+    "rank": 0,
+    "is_top1": false,
+    "is_discarded": false,
+    "discard_reasons": [],
+    "summary": "{}",
+    "created_at": "2026-05-20T15:47:21.347788",
+    "success_outcome": null,
+    "yaml_meta": "---\nname: task_42d6d7d54a0c_A\ndescription: Design a TODO app\nkeywords: [待办事项]\ncreated_at: 2026-05-20T15:47:21.347788\n---"
+  },
+  "task_42d6d7d54a0c_B": {
+    "task_id": "task_42d6d7d54a0c",
+    "scheme_id": "B",
+    "task": "Design a TODO app",
+    "tags": [
+      {
+        "dimension": "领域",
+        "value": "待办事项",
+        "confidence": 0.6,
+        "source": "migrated"
+      }
+    ],
+    "keywords": [
+      "待办事项"
+    ],
+    "object_name": "安全与合规对象",
+    "agent_role": "安全专家",
+    "total_score": 0,
+    "rank": 0,
+    "is_top1": false,
+    "is_discarded": false,
+    "discard_reasons": [],
+    "summary": "{}",
+    "created_at": "2026-05-20T15:47:21.347788",
+    "success_outcome": null,
+    "yaml_meta": "---\nname: task_42d6d7d54a0c_B\ndescription: Design a TODO app\nkeywords: [待办事项]\ncreated_at: 2026-05-20T15:47:21.347788\n---"
+  },
+  "task_42d6d7d54a0c_C": {
+    "task_id": "task_42d6d7d54a0c",
+    "scheme_id": "C",
+    "task": "Design a TODO app",
+    "tags": [
+      {
+        "dimension": "领域",
+        "value": "待办事项",
+        "confidence": 0.6,
+        "source": "migrated"
+      }
+    ],
+    "keywords": [
+      "待办事项"
+    ],
+    "object_name": "业务价值对象",
+    "agent_role": "UX/产品专家",
+    "total_score": 0,
+    "rank": 0,
+    "is_top1": false,
+    "is_discarded": false,
+    "discard_reasons": [],
+    "summary": "{}",
+    "created_at": "2026-05-20T15:47:21.347788",
+    "success_outcome": null,
+    "yaml_meta": "---\nname: task_42d6d7d54a0c_C\ndescription: Design a TODO app\nkeywords: [待办事项]\ncreated_at: 2026-05-20T15:47:21.347788\n---"
+  },
+  "task_7fca3a136fdf_A": {
+    "task_id": "task_7fca3a136fdf",
+    "scheme_id": "A",
+    "task": "Design a TODO app",
+    "tags": [
+      {
+        "dimension": "领域",
+        "value": "待办事项",
+        "confidence": 0.6,
+        "source": "migrated"
+      }
+    ],
+    "keywords": [
+      "待办事项"
+    ],
+    "object_name": "技术架构对象",
+    "agent_role": "性能架构师",
+    "total_score": 0,
+    "rank": 0,
+    "is_top1": false,
+    "is_discarded": false,
+    "discard_reasons": [],
+    "summary": "{}",
+    "created_at": "2026-05-20T15:50:57.573670",
+    "success_outcome": null,
+    "yaml_meta": "---\nname: task_7fca3a136fdf_A\ndescription: Design a TODO app\nkeywords: [待办事项]\ncreated_at: 2026-05-20T15:50:57.573670\n---"
+  },
+  "task_7fca3a136fdf_B": {
+    "task_id": "task_7fca3a136fdf",
+    "scheme_id": "B",
+    "task": "Design a TODO app",
+    "tags": [
+      {
+        "dimension": "领域",
+        "value": "待办事项",
+        "confidence": 0.6,
+        "source": "migrated"
+      }
+    ],
+    "keywords": [
+      "待办事项"
+    ],
+    "object_name": "业务价值对象",
+    "agent_role": "UX/产品专家",
+    "total_score": 0,
+    "rank": 0,
+    "is_top1": false,
+    "is_discarded": false,
+    "discard_reasons": [],
+    "summary": "{}",
+    "created_at": "2026-05-20T15:50:57.573670",
+    "success_outcome": null,
+    "yaml_meta": "---\nname: task_7fca3a136fdf_B\ndescription: Design a TODO app\nkeywords: [待办事项]\ncreated_at: 2026-05-20T15:50:57.573670\n---"
+  },
+  "task_7fca3a136fdf_C": {
+    "task_id": "task_7fca3a136fdf",
+    "scheme_id": "C",
+    "task": "Design a TODO app",
+    "tags": [
+      {
+        "dimension": "领域",
+        "value": "待办事项",
+        "confidence": 0.6,
+        "source": "migrated"
+      }
+    ],
+    "keywords": [
+      "待办事项"
+    ],
+    "object_name": "安全与合规对象",
+    "agent_role": "安全专家",
+    "total_score": 0,
+    "rank": 0,
+    "is_top1": false,
+    "is_discarded": false,
+    "discard_reasons": [],
+    "summary": "{}",
+    "created_at": "2026-05-20T15:50:57.573670",
+    "success_outcome": null,
+    "yaml_meta": "---\nname: task_7fca3a136fdf_C\ndescription: Design a TODO app\nkeywords: [待办事项]\ncreated_at: 2026-05-20T15:50:57.573670\n---"
+  },
+  "task_574bc160d552_A": {
+    "task_id": "task_574bc160d552",
+    "scheme_id": "A",
+    "task": "Design a TODO app",
+    "tags": [
+      {
+        "dimension": "领域",
+        "value": "待办事项",
+        "confidence": 0.6,
+        "source": "migrated"
+      }
+    ],
+    "keywords": [
+      "待办事项"
+    ],
+    "object_name": "技术架构对象",
+    "agent_role": "性能架构师",
+    "total_score": 0,
+    "rank": 0,
+    "is_top1": false,
+    "is_discarded": false,
+    "discard_reasons": [],
+    "summary": "{}",
+    "created_at": "2026-05-20T15:56:04.086282",
+    "success_outcome": null,
+    "yaml_meta": "---\nname: task_574bc160d552_A\ndescription: Design a TODO app\nkeywords: [待办事项]\ncreated_at: 2026-05-20T15:56:04.086282\n---"
+  },
+  "task_574bc160d552_B": {
+    "task_id": "task_574bc160d552",
+    "scheme_id": "B",
+    "task": "Design a TODO app",
+    "tags": [
+      {
+        "dimension": "领域",
+        "value": "待办事项",
+        "confidence": 0.6,
+        "source": "migrated"
+      }
+    ],
+    "keywords": [
+      "待办事项"
+    ],
+    "object_name": "业务价值对象",
+    "agent_role": "UX/产品专家",
+    "total_score": 0,
+    "rank": 0,
+    "is_top1": false,
+    "is_discarded": false,
+    "discard_reasons": [],
+    "summary": "{}",
+    "created_at": "2026-05-20T15:56:04.086282",
+    "success_outcome": null,
+    "yaml_meta": "---\nname: task_574bc160d552_B\ndescription: Design a TODO app\nkeywords: [待办事项]\ncreated_at: 2026-05-20T15:56:04.086282\n---"
+  },
+  "task_574bc160d552_C": {
+    "task_id": "task_574bc160d552",
+    "scheme_id": "C",
+    "task": "Design a TODO app",
+    "tags": [
+      {
+        "dimension": "领域",
+        "value": "待办事项",
+        "confidence": 0.6,
+        "source": "migrated"
+      }
+    ],
+    "keywords": [
+      "待办事项"
+    ],
+    "object_name": "安全与合规对象",
+    "agent_role": "安全专家",
+    "total_score": 0,
+    "rank": 0,
+    "is_top1": false,
+    "is_discarded": false,
+    "discard_reasons": [],
+    "summary": "{}",
+    "created_at": "2026-05-20T15:56:04.086282",
+    "success_outcome": null,
+    "yaml_meta": "---\nname: task_574bc160d552_C\ndescription: Design a TODO app\nkeywords: [待办事项]\ncreated_at: 2026-05-20T15:56:04.086282\n---"
+  },
+  "task_bdbb29ab77f2_A": {
+    "task_id": "task_bdbb29ab77f2",
+    "scheme_id": "A",
+    "task": "Design a TODO app",
+    "tags": [
+      {
+        "dimension": "领域",
+        "value": "待办事项",
+        "confidence": 0.6,
+        "source": "migrated"
+      }
+    ],
+    "keywords": [
+      "待办事项"
+    ],
+    "object_name": "技术架构对象",
+    "agent_role": "性能架构师",
+    "total_score": 0,
+    "rank": 0,
+    "is_top1": false,
+    "is_discarded": false,
+    "discard_reasons": [],
+    "summary": "{}",
+    "created_at": "2026-05-20T15:59:57.556307",
+    "success_outcome": null,
+    "yaml_meta": "---\nname: task_bdbb29ab77f2_A\ndescription: Design a TODO app\nkeywords: [待办事项]\ncreated_at: 2026-05-20T15:59:57.556307\n---"
+  },
+  "task_bdbb29ab77f2_B": {
+    "task_id": "task_bdbb29ab77f2",
+    "scheme_id": "B",
+    "task": "Design a TODO app",
+    "tags": [
+      {
+        "dimension": "领域",
+        "value": "待办事项",
+        "confidence": 0.6,
+        "source": "migrated"
+      }
+    ],
+    "keywords": [
+      "待办事项"
+    ],
+    "object_name": "安全与合规对象",
+    "agent_role": "安全专家",
+    "total_score": 0,
+    "rank": 0,
+    "is_top1": false,
+    "is_discarded": false,
+    "discard_reasons": [],
+    "summary": "{}",
+    "created_at": "2026-05-20T15:59:57.556307",
+    "success_outcome": null,
+    "yaml_meta": "---\nname: task_bdbb29ab77f2_B\ndescription: Design a TODO app\nkeywords: [待办事项]\ncreated_at: 2026-05-20T15:59:57.556307\n---"
+  },
+  "task_bdbb29ab77f2_C": {
+    "task_id": "task_bdbb29ab77f2",
+    "scheme_id": "C",
+    "task": "Design a TODO app",
+    "tags": [
+      {
+        "dimension": "领域",
+        "value": "待办事项",
+        "confidence": 0.6,
+        "source": "migrated"
+      }
+    ],
+    "keywords": [
+      "待办事项"
+    ],
+    "object_name": "业务价值对象",
+    "agent_role": "UX/产品专家",
+    "total_score": 0,
+    "rank": 0,
+    "is_top1": false,
+    "is_discarded": false,
+    "discard_reasons": [],
+    "summary": "{}",
+    "created_at": "2026-05-20T15:59:57.556307",
+    "success_outcome": null,
+    "yaml_meta": "---\nname: task_bdbb29ab77f2_C\ndescription: Design a TODO app\nkeywords: [待办事项]\ncreated_at: 2026-05-20T15:59:57.556307\n---"
+  },
+  "task_23e60709136e_A": {
+    "task_id": "task_23e60709136e",
+    "scheme_id": "A",
+    "task": "Design a TODO app",
+    "tags": [
+      {
+        "dimension": "领域",
+        "value": "待办事项",
+        "confidence": 0.6,
+        "source": "migrated"
+      }
+    ],
+    "keywords": [
+      "待办事项"
+    ],
+    "object_name": "安全与合规对象",
+    "agent_role": "安全专家",
+    "total_score": 0,
+    "rank": 0,
+    "is_top1": false,
+    "is_discarded": false,
+    "discard_reasons": [],
+    "summary": "{}",
+    "created_at": "2026-05-20T16:05:42.006223",
+    "success_outcome": null,
+    "yaml_meta": "---\nname: task_23e60709136e_A\ndescription: Design a TODO app\nkeywords: [待办事项]\ncreated_at: 2026-05-20T16:05:42.006223\n---"
+  },
+  "task_23e60709136e_B": {
+    "task_id": "task_23e60709136e",
+    "scheme_id": "B",
+    "task": "Design a TODO app",
+    "tags": [
+      {
+        "dimension": "领域",
+        "value": "待办事项",
+        "confidence": 0.6,
+        "source": "migrated"
+      }
+    ],
+    "keywords": [
+      "待办事项"
+    ],
+    "object_name": "技术架构对象",
+    "agent_role": "性能架构师",
+    "total_score": 0,
+    "rank": 0,
+    "is_top1": false,
+    "is_discarded": false,
+    "discard_reasons": [],
+    "summary": "{}",
+    "created_at": "2026-05-20T16:05:42.006223",
+    "success_outcome": null,
+    "yaml_meta": "---\nname: task_23e60709136e_B\ndescription: Design a TODO app\nkeywords: [待办事项]\ncreated_at: 2026-05-20T16:05:42.006223\n---"
+  },
+  "task_23e60709136e_C": {
+    "task_id": "task_23e60709136e",
+    "scheme_id": "C",
+    "task": "Design a TODO app",
+    "tags": [
+      {
+        "dimension": "领域",
+        "value": "待办事项",
+        "confidence": 0.6,
+        "source": "migrated"
+      }
+    ],
+    "keywords": [
+      "待办事项"
+    ],
+    "object_name": "业务价值对象",
+    "agent_role": "UX/产品专家",
+    "total_score": 0,
+    "rank": 0,
+    "is_top1": false,
+    "is_discarded": false,
+    "discard_reasons": [],
+    "summary": "{}",
+    "created_at": "2026-05-20T16:05:42.006223",
+    "success_outcome": null,
+    "yaml_meta": "---\nname: task_23e60709136e_C\ndescription: Design a TODO app\nkeywords: [待办事项]\ncreated_at: 2026-05-20T16:05:42.006223\n---"
+  },
+  "fix_gather_spam_20260521": {
+    "type": "fix",
+    "goal": "修复MC Mod采集模式不停spam+面板重叠+目标锁定丢失",
+    "root_cause": "CompanionGatherGoal.tick()每tick重建SkillEngine技能，completionCooldown=10tick太短",
+    "solution": "isActive()跳过+冷却60tick+技能缓存+目标锁定+面板单轴Y+拾取降频",
+    "verification": "L1✅ L2 91/94✅ L3✅",
+    "verification_status": "verified",
+    "compiled": true,
+    "tags": [
+      "#MC_Mod",
+      "#采集",
+      "#行为树"
+    ],
+    "created_at": "2026-05-21T22:04:40.643283",
+    "source_hook": "manual",
+    "reuse_count": 0,
+    "verified_at": "2026-05-21T22:27:51.084565",
+    "verified_by": "user_confirmation"
+  },
+  "review_d7dcaeee8f98_A": {
+    "task_id": "review_d7dcaeee8f98",
+    "scheme_id": "A",
+    "task": "[python] def foo(x):\n    return eval(x)  # bad\n",
+    "keywords": [],
+    "object_name": "安全专家",
+    "agent_role": "安全专家",
+    "total_score": 0,
+    "is_top1": true,
+    "is_discarded": false,
+    "discard_reasons": [],
+    "rank": 1,
+    "summary": "{\"issues\": [{\"severity\": \"high\", \"line\": \"def foo(x): return eval(x)  # bad\", \"description\": \"使用eval()执行用户输入，存在严重代码注入风险。攻击者可以传入任意Python代码，导致远程代码执行、数据泄露或系统被完全控制。\", \"fix\": \"避免使用eval()。如果必须动态计算表达式，使用ast.literal_eval()仅解析字面量；或根据具体业务需求使用更安全的替代方案，如预定义操作映射。\"}], \"score\": 7.5}",
+    "created_at": "2026-05-22T22:35:38.185817",
+    "success_outcome": null,
+    "tags": []
+  },
+  "review_d7dcaeee8f98_B": {
+    "task_id": "review_d7dcaeee8f98",
+    "scheme_id": "B",
+    "task": "[python] def foo(x):\n    return eval(x)  # bad\n",
+    "keywords": [],
+    "object_name": "性能架构师",
+    "agent_role": "性能架构师",
+    "total_score": 0,
+    "is_top1": false,
+    "is_discarded": true,
+    "discard_reasons": [
+      "非主方案，保留为备选参考"
+    ],
+    "rank": 2,
+    "summary": "{\"issues\": [{\"severity\": \"high\", \"line\": \"def foo(x): return eval(x)\", \"description\": \"使用eval()执行任意代码，存在严重安全风险，可能导致代码注入攻击。\", \"fix\": \"改用ast.literal_eval()安全解析字面量表达式，或根据实际需求使用更安全的替代方案如json.loads()、int()、float()等类型转换函数。\"}], \"score\": 2.0}",
+    "created_at": "2026-05-22T22:35:38.185817",
+    "success_outcome": null,
+    "tags": []
+  },
+  "review_d7dcaeee8f98_C": {
+    "task_id": "review_d7dcaeee8f98",
+    "scheme_id": "C",
+    "task": "[python] def foo(x):\n    return eval(x)  # bad\n",
+    "keywords": [],
+    "object_name": "代码质量",
+    "agent_role": "代码质量",
+    "total_score": 0,
+    "is_top1": false,
+    "is_discarded": true,
+    "discard_reasons": [
+      "非主方案，保留为备选参考"
+    ],
+    "rank": 3,
+    "summary": "{\"issues\": [{\"severity\": \"high\", \"line\": \"第1行，函数定义处\", \"description\": \"函数名'foo'不符合Python命名规范（PEP8），应使用小写字母加下划线的描述性名称。\", \"fix\": \"将函数名改为更具描述性的名称，例如'evaluate_expression'。\"}, {\"severity\": \"high\", \"line\": \"第2行，return eval(x)\", \"description\": \"使用eval()执行任意代码存在严重安全风险，违反了安全编码原则。\", \"fix\": \"避免使用eval()，改用ast.literal_eval()（如果输入是字面量）或设计更安全的解析方案。\"}, {\"severity\": \"medium\", \"line\": \"第1行，函数定义处\", \"description\": \"函数缺少类型注解和文档字符串，不符合清晰代码规范。\", \"fix\": \"添加参数和返回值的类型注解，并编写docstring说明函数行为。\"}, {\"severity\": \"medium\", \"line\"",
+    "created_at": "2026-05-22T22:35:38.186814",
+    "success_outcome": null,
+    "tags": []
+  },
+  "task_6b8e7b2152f5_A": {
+    "task_id": "task_6b8e7b2152f5",
+    "scheme_id": "A",
+    "task": "Design a TODO app",
+    "tags": [],
+    "keywords": [
+      "待办事项"
+    ],
+    "object_name": "技术架构对象",
+    "agent_role": "性能架构师",
+    "total_score": 0,
+    "rank": 0,
+    "is_top1": false,
+    "is_discarded": false,
+    "discard_reasons": [],
+    "summary": "{}",
+    "created_at": "2026-05-23T00:45:03.214444",
+    "success_outcome": null,
+    "yaml_meta": "---\nname: task_6b8e7b2152f5_A\ndescription: Design a TODO app\nkeywords: [待办事项]\ncreated_at: 2026-05-23T00:45:03.214444\n---"
+  },
+  "task_6b8e7b2152f5_B": {
+    "task_id": "task_6b8e7b2152f5",
+    "scheme_id": "B",
+    "task": "Design a TODO app",
+    "tags": [],
+    "keywords": [
+      "待办事项"
+    ],
+    "object_name": "业务价值对象",
+    "agent_role": "UX/产品专家",
+    "total_score": 0,
+    "rank": 0,
+    "is_top1": false,
+    "is_discarded": false,
+    "discard_reasons": [],
+    "summary": "{}",
+    "created_at": "2026-05-23T00:45:03.214444",
+    "success_outcome": null,
+    "yaml_meta": "---\nname: task_6b8e7b2152f5_B\ndescription: Design a TODO app\nkeywords: [待办事项]\ncreated_at: 2026-05-23T00:45:03.214444\n---"
+  },
+  "task_6b8e7b2152f5_C": {
+    "task_id": "task_6b8e7b2152f5",
+    "scheme_id": "C",
+    "task": "Design a TODO app",
+    "tags": [],
+    "keywords": [
+      "待办事项"
+    ],
+    "object_name": "安全与合规对象",
+    "agent_role": "安全专家",
+    "total_score": 0,
+    "rank": 0,
+    "is_top1": false,
+    "is_discarded": false,
+    "discard_reasons": [],
+    "summary": "{}",
+    "created_at": "2026-05-23T00:45:03.214444",
+    "success_outcome": null,
+    "yaml_meta": "---\nname: task_6b8e7b2152f5_C\ndescription: Design a TODO app\nkeywords: [待办事项]\ncreated_at: 2026-05-23T00:45:03.214444\n---"
   }
 }

@@ -1,0 +1,213 @@
+{
+  "profiles": {
+    "agent_1": {
+      "agent_id": "agent_1",
+      "role": "安全专家",
+      "total_tasks": 13,
+      "successes": 3,
+      "experience_tags": {
+        "高并发": 3,
+        "Docker": 3,
+        "缓存": 2,
+        "安全": 1,
+        "认证": 1,
+        "JWT": 1
+      },
+      "task_scores": {
+        "性能": [
+          6.0,
+          8.0,
+          9.0
+        ],
+        "安全": [
+          7.0
+        ],
+        "通用": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "peer_ratings": {}
+    },
+    "agent_2": {
+      "agent_id": "agent_2",
+      "role": "性能架构师",
+      "total_tasks": 13,
+      "successes": 3,
+      "experience_tags": {
+        "高并发": 3,
+        "Docker": 3,
+        "缓存": 2,
+        "安全": 1,
+        "认证": 1,
+        "JWT": 1
+      },
+      "task_scores": {
+        "性能": [
+          7.5,
+          9.5,
+          9.0
+        ],
+        "安全": [
+          8.5
+        ],
+        "通用": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "peer_ratings": {}
+    },
+    "agent_3": {
+      "agent_id": "agent_3",
+      "role": "UX/产品专家",
+      "total_tasks": 13,
+      "successes": 3,
+      "experience_tags": {
+        "高并发": 3,
+        "Docker": 3,
+        "缓存": 2,
+        "安全": 1,
+        "认证": 1,
+        "JWT": 1
+      },
+      "task_scores": {
+        "性能": [
+          9.0,
+          10,
+          9.0
+        ],
+        "安全": [
+          10.0
+        ],
+        "通用": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "peer_ratings": {}
+    }
+  },
+  "team_history": [
+    {
+      "time": 1779261387.190913,
+      "task": "Design a TODO app",
+      "agents": [
+        "UX/产品专家",
+        "性能架构师",
+        "安全专家"
+      ],
+      "tags": [],
+      "success": false
+    },
+    {
+      "time": 1779262777.6432354,
+      "task": "Design a TODO app",
+      "agents": [
+        "UX/产品专家",
+        "性能架构师",
+        "安全专家"
+      ],
+      "tags": [],
+      "success": false
+    },
+    {
+      "time": 1779262992.720269,
+      "task": "Design a TODO app",
+      "agents": [
+        "UX/产品专家",
+        "性能架构师",
+        "安全专家"
+      ],
+      "tags": [],
+      "success": false
+    },
+    {
+      "time": 1779263241.3654978,
+      "task": "Design a TODO app",
+      "agents": [
+        "UX/产品专家",
+        "性能架构师",
+        "安全专家"
+      ],
+      "tags": [],
+      "success": false
+    },
+    {
+      "time": 1779263457.6032135,
+      "task": "Design a TODO app",
+      "agents": [
+        "UX/产品专家",
+        "性能架构师",
+        "安全专家"
+      ],
+      "tags": [],
+      "success": false
+    },
+    {
+      "time": 1779263764.1127627,
+      "task": "Design a TODO app",
+      "agents": [
+        "UX/产品专家",
+        "性能架构师",
+        "安全专家"
+      ],
+      "tags": [],
+      "success": false
+    },
+    {
+      "time": 1779263997.5749779,
+      "task": "Design a TODO app",
+      "agents": [
+        "UX/产品专家",
+        "性能架构师",
+        "安全专家"
+      ],
+      "tags": [],
+      "success": false
+    },
+    {
+      "time": 1779264342.031126,
+      "task": "Design a TODO app",
+      "agents": [
+        "UX/产品专家",
+        "性能架构师",
+        "安全专家"
+      ],
+      "tags": [],
+      "success": false
+    },
+    {
+      "time": 1779468303.2479887,
+      "task": "Design a TODO app",
+      "agents": [
+        "UX/产品专家",
+        "性能架构师",
+        "安全专家"
+      ],
+      "tags": [],
+      "success": false
+    }
+  ]
+}

@@ -463,6 +463,20 @@ class BrainstormOrchestrator:
             state.completed_at = time.time()
             self._save_state(state)
 
+            # v0.6: GoalRunner 自动触发 — 方案→执行闭环
+            if self.goal_runner is not None:
+                try:
+                    goal_config = self._generate_goal_config(state)
+                    if goal_config and goal_config.get("goal_id"):
+                        from src.goal_runner import GoalConfig
+                        cfg = GoalConfig.from_dict(goal_config)
+                        gid = self.goal_runner.start_goal(cfg)
+                        print(f"  [闭环] GoalRunner 自动启动: {gid}")
+                        state.output_paths["goal_id"] = gid
+                        self._save_state(state)
+                except Exception as e:
+                    print(f"  [闭环] GoalRunner 启动失败（不阻塞）: {e}")
+
         except Exception as e:
             self._update_phase(state, OrchestratorPhase.ERROR)
             state.error_message = str(e)
@@ -2306,8 +2320,26 @@ class BrainstormOrchestrator:
             tech_denom = max(len(query_lower) + len(tech_tags), 1)
             tech_overlap = min((shared_tech * 2) / tech_denom, 1.0)
 
-        # 3. 因果记忆匹配度（暂为 0，Phase 4 实现）
+        # 3. 因果记忆匹配度
         causal_match = 0.0
+        causal_nodes = entry.get("_causal_nodes", [])
+        if causal_nodes and query_lower:
+            entry_kw_lower = [k.lower() for k in entry.get("keywords", [])]
+            entry_searchable = " ".join(entry_kw_lower) + " " + entry_task + " " + entry_summary
+            shared = 0
+            for node in causal_nodes[:5]:
+                node_tags = [t.lower() for t in node.get("tags", [])]
+                node_label = node.get("label", "").lower()
+                # 节点标签是否出现在条目的可搜索文本中
+                for nt in node_tags:
+                    if nt and nt in entry_searchable:
+                        shared += 0.5
+                if node_label and node_label in entry_searchable:
+                    shared += 1
+                # outcome_score < 0 表示失败，权重加倍
+                if node.get("outcome_score", 0) < 0:
+                    shared *= 2
+            causal_match = min(shared / max(len(causal_nodes[:5]), 1), 1.0)
 
         # 综合评分
         relevance = (
@@ -2433,10 +2465,20 @@ class BrainstormOrchestrator:
         # 构建查询标签: 整句原文 + 中文关键词 + 英文技术词
         query_tags = [query_lower] + query_kw + query_tech
 
+        # v0.6: 因果记忆匹配 — 查询一次，注入各条目
+        causal_nodes = []
+        try:
+            causal_nodes = self.query_causal_memory(
+                query_kw + query_tech, top_k=10,
+            )
+        except Exception:
+            pass
+
         # 预处理中文条目文本库用于更快匹配
 
         results = []
         for key, entry in index.items():
+            entry["_causal_nodes"] = causal_nodes  # 注入因果上下文
             # 关联度评分（主分数）
             relevance = self._compute_relevance_score(query_tags, entry, weights)
 

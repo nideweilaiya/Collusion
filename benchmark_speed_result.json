@@ -1,0 +1,44 @@
+{
+  "benchmark_time": "2026-05-19 14:12:55",
+  "version": "v0.5.0",
+  "module": "knowledge_speed",
+  "search_speed": {
+    "new_formula_ms": {
+      "avg": 0.347,
+      "min": 0.315,
+      "max": 0.412,
+      "n_samples": 1000
+    }
+  },
+  "precheck_speed": {
+    "avg_ms": 0.524,
+    "min_ms": 0.484,
+    "max_ms": 0.555,
+    "n_samples": 250
+  },
+  "token_estimates": {
+    "tag_extraction_prompt": 594,
+    "tag_extraction_response": 300,
+    "causal_memory_prompt": 583,
+    "causal_memory_response": 800,
+    "knowledge_injection_context": 65,
+    "total_per_orchestrate": 2277
+  },
+  "disk_usage": {
+    "asset_index": "19.0 KB",
+    "scheme_files": "206.7 KB",
+    "total": "225.7 KB"
+  },
+  "overhead": {
+    "extra_llm_calls_per_orchestrate": 2,
+    "estimated_extra_time_s": "1-4",
+    "relative_overhead": "<3%"
+  },
+  "summary": {
+    "search_speed_ms": 0.347,
+    "precheck_speed_ms": 0.524,
+    "tokens_per_orchestrate": 2277,
+    "extra_llm_calls": 2,
+    "overhead_pct": "<3%"
+  }
+}

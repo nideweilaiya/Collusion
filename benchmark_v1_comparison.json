@@ -1,0 +1,34 @@
+{
+  "benchmark_time": "2026-05-19 14:52:06",
+  "version": "v1.0.0",
+  "comparison": {
+    "search_accuracy": {
+      "old": "2/5",
+      "new": "3/5"
+    },
+    "relevance_gap": {
+      "old": 12,
+      "new": 0.5182
+    },
+    "features": {
+      "old": 0,
+      "new": 12,
+      "total": 12
+    },
+    "search_speed_ms": {
+      "old": 0.062,
+      "new": 3.222
+    },
+    "llm_calls_saved": 2,
+    "overall_score": {
+      "old": 34.9,
+      "new": 79.6
+    }
+  },
+  "features_detail": {
+    "true": {
+      "old": false,
+      "new": true
+    }
+  }
+}

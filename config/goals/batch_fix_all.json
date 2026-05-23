@@ -1,0 +1,49 @@
+{
+  "goal_id": "batch_fix_all",
+  "description": "批量修复 MC Mod 审计发现的所有代码质量问题 + 测试覆盖",
+  "verification": {
+    "command": "gradle build",
+    "expected_exit_code": 0,
+    "max_iterations": 5,
+    "timeout_seconds": 300
+  },
+  "sub_goals": [
+    {
+      "id": "fix_return_null",
+      "type": "mechanical",
+      "pattern": "return null (106处)",
+      "fix": "API/工具类改为Optional/空集合，业务层不动",
+      "files": ["src/main/java/com/aiworkbench/companion/ai/", "src/main/java/com/aiworkbench/companion/skill/", "src/main/java/com/aiworkbench/companion/memory/", "src/main/java/com/aiworkbench/companion/network/"]
+    },
+    {
+      "id": "fix_empty_catch",
+      "type": "mechanical",
+      "pattern": "空catch块 (13处)",
+      "fix": "添加日志或恢复中断状态",
+      "files": ["src/main/java/com/aiworkbench/companion/memory/MemoryStore.java", "src/main/java/com/aiworkbench/companion/network/CompanionTCPServer.java"]
+    },
+    {
+      "id": "fix_hardcoded_temp",
+      "type": "mechanical",
+      "pattern": "硬编码温度值 (已修复8处)",
+      "fix": "替换为 OllamaClient.TEMP_* 常量",
+      "files": ["src/main/java/"]
+    },
+    {
+      "id": "skill_engine_tests",
+      "type": "test_coverage",
+      "module": "SkillEngine",
+      "target": "80%",
+      "fix": "创建 SkillEngineTest.java",
+      "files": ["src/test/java/com/aiworkbench/companion/skill/SkillEngineTest.java"]
+    },
+    {
+      "id": "companion_manager_tests",
+      "type": "test_coverage",
+      "module": "CompanionManager",
+      "target": "80%",
+      "fix": "创建 CompanionManagerTest.java",
+      "files": ["src/test/java/com/aiworkbench/companion/manager/CompanionManagerTest.java"]
+    }
+  ]
+}

@@ -1,0 +1,34 @@
+请分析这段Go代码的并发问题并给出修复后的完整代码。
+
+待修复代码:
+package main
+
+import (
+    "fmt"
+    "sync"
+)
+
+type Counter struct {
+    value int
+}
+
+func (c *Counter) Increment(wg *sync.WaitGroup) {
+    defer wg.Done()
+    for i := 0; i < 1000; i++ {
+        c.value++
+    }
+}
+
+func main() {
+    c := &Counter{}
+    var wg sync.WaitGroup
+    for i := 0; i < 100; i++ {
+        wg.Add(1)
+        go c.Increment(&wg)
+    }
+    wg.Wait()
+    fmt.Println(c.value)
+}
+
+问题：指出race condition位置和原理，输出修复后的完整代码。
+禁止使用任何工具。禁止调用MCP。

@@ -1,0 +1,89 @@
+{
+  "goal_id": "test_skill_engine",
+  "config": {
+    "goal_id": "test_skill_engine",
+    "description": "为 SkillEngine 补全单元测试",
+    "verification": {
+      "command": "echo \"test passed\"",
+      "expected_exit_code": 0,
+      "max_iterations": 3,
+      "timeout_seconds": 30
+    },
+    "review": {
+      "enabled": true,
+      "agents": [
+        "architecture"
+      ],
+      "checklist": [
+        "不引入外部依赖",
+        "覆盖核心路径",
+        "不修改生产代码"
+      ]
+    },
+    "constraints": {
+      "allowed_files": [
+        "src/test/**"
+      ],
+      "forbidden_files": [
+        "src/main/**"
+      ]
+    },
+    "coder_config": {
+      "model": "flash",
+      "system_prompt": ""
+    }
+  },
+  "status": "completed",
+  "current_iteration": 1,
+  "max_iterations": 3,
+  "started_at": 1779262776.4808447,
+  "history": [
+    {
+      "iteration": 1,
+      "step": "coder",
+      "result": {
+        "success": true,
+        "method": "simulated",
+        "note": "coder invoked"
+      }
+    },
+    {
+      "iteration": 1,
+      "step": "evaluator",
+      "result": {
+        "passed": true,
+        "exit_code": 0,
+        "expected": 0,
+        "output": "\"test passed\"\n\n"
+      }
+    },
+    {
+      "iteration": 1,
+      "step": "reviewer",
+      "result": {
+        "approved": true,
+        "checklist": [
+          "不引入外部依赖",
+          "覆盖核心路径",
+          "不修改生产代码"
+        ],
+        "violations": [],
+        "approved_items": [
+          "不引入外部依赖",
+          "覆盖核心路径",
+          "不修改生产代码"
+        ]
+      }
+    }
+  ],
+  "cost_so_far": 0.0,
+  "last_error": "",
+  "result": {
+    "pass": true,
+    "iterations": 1
+  },
+  "archive": {
+    "path": "D:\\BrainstormOrchestrator\\data\\task_graphs\\test_skill_engine.json",
+    "n_steps": 3
+  }
+}

@@ -1,0 +1,61 @@
+{
+  "goal_id": "mc_mod_audit_fix",
+  "description": "批量修复 MC Mod 审计报告的 8 项问题 + 编译验证",
+  "verification": {
+    "command": "gradlew.bat build -x test",
+    "expected_exit_code": 0,
+    "max_iterations": 5,
+    "timeout_seconds": 120
+  },
+  "sub_goals": [
+    {
+      "id": "compile_verification",
+      "type": "mechanical",
+      "pattern": "编译验证已修改代码",
+      "fix": "验证 pickup/auto 命令、QuickMenu布局、GatherGoal canContinue 等已修改文件能否通过编译",
+      "files": ["src/main/java/com/aiworkbench/companion/command/CompanionBehaviorCommands.java", "src/main/java/com/aiworkbench/companion/entity/goal/CompanionGatherGoal.java", "src/main/java/com/aiworkbench/companion/client/gui/CompanionQuickMenuScreen.java"]
+    },
+    {
+      "id": "attribute_panel",
+      "type": "feature",
+      "pattern": "CompanionDetailScreen 缺少属性显示",
+      "fix": "添加等级/血量/技能标签显示",
+      "files": ["src/main/java/com/aiworkbench/companion/client/gui/CompanionDetailScreen.java", "src/main/java/com/aiworkbench/companion/entity/AutomatonEntity.java"]
+    },
+    {
+      "id": "button_feedback",
+      "type": "enhancement",
+      "pattern": "QuickMenu 按钮无状态反馈",
+      "fix": "按钮文本显示当前模式状态",
+      "files": ["src/main/java/com/aiworkbench/companion/client/gui/CompanionQuickMenuScreen.java"]
+    },
+    {
+      "id": "skill_screen",
+      "type": "feature",
+      "pattern": "SkillScreen 未对接 SkillLibrary",
+      "fix": "连接 SkillLibrary 数据到 GUI",
+      "files": ["src/main/java/com/aiworkbench/companion/client/gui/SkillScreen.java", "src/main/java/com/aiworkbench/companion/skill/SkillLibrary.java"]
+    },
+    {
+      "id": "auto_curriculum",
+      "type": "feature",
+      "pattern": "AutoCurriculum 未接入主循环",
+      "fix": "将课程生成接入技能引擎 tick()",
+      "files": ["src/main/java/com/aiworkbench/companion/skill/AutoCurriculum.java", "src/main/java/com/aiworkbench/companion/skill/SkillEngine.java"]
+    },
+    {
+      "id": "feedback_collector",
+      "type": "enhancement",
+      "pattern": "FeedbackCollector 未实际调用",
+      "fix": "技能执行后调用反馈收集",
+      "files": ["src/main/java/com/aiworkbench/companion/skill/FeedbackCollector.java", "src/main/java/com/aiworkbench/companion/skill/SkillEngine.java"]
+    },
+    {
+      "id": "resource_check",
+      "type": "verification",
+      "pattern": "资源一致性检查",
+      "fix": "运行 mc_resources.py 检查 JSON/lang/texture",
+      "files": []
+    }
+  ]
+}

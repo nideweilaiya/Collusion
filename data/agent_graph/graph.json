@@ -1,0 +1,346 @@
+{
+  "nodes": {
+    "业务价值对象": {
+      "name": "业务价值对象",
+      "success_count": 19,
+      "total_count": 19,
+      "tags": [
+        "短链接",
+        "高并发",
+        "API"
+      ]
+    },
+    "技术架构对象": {
+      "name": "技术架构对象",
+      "success_count": 19,
+      "total_count": 22,
+      "tags": [
+        "短链接",
+        "高并发",
+        "API",
+        "文件分享"
+      ]
+    },
+    "安全与合规对象": {
+      "name": "安全与合规对象",
+      "success_count": 16,
+      "total_count": 19,
+      "tags": [
+        "短链接",
+        "高并发",
+        "文件分享"
+      ]
+    }
+  },
+  "edges": {
+    "业务价值对象→技术架构对象": {
+      "source": "业务价值对象",
+      "target": "技术架构对象",
+      "weight": 1.0,
+      "success_count": 19,
+      "total_count": 19
+    },
+    "业务价值对象→安全与合规对象": {
+      "source": "业务价值对象",
+      "target": "安全与合规对象",
+      "weight": 1.0,
+      "success_count": 16,
+      "total_count": 16
+    },
+    "技术架构对象→安全与合规对象": {
+      "source": "技术架构对象",
+      "target": "安全与合规对象",
+      "weight": 1.0,
+      "success_count": 16,
+      "total_count": 16
+    },
+    "安全与合规对象→技术架构对象": {
+      "source": "安全与合规对象",
+      "target": "技术架构对象",
+      "weight": 0.0,
+      "success_count": 0,
+      "total_count": 3
+    }
+  },
+  "task_records": [
+    {
+      "task_id": "test_001",
+      "task_desc": "短链接服务设计",
+      "roles_used": [
+        "业务价值对象",
+        "技术架构对象",
+        "安全与合规对象"
+      ],
+      "success": true,
+      "tags": [
+        "短链接",
+        "高并发"
+      ],
+      "time": 1779173488.4281762
+    },
+    {
+      "task_id": "test_002",
+      "task_desc": "API待办事项系统",
+      "roles_used": [
+        "业务价值对象",
+        "技术架构对象"
+      ],
+      "success": true,
+      "tags": [
+        "API"
+      ],
+      "time": 1779173488.4281762
+    },
+    {
+      "task_id": "test_003",
+      "task_desc": "文件分享服务",
+      "roles_used": [
+        "安全与合规对象",
+        "技术架构对象"
+      ],
+      "success": false,
+      "tags": [
+        "文件分享"
+      ],
+      "time": 1779173488.4292235
+    },
+    {
+      "task_id": "test_001",
+      "task_desc": "短链接服务设计",
+      "roles_used": [
+        "业务价值对象",
+        "技术架构对象",
+        "安全与合规对象"
+      ],
+      "success": true,
+      "tags": [
+        "短链接",
+        "高并发"
+      ],
+      "time": 1779173514.4160893
+    },
+    {
+      "task_id": "test_002",
+      "task_desc": "API待办事项系统",
+      "roles_used": [
+        "业务价值对象",
+        "技术架构对象"
+      ],
+      "success": true,
+      "tags": [
+        "API"
+      ],
+      "time": 1779173514.4160893
+    },
+    {
+      "task_id": "test_003",
+      "task_desc": "文件分享服务",
+      "roles_used": [
+        "安全与合规对象",
+        "技术架构对象"
+      ],
+      "success": false,
+      "tags": [
+        "文件分享"
+      ],
+      "time": 1779173514.4160893
+    },
+    {
+      "task_id": "test_001",
+      "task_desc": "短链接服务设计",
+      "roles_used": [
+        "业务价值对象",
+        "技术架构对象",
+        "安全与合规对象"
+      ],
+      "success": true,
+      "tags": [
+        "短链接",
+        "高并发"
+      ],
+      "time": 1779173526.6832469
+    },
+    {
+      "task_id": "test_002",
+      "task_desc": "API待办事项系统",
+      "roles_used": [
+        "业务价值对象",
+        "技术架构对象"
+      ],
+      "success": true,
+      "tags": [
+        "API"
+      ],
+      "time": 1779173526.6842504
+    },
+    {
+      "task_id": "test_003",
+      "task_desc": "文件分享服务",
+      "roles_used": [
+        "安全与合规对象",
+        "技术架构对象"
+      ],
+      "success": false,
+      "tags": [
+        "文件分享"
+      ],
+      "time": 1779173526.6842504
+    },
+    {
+      "task_id": "task_a9b5fca7c25b",
+      "task_desc": "Design a TODO app",
+      "roles_used": [
+        "业务价值对象",
+        "技术架构对象",
+        "安全与合规对象"
+      ],
+      "success": true,
+      "tags": [],
+      "time": 1779178225.8657086
+    },
+    {
+      "task_id": "task_552bacc46981",
+      "task_desc": "Design a TODO app",
+      "roles_used": [
+        "业务价值对象",
+        "技术架构对象",
+        "安全与合规对象"
+      ],
+      "success": true,
+      "tags": [],
+      "time": 1779259326.171715
+    },
+    {
+      "task_id": "task_1c4eaca1a6ca",
+      "task_desc": "Design a TODO app",
+      "roles_used": [
+        "业务价值对象",
+        "技术架构对象",
+        "安全与合规对象"
+      ],
+      "success": true,
+      "tags": [],
+      "time": 1779260004.1203012
+    },
+    {
+      "task_id": "task_f67181365d72",
+      "task_desc": "Design a TODO app",
+      "roles_used": [
+        "业务价值对象",
+        "技术架构对象",
+        "安全与合规对象"
+      ],
+      "success": true,
+      "tags": [],
+      "time": 1779260385.3532577
+    },
+    {
+      "task_id": "task_447755e3184b",
+      "task_desc": "Design a TODO app",
+      "roles_used": [
+        "业务价值对象",
+        "技术架构对象",
+        "安全与合规对象"
+      ],
+      "success": true,
+      "tags": [],
+      "time": 1779261387.1899066
+    },
+    {
+      "task_id": "task_c7dd43cd778b",
+      "task_desc": "Design a TODO app",
+      "roles_used": [
+        "业务价值对象",
+        "技术架构对象",
+        "安全与合规对象"
+      ],
+      "success": true,
+      "tags": [],
+      "time": 1779262777.6408448
+    },
+    {
+      "task_id": "task_c480e5913fcb",
+      "task_desc": "Design a TODO app",
+      "roles_used": [
+        "业务价值对象",
+        "技术架构对象",
+        "安全与合规对象"
+      ],
+      "success": true,
+      "tags": [],
+      "time": 1779262992.7179286
+    },
+    {
+      "task_id": "task_42d6d7d54a0c",
+      "task_desc": "Design a TODO app",
+      "roles_used": [
+        "业务价值对象",
+        "技术架构对象",
+        "安全与合规对象"
+      ],
+      "success": true,
+      "tags": [],
+      "time": 1779263241.364495
+    },
+    {
+      "task_id": "task_7fca3a136fdf",
+      "task_desc": "Design a TODO app",
+      "roles_used": [
+        "业务价值对象",
+        "技术架构对象",
+        "安全与合规对象"
+      ],
+      "success": true,
+      "tags": [],
+      "time": 1779263457.5996647
+    },
+    {
+      "task_id": "task_574bc160d552",
+      "task_desc": "Design a TODO app",
+      "roles_used": [
+        "业务价值对象",
+        "技术架构对象",
+        "安全与合规对象"
+      ],
+      "success": true,
+      "tags": [],
+      "time": 1779263764.1106727
+    },
+    {
+      "task_id": "task_bdbb29ab77f2",
+      "task_desc": "Design a TODO app",
+      "roles_used": [
+        "业务价值对象",
+        "技术架构对象",
+        "安全与合规对象"
+      ],
+      "success": true,
+      "tags": [],
+      "time": 1779263997.5726488
+    },
+    {
+      "task_id": "task_23e60709136e",
+      "task_desc": "Design a TODO app",
+      "roles_used": [
+        "业务价值对象",
+        "技术架构对象",
+        "安全与合规对象"
+      ],
+      "success": true,
+      "tags": [],
+      "time": 1779264342.0281258
+    },
+    {
+      "task_id": "task_6b8e7b2152f5",
+      "task_desc": "Design a TODO app",
+      "roles_used": [
+        "业务价值对象",
+        "技术架构对象",
+        "安全与合规对象"
+      ],
+      "success": true,
+      "tags": [],
+      "time": 1779468303.2445087
+    }
+  ]
+}

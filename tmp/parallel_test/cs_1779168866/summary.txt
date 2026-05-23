@@ -1,0 +1,5 @@
+test_id=cs_1779168866
+model=deepseek-chat
+wall_time=142s
+total_output=16KB
+total_lines=217

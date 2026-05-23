@@ -1,0 +1,18 @@
+{
+  "task_id": "review_d7dcaeee8f98",
+  "scheme_id": "B",
+  "tool": "review",
+  "input": "[python] def foo(x):\n    return eval(x)  # bad\n",
+  "perspective": "性能架构师",
+  "result": {
+    "issues": [
+      {
+        "severity": "high",
+        "line": "def foo(x): return eval(x)",
+        "description": "使用eval()执行任意代码，存在严重安全风险，可能导致代码注入攻击。",
+        "fix": "改用ast.literal_eval()安全解析字面量表达式，或根据实际需求使用更安全的替代方案如json.loads()、int()、float()等类型转换函数。"
+      }
+    ],
+    "score": 2.0
+  }
+}

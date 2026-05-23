@@ -1,0 +1,18 @@
+{
+  "task_id": "test_bp",
+  "task_desc": "设计短链接服务",
+  "task_graph": {
+    "steps": [
+      {
+        "name": "API"
+      }
+    ]
+  },
+  "tags": [
+    "Go",
+    "Docker"
+  ],
+  "parameters": {},
+  "created_at": 1779260384.762774,
+  "reuse_count": 0
+}

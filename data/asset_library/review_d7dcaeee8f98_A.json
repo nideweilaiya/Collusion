@@ -1,0 +1,18 @@
+{
+  "task_id": "review_d7dcaeee8f98",
+  "scheme_id": "A",
+  "tool": "review",
+  "input": "[python] def foo(x):\n    return eval(x)  # bad\n",
+  "perspective": "安全专家",
+  "result": {
+    "issues": [
+      {
+        "severity": "high",
+        "line": "def foo(x): return eval(x)  # bad",
+        "description": "使用eval()执行用户输入，存在严重代码注入风险。攻击者可以传入任意Python代码，导致远程代码执行、数据泄露或系统被完全控制。",
+        "fix": "避免使用eval()。如果必须动态计算表达式，使用ast.literal_eval()仅解析字面量；或根据具体业务需求使用更安全的替代方案，如预定义操作映射。"
+      }
+    ],
+    "score": 7.5
+  }
+}

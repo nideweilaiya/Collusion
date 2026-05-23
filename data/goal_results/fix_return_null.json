@@ -1,0 +1,135 @@
+{
+  "goal_id": "fix_return_null",
+  "config": {
+    "goal_id": "fix_return_null",
+    "description": "修复 return null 为 Optional/空集合模式",
+    "verification": {
+      "command": "gradle build",
+      "expected_exit_code": 0,
+      "max_iterations": 3,
+      "timeout_seconds": 120
+    },
+    "review": {
+      "enabled": true,
+      "agents": [
+        "architecture"
+      ],
+      "checklist": [
+        "不修改文件结构",
+        "遵循现有代码风格"
+      ]
+    },
+    "constraints": {
+      "allowed_files": [
+        "src\\main\\java\\com\\aiworkbench\\companion\\ai\\TaskInterruptProtocol.java",
+        "src\\main\\java\\com\\aiworkbench\\companion\\skill\\GoalDecomposer.java",
+        "src\\main\\java\\com\\aiworkbench\\companion\\entity\\goal\\CompanionGuardGoal.java",
+        "src\\main\\java\\com\\aiworkbench\\companion\\entity\\goal\\CompanionFarmGoal.java",
+        "src\\main\\java\\com\\aiworkbench\\companion\\skill\\AutoCurriculum.java",
+        "src\\main\\java\\com\\aiworkbench\\companion\\skill\\SkillCommand.java",
+        "src\\main\\java\\com\\aiworkbench\\companion\\skill\\SkillAction.java",
+        "src\\main\\java\\com\\aiworkbench\\companion\\skill\\SkillLibrary.java",
+        "src\\main\\java\\com\\aiworkbench\\companion\\personality\\PersonalityModifier.java",
+        "src\\main\\java\\com\\aiworkbench\\companion\\skill\\CompositeTask.java",
+        "src\\main\\java\\com\\aiworkbench\\companion\\entity\\goal\\CompanionWanderGoal.java",
+        "src\\main\\java\\com\\aiworkbench\\companion\\event\\PlayerEventHandler.java",
+        "src\\main\\java\\com\\aiworkbench\\companion\\entity\\goal\\CompanionSurvivalGoal.java",
+        "src\\main\\java\\com\\aiworkbench\\companion\\manager\\CompanionManager.java",
+        "src\\main\\java\\com\\aiworkbench\\companion\\client\\CompanionClientState.java",
+        "src\\main\\java\\com\\aiworkbench\\companion\\command\\CompanionAICommands.java",
+        "src\\main\\java\\com\\aiworkbench\\companion\\skill\\atomic\\SmeltItemsAction.java",
+        "src\\main\\java\\com\\aiworkbench\\companion\\inventory\\CompanionContainer.java",
+        "src\\main\\java\\com\\aiworkbench\\companion\\memory\\MemorySummarizer.java",
+        "src\\main\\java\\com\\aiworkbench\\companion\\entity\\goal\\AutoUpgrader.java",
+        "src\\main\\java\\com\\aiworkbench\\companion\\skill\\SkillVerifier.java",
+        "src\\main\\java\\com\\aiworkbench\\companion\\entity\\goal\\CompanionFollowGoal.java",
+        "src\\main\\java\\com\\aiworkbench\\companion\\ai\\OllamaClient.java",
+        "src\\main\\java\\com\\aiworkbench\\companion\\network\\BridgeClient.java",
+        "src\\main\\java\\com\\aiworkbench\\companion\\ai\\CompanionAI.java",
+        "src\\main\\java\\com\\aiworkbench\\companion\\entity\\goal\\CompanionGatherGoal.java",
+        "src\\test\\java\\com\\aiworkbench\\companion\\memory\\MemorySystemTest.java",
+        "src\\main\\java\\com\\aiworkbench\\companion\\skill\\SkillGenerator.java",
+        "src\\main\\java\\com\\aiworkbench\\companion\\entity\\AutomatonEntity.java",
+        "src\\main\\java\\com\\aiworkbench\\companion\\skill\\RecipeResolver.java",
+        "src\\main\\java\\com\\aiworkbench\\companion\\entity\\goal\\CompanionFishingGoal.java"
+      ],
+      "forbidden_files": []
+    },
+    "coder_config": {
+      "model": "flash",
+      "system_prompt": ""
+    }
+  },
+  "status": "failed",
+  "current_iteration": 3,
+  "max_iterations": 3,
+  "started_at": 1779263994.9717908,
+  "history": [
+    {
+      "iteration": 1,
+      "step": "coder",
+      "result": {
+        "success": true,
+        "task_info": {
+          "goal": "修复 return null 为 Optional/空集合模式"
+        }
+      }
+    },
+    {
+      "iteration": 1,
+      "step": "evaluator",
+      "result": {
+        "passed": false,
+        "exit_code": 1,
+        "expected": 0,
+        "output": "\n"
+      }
+    },
+    {
+      "iteration": 2,
+      "step": "coder",
+      "result": {
+        "success": true,
+        "task_info": {
+          "goal": "修复 return null 为 Optional/空集合模式"
+        }
+      }
+    },
+    {
+      "iteration": 2,
+      "step": "evaluator",
+      "result": {
+        "passed": false,
+        "exit_code": 1,
+        "expected": 0,
+        "output": "\n"
+      }
+    },
+    {
+      "iteration": 3,
+      "step": "coder",
+      "result": {
+        "success": true,
+        "task_info": {
+          "goal": "修复 return null 为 Optional/空集合模式"
+        }
+      }
+    },
+    {
+      "iteration": 3,
+      "step": "evaluator",
+      "result": {
+        "passed": false,
+        "exit_code": 1,
+        "expected": 0,
+        "output": "\n"
+      }
+    }
+  ],
+  "cost_so_far": 0.0,
+  "last_error": "\n",
+  "result": {
+    "pass": false,
+    "reason": "max_iterations_reached"
+  }
+}

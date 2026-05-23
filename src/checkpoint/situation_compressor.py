@@ -150,6 +150,24 @@ class SituationCompressor:
                     "fix": "需人工确认",
                 })
 
+        # v0.6: 因果失败路径 → 坑点 (outcome_score < 0 的节点)
+        causal_failures = [
+            m for m in retrieved.causal_memories
+            if (isinstance(m, dict) and
+                m.get("outcome_score", 0) < 0)
+        ]
+        for cf in causal_failures[:3]:
+            label = cf.get("label", cf.get("description", ""))[:50]
+            desc = cf.get("description", label)[:60]
+            score = cf.get("outcome_score", 0)
+            snapshot.known_pitfalls.append({
+                "pitfall": label or "历史失败路径",
+                "when": desc,
+                "fix": f"该路径历史outcome_score={score}, 建议避开",
+            })
+            if score < -0.5:
+                snapshot.risk_score = max(snapshot.risk_score, 0.6)
+
         snapshot.risk_score = min(
             0.1 * len(retrieved.discard_warnings) +
             0.05 * len(snapshot.uncertainty_flags), 1.0,

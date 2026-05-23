@@ -1,0 +1,10 @@
+{
+  "goal_id": "companion_manager_tests",
+  "description": "为 CompanionManager 补全单元测试",
+  "verification": {
+    "command": "gradle test --tests *CompanionManager*",
+    "expected_exit_code": 0,
+    "max_iterations": 5,
+    "timeout_seconds": 120
+  }
+}

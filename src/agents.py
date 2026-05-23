@@ -27,14 +27,17 @@ class OrchestratorAgent:
 
     # ==================== 阶段3: 并行提案 ====================
 
-    def generate_proposal(self, task: str, steps: List[Step]) -> PlanScheme:
-        """从对象视角生成完整方案"""
+    def generate_proposal(self, task: str, steps: List[Step],
+                          knowledge_context: str = "") -> PlanScheme:
+        """从对象视角生成完整方案（v0.5.0: 支持知识上下文注入）"""
         ctx = (
             f"角色: {self.object_name}代言人\n"
             f"任务: {task}\n"
             f"行动: 生成完整技术方案\n"
             f"需覆盖的环节:\n{self._steps_compact(steps)}\n"
         )
+        if knowledge_context:
+            ctx += f"\n参考历史经验:\n{knowledge_context}\n"
         data = self.fast_llm.cached_call_json(ctx, temperature=0.3, max_tokens=8192)
 
         scheme = PlanScheme(

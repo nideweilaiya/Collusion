@@ -1,0 +1,59 @@
+{
+  "nodes": {
+    "dec_1": {
+      "id": "dec_1",
+      "node_type": "decision",
+      "label": "选择Go语言",
+      "tags": [
+        "Go",
+        "后端"
+      ],
+      "description": "使用Go 1.21+",
+      "task_id": "task_1",
+      "outcome_score": 0.8
+    },
+    "dec_2": {
+      "id": "dec_2",
+      "node_type": "decision",
+      "label": "使用Redis缓存",
+      "tags": [
+        "Redis",
+        "缓存"
+      ],
+      "description": "Redis作为缓存层",
+      "task_id": "task_1",
+      "outcome_score": 0.7
+    },
+    "out_1": {
+      "id": "out_1",
+      "node_type": "outcome",
+      "label": "镜像体积小",
+      "tags": [
+        "性能"
+      ],
+      "description": "镜像<20MB",
+      "task_id": "task_1",
+      "outcome_score": 0.9
+    },
+    "risk_1": {
+      "id": "risk_1",
+      "node_type": "risk",
+      "label": "单机瓶颈",
+      "tags": [
+        "扩展性"
+      ],
+      "description": "高并发下受限",
+      "task_id": "task_1",
+      "severity": "中"
+    }
+  },
+  "edges": [
+    {
+      "source_id": "dec_1",
+      "target_id": "out_1",
+      "relation": "leads_to",
+      "task_id": "task_1"
+    }
+  ],
+  "version": "0.5.0"
+}

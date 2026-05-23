@@ -1,0 +1,123 @@
+{
+  "benchmark_time": "2026-05-19 13:58:48",
+  "version": "v0.5.0",
+  "module": "knowledge_base",
+  "search_tests": [
+    {
+      "test_id": "st_01",
+      "query": "高并发短链接服务，Docker单命令部署",
+      "desc": "短链接高并发 → 应命中短链接任务",
+      "expected_match": "task_8b825c4c4ccc",
+      "best_score": 0.5667,
+      "matched": "task_8b825c4c4ccc_A",
+      "n_results": 2,
+      "elapsed_s": 0.0,
+      "passed": true
+    },
+    {
+      "test_id": "st_02",
+      "query": "设计一个待办事项API，增删改查",
+      "desc": "待办事项API → 应命中todo API任务",
+      "expected_match": "task_f675bcec5b4b",
+      "best_score": 0.4,
+      "matched": "task_f675bcec5b4b_B",
+      "n_results": 5,
+      "elapsed_s": 0.001,
+      "passed": true
+    },
+    {
+      "test_id": "st_03",
+      "query": "文件分享服务，上传文件生成分享链接",
+      "desc": "文件分享 → 应命中文件分享任务",
+      "expected_match": "task_6befe4a08e2d",
+      "best_score": 0.4,
+      "matched": "task_6befe4a08e2d_C",
+      "n_results": 3,
+      "elapsed_s": 0.0,
+      "passed": true
+    },
+    {
+      "test_id": "st_04",
+      "query": "RESTful API 设计与实现",
+      "desc": "API设计 → 应至少命中一个API相关任务",
+      "expected_match": null,
+      "best_score": 0.4,
+      "matched": null,
+      "n_results": 5,
+      "elapsed_s": 0.0,
+      "passed": true
+    },
+    {
+      "test_id": "st_05",
+      "query": "机器学习模型训练平台",
+      "desc": "无关查询 → 可以0命中或低分",
+      "expected_match": null,
+      "best_score": 0,
+      "matched": null,
+      "n_results": 0,
+      "elapsed_s": 0.0,
+      "passed": true
+    }
+  ],
+  "precheck_tests": [
+    {
+      "test_id": "pc_01",
+      "task": "设计一个短链接服务",
+      "desc": "已有类似任务 → 预检应返回相关资产",
+      "expect_assets": true,
+      "has_assets": true,
+      "n_assets": 1,
+      "n_warnings": 0,
+      "summary": "发现 1 个相关历史方案 | 最高关联度: 0.37 (设计一个短链接服务，要求支持自定义短码，Docker单命令部署...)",
+      "elapsed_s": 0.001,
+      "passed": true
+    },
+    {
+      "test_id": "pc_02",
+      "task": "设计一个量子计算模拟器",
+      "desc": "全新领域 → 预检应返回空",
+      "expect_assets": false,
+      "has_assets": false,
+      "n_assets": 0,
+      "n_warnings": 0,
+      "summary": "无匹配历史资产",
+      "elapsed_s": 0.0,
+      "passed": true
+    }
+  ],
+  "speed_tests": {
+    "avg_search_ms": 0.4,
+    "avg_precheck_ms": 0.8,
+    "avg_index_read_ms": 0.3,
+    "n_samples": 5
+  },
+  "summary": {
+    "search_pass_rate": 1.0,
+    "relevance_sanity": true,
+    "score_gap": 0.6333,
+    "avg_search_ms": 0.4,
+    "avg_precheck_ms": 0.8,
+    "n_search_tests": 5,
+    "n_precheck_tests": 2,
+    "overall_status": "PASS"
+  },
+  "search_summary": {
+    "passed": 5,
+    "total": 5,
+    "pass_rate": 1.0
+  },
+  "relevance_sanity": {
+    "high_relevance_query": "短链接服务 Docker 高并发",
+    "high_relevance_score": 0.6333,
+    "low_relevance_query": "量子计算 神经网络 蛋白质折叠",
+    "low_relevance_score": 0,
+    "score_gap": 0.6333,
+    "sanity_ok": true
+  },
+  "discard_warnings": {
+    "query": "API设计",
+    "n_warnings": 0,
+    "warnings": [],
+    "system_works": true
+  }
+}

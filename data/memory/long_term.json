@@ -1,0 +1,22 @@
+[
+  {
+    "tags": [
+      "Go",
+      "API"
+    ],
+    "score": 0.8,
+    "desc": "短链接方案",
+    "entered_at": 1779260384.762774,
+    "count": 1,
+    "consolidated_at": 1779260384.762774
+  },
+  {
+    "tags": [
+      "API"
+    ],
+    "score": 0.9,
+    "entered_at": 1779264341.4138122,
+    "count": 1,
+    "consolidated_at": 1779264341.4138122
+  }
+]

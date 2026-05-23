@@ -1,0 +1,42 @@
+{
+  "task_id": "review_d7dcaeee8f98",
+  "scheme_id": "C",
+  "tool": "review",
+  "input": "[python] def foo(x):\n    return eval(x)  # bad\n",
+  "perspective": "代码质量",
+  "result": {
+    "issues": [
+      {
+        "severity": "high",
+        "line": "第1行，函数定义处",
+        "description": "函数名'foo'不符合Python命名规范（PEP8），应使用小写字母加下划线的描述性名称。",
+        "fix": "将函数名改为更具描述性的名称，例如'evaluate_expression'。"
+      },
+      {
+        "severity": "high",
+        "line": "第2行，return eval(x)",
+        "description": "使用eval()执行任意代码存在严重安全风险，违反了安全编码原则。",
+        "fix": "避免使用eval()，改用ast.literal_eval()（如果输入是字面量）或设计更安全的解析方案。"
+      },
+      {
+        "severity": "medium",
+        "line": "第1行，函数定义处",
+        "description": "函数缺少类型注解和文档字符串，不符合清晰代码规范。",
+        "fix": "添加参数和返回值的类型注解，并编写docstring说明函数行为。"
+      },
+      {
+        "severity": "medium",
+        "line": "第2行，return eval(x)",
+        "description": "没有异常处理，eval()可能抛出多种异常（如SyntaxError, NameError等），导致程序崩溃。",
+        "fix": "使用try-except捕获可能的异常，并给出有意义的错误信息。"
+      },
+      {
+        "severity": "low",
+        "line": "第1行，函数定义处",
+        "description": "函数圈复杂度为1，虽然很低，但功能过于简单且危险，建议重构为更安全的实现。",
+        "fix": "考虑将函数拆分为输入验证和表达式求值两个步骤，增加可读性和安全性。"
+      }
+    ],
+    "score": 3.5
+  }
+}

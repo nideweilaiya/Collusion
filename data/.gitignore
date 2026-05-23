@@ -1,0 +1,17 @@
+# Collusion 知识库数据 — git 只保留结构化知识，排除运行缓存
+
+# 编排运行缓存（每次运行生成的中间状态，不可复用）
+data/states/
+data/outputs/
+
+# 向量索引二进制缓存（可重建）
+data/vector_index/matrix.npy
+data/vector_index/vectorizer.pkl
+
+# 进化引擎中间记录（可重建，但保留了也无害）
+data/evolution/feedback.json
+
+# 大型二进制文件
+*.npy
+*.pkl
+__pycache__/

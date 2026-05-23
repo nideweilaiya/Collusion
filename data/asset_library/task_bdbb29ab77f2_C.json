@@ -1,0 +1,93 @@
+{
+  "task_id": "task_bdbb29ab77f2",
+  "scheme_id": "C",
+  "task": "Design a TODO app",
+  "tags": [],
+  "keywords": [
+    "待办事项"
+  ],
+  "scheme": {
+    "id": "C",
+    "agent_role": "UX/产品专家",
+    "agent_name": "agent_1 (UX/产品专家)",
+    "object_name": "业务价值对象",
+    "steps": {},
+    "modified_steps": [],
+    "modification_history": [],
+    "missing_reports": [],
+    "is_paused": false,
+    "complexity_score": 0,
+    "owner_agent_id": "agent_1",
+    "integrated_content": "{}",
+    "simplification_applied": false
+  },
+  "vote": {
+    "plan_id": "C",
+    "correctness": 0.0,
+    "completeness": 0.0,
+    "feasibility": 0.0,
+    "innovation": 0.0,
+    "business_alignment": 0.0,
+    "total_score": 0,
+    "rank": 0,
+    "comment": "方案内容为空，无法评分。请检查 API Key 是否正确配置。"
+  },
+  "steps": [
+    {
+      "id": "step_ec71e84a",
+      "index": 1,
+      "name": "接口设计",
+      "description": "设计 RESTful API 端点，定义请求/响应格式",
+      "dependencies": [],
+      "design_content": ""
+    },
+    {
+      "id": "step_d4822de2",
+      "index": 2,
+      "name": "数据存储",
+      "description": "设计数据库模型和存储方案",
+      "dependencies": [],
+      "design_content": ""
+    },
+    {
+      "id": "step_dd6820fa",
+      "index": 3,
+      "name": "认证与授权",
+      "description": "设计用户认证和权限控制方案",
+      "dependencies": [],
+      "design_content": ""
+    },
+    {
+      "id": "step_3cfc1848",
+      "index": 4,
+      "name": "部署方案",
+      "description": "设计容器化部署和 CI/CD 流程",
+      "dependencies": [],
+      "design_content": ""
+    },
+    {
+      "id": "step_1c7b358b",
+      "index": 5,
+      "name": "全局业务价值对象基线",
+      "description": "确保所有环节满足业务价值对象的基本要求",
+      "dependencies": [],
+      "design_content": ""
+    },
+    {
+      "id": "step_159c8256",
+      "index": 6,
+      "name": "全局技术架构对象基线",
+      "description": "确保所有环节满足技术架构对象的基本要求",
+      "dependencies": [],
+      "design_content": ""
+    },
+    {
+      "id": "step_2dd21b99",
+      "index": 7,
+      "name": "全局安全与合规对象基线",
+      "description": "确保所有环节满足安全与合规对象的基本要求",
+      "dependencies": [],
+      "design_content": ""
+    }
+  ]
+}

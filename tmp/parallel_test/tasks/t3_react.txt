@@ -1,0 +1,37 @@
+下面这个React自定义hook有性能问题，请重构优化：
+
+```typescript
+import { useState, useEffect } from 'react';
+
+interface UserData {
+  id: number;
+  name: string;
+  email: string;
+  role: string;
+  lastLogin: Date;
+  permissions: string[];
+}
+
+function useUserFilter(users: UserData[], searchTerm: string) {
+  const [filteredUsers, setFilteredUsers] = useState<UserData[]>([]);
+
+  useEffect(() => {
+    const filtered = users
+      .filter(u => u.name.toLowerCase().includes(searchTerm.toLowerCase()))
+      .sort((a, b) => a.name.localeCompare(b.name));
+    setFilteredUsers(filtered);
+  }, [users, searchTerm]);
+
+  return {
+    filteredUsers,
+    adminCount: filteredUsers.filter(u => u.role === 'admin').length,
+    recentLogins: filteredUsers.filter(u => {
+      const daysSinceLogin = (Date.now() - u.lastLogin.getTime()) / (1000 * 60 * 60 * 24);
+      return daysSinceLogin < 7;
+    })
+  };
+}
+```
+
+请使用useMemo重构，避免不必要的重计算，保持功能不变。
+禁止使用任何工具。禁止调用MCP。直接输出。

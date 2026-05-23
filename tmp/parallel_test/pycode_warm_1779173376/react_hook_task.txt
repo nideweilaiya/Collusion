@@ -1,0 +1,36 @@
+请重构这个React自定义hook以优化性能。
+
+待重构代码:
+import { useState, useEffect } from 'react';
+
+interface UserData {
+  id: number;
+  name: string;
+  email: string;
+  role: string;
+  lastLogin: Date;
+  permissions: string[];
+}
+
+function useUserFilter(users: UserData[], searchTerm: string) {
+  const [filteredUsers, setFilteredUsers] = useState<UserData[]>([]);
+
+  useEffect(() => {
+    const filtered = users
+      .filter(u => u.name.toLowerCase().includes(searchTerm.toLowerCase()))
+      .sort((a, b) => a.name.localeCompare(b.name));
+    setFilteredUsers(filtered);
+  }, [users, searchTerm]);
+
+  return {
+    filteredUsers,
+    adminCount: filteredUsers.filter(u => u.role === 'admin').length,
+    recentLogins: filteredUsers.filter(u => {
+      const daysSinceLogin = (Date.now() - u.lastLogin.getTime()) / (1000 * 60 * 60 * 24);
+      return daysSinceLogin < 7;
+    })
+  };
+}
+
+要求：使用useMemo避免不必要的重计算，保持功能不变。输出完整重构后的代码。
+禁止使用任何工具。禁止调用MCP。

@@ -85,6 +85,16 @@
 
 ---
 
+## 🚀 Goal 配置（可直接交给 GoalRunner 执行）
+
+> 复制下方 JSON，直接调用 `GoalRunner.create_goal(**goal_config)` 即可执行。
+
+```json
+{{ goal_config | tojson }}
+```
+
+---
+
 ## 🔄 备选方案详情
 
 {% for scheme in schemes %}

@@ -1,0 +1,9 @@
+用Python实现一个线程安全的LRU缓存类。要求：
+1. 支持指定最大容量(capacity)
+2. 支持 get(key) 和 put(key, value) 操作
+3. 支持过期时间(TTL)，过期条目自动清理
+4. 线程安全(使用threading.Lock)
+5. 包含类型注解和docstring
+6. 包含使用示例
+
+禁止使用任何工具。禁止调用MCP。直接输出完整Python代码。

@@ -28,5 +28,19 @@
   "sampling": {
     "enabled": false,
     "_comment": "设为 true 启用 MCP Sampling 委托模式。LLM 调用通过 sampling/createMessage 委托宿主执行，保留宿主缓存。Reasonix 用户推荐启用。也可通过环境变量 COLLUSION_SAMPLING_MODE=1 启用。"
+  },
+  "knowledge": {
+    "obsidian_vault_path": "",
+    "enable_causal_memory": true,
+    "asset_retrieval_top_k": 3,
+    "auto_tagging": true,
+    "relevance_weights": {
+      "tag_overlap": 0.4,
+      "tech_similarity": 0.35,
+      "causal_match": 0.25
+    },
+    "relevance_threshold": 0.3,
+    "warn_on_discarded": true,
+    "_comment": "obsidian_vault_path: 指向 Collusion 项目知识库目录。设为 '' 则只使用内置资产库。"
   }
 }

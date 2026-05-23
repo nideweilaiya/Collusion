@@ -64,6 +64,15 @@ class KnowledgeRetriever:
         except Exception:
             pass
 
+        # 2b. 因果风险预警 (失败的因果路径)
+        try:
+            if hasattr(self._orch, 'causal_risk_warning'):
+                risks = self._orch.causal_risk_warning(task)
+                if risks:
+                    ctx.causal_memories.extend(risks)
+        except Exception:
+            pass
+
         # 3. Agent Graph 统计
         try:
             if (self._orch._enable_agent_graph and

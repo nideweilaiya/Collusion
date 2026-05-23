@@ -1,0 +1,20 @@
+[
+  {
+    "time": 1779260384.762774,
+    "reviewer": "安全专家",
+    "plan": "plan_A",
+    "finding_type": "security",
+    "severity": "high",
+    "step": "认证",
+    "description": "缺少JWT"
+  },
+  {
+    "time": 1779264341.4138122,
+    "reviewer": "安全专家",
+    "plan": "plan_A",
+    "finding_type": "security",
+    "severity": "high",
+    "step": "认证",
+    "description": "缺失JWT"
+  }
+]

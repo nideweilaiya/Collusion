@@ -1,0 +1,62 @@
+{
+  "goal_id": "test_goal",
+  "config": {
+    "goal_id": "test_goal",
+    "description": "全链路测试",
+    "verification": {
+      "command": "echo ok",
+      "expected_exit_code": 0,
+      "max_iterations": 2,
+      "timeout_seconds": 30
+    },
+    "review": {
+      "enabled": false,
+      "agents": [],
+      "checklist": []
+    },
+    "constraints": {
+      "allowed_files": [],
+      "forbidden_files": []
+    },
+    "coder_config": {
+      "model": "flash",
+      "system_prompt": ""
+    }
+  },
+  "status": "completed",
+  "current_iteration": 1,
+  "max_iterations": 2,
+  "started_at": 1779264340.8969939,
+  "history": [
+    {
+      "iteration": 1,
+      "step": "coder",
+      "result": {
+        "success": true,
+        "task_info": {
+          "goal": "全链路测试"
+        }
+      }
+    },
+    {
+      "iteration": 1,
+      "step": "evaluator",
+      "result": {
+        "passed": true,
+        "exit_code": 0,
+        "expected": 0,
+        "output": "ok\n\n"
+      }
+    }
+  ],
+  "cost_so_far": 0.0,
+  "last_error": "",
+  "result": {
+    "pass": true,
+    "iterations": 1
+  },
+  "archive": {
+    "path": "D:\\BrainstormOrchestrator\\data\\task_graphs\\test_goal.json",
+    "n_steps": 2
+  }
+}

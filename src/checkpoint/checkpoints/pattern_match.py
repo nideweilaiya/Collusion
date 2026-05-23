@@ -83,11 +83,28 @@ class PatternMatchCheckpoint(BaseCheckpoint):
                     "suggestion": "确认弃用原因在当前上下文中是否仍然成立",
                 })
 
+        # v0.6: 因果失败模式增强 — 已知坑点中来自因果图的失败路径提升严重度
+        causal_pitfalls = [
+            p for p in snapshot.known_pitfalls
+            if "outcome_score" in p.get("fix", "") or "历史失败" in p.get("pitfall", "")
+        ]
+        if causal_pitfalls:
+            for cp in causal_pitfalls[:3]:
+                findings.append({
+                    "type": "pattern",
+                    "target": cp.get("pitfall", "因果失败路径")[:60],
+                    "detail": f"因果记忆: {cp.get('when', '')[:80]}",
+                    "suggestion": cp.get("fix", "建议避开此路径")[:100],
+                })
+
         severity = "advisory"
         risk_score = 0.0
         if findings:
             severity = "warning"
-            risk_score = min(0.1 * len(findings), 0.8)
+            risk_score = min(0.12 * len(findings), 0.85)
+        if causal_pitfalls:
+            severity = "warning"
+            risk_score = max(risk_score, 0.4)
 
         return CheckpointResult(
             checkpoint_id=self.checkpoint_id,
