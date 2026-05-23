@@ -52,6 +52,7 @@ BUG_KEYWORDS = [
 MONITORED_TOOLS = {
     "write_file", "edit_file", "multi_edit",
     "run_command", "run_background",
+    "Edit", "Write", "NotebookEdit", "Bash",
 }
 
 # ── 公开 API ──────────────────────────────────────────────
@@ -500,7 +501,7 @@ def _has_code_modification(context) -> bool:
         return False
     actions = context.get("tool_calls", []) if isinstance(context, dict) else []
     if isinstance(actions, list):
-        write_tools = {"write_file", "edit_file", "multi_edit"}
+        write_tools = {"write_file", "edit_file", "multi_edit", "Edit", "Write", "NotebookEdit"}
         return any(
             isinstance(a, dict) and a.get("name") in write_tools
             for a in actions

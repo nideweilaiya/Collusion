@@ -67,7 +67,7 @@ def main():
 
     # ── 4. 如果是文件写入工具，记录修改的文件 ──
     modified_file = None
-    if tool_name in ("write_file", "edit_file", "multi_edit"):
+    if tool_name in ("write_file", "edit_file", "multi_edit", "Edit", "Write", "NotebookEdit"):
         args = event.get("args") or event.get("arguments") or {}
         if isinstance(args, dict):
             modified_file = args.get("path") or args.get("file") or ""
