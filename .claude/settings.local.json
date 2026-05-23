@@ -178,6 +178,19 @@
           }
         ]
       }
+    ],
+    "Notification": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python D:/BrainstormOrchestrator/skills/collusion/hooks/on_stop.py",
+            "timeout": 15,
+            "async": true
+          }
+        ]
+      }
     ]
   }
 }
