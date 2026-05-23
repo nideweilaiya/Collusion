@@ -133,11 +133,51 @@
       "mcp__brainstorm__collusion_plan",
       "Bash(ls *)",
       "Bash(mkdir -p \"D:/BrainstormOrchestrator/src/checkpoint/checkpoints\")",
-      "Bash(mkdir -p \"D:/BrainstormOrchestrator/data/golden\")"
+      "Bash(mkdir -p \"D:/BrainstormOrchestrator/data/golden\")",
+      "Bash(grep -v \"^$\")",
+      "Bash(python D:/BrainstormOrchestrator/skills/collusion/hooks/*)"
     ]
   },
   "enableAllProjectMcpServers": true,
   "enabledMcpjsonServers": [
     "brainstorm"
-  ]
+  ],
+  "hooks": {
+    "Stop": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python D:/BrainstormOrchestrator/skills/collusion/hooks/on_stop.py",
+            "timeout": 15
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python D:/BrainstormOrchestrator/skills/collusion/hooks/on_post_tool.py",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python D:/BrainstormOrchestrator/skills/collusion/hooks/on_user_submit.py",
+            "timeout": 10
+          }
+        ]
+      }
+    ]
+  }
 }
