@@ -2337,7 +2337,8 @@ class BrainstormOrchestrator:
                 if node_label and node_label in entry_searchable:
                     shared += 1
                 # outcome_score < 0 表示失败，权重加倍
-                if node.get("outcome_score", 0) < 0:
+                oscore = node.get("outcome_score") or 0
+                if oscore < 0:
                     shared *= 2
             causal_match = min(shared / max(len(causal_nodes[:5]), 1), 1.0)
 

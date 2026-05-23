@@ -154,12 +154,12 @@ class SituationCompressor:
         causal_failures = [
             m for m in retrieved.causal_memories
             if (isinstance(m, dict) and
-                m.get("outcome_score", 0) < 0)
+                (m.get("outcome_score") or 0) < 0)
         ]
         for cf in causal_failures[:3]:
             label = cf.get("label", cf.get("description", ""))[:50]
             desc = cf.get("description", label)[:60]
-            score = cf.get("outcome_score", 0)
+            score = cf.get("outcome_score") or 0
             snapshot.known_pitfalls.append({
                 "pitfall": label or "历史失败路径",
                 "when": desc,
