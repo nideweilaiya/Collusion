@@ -1,0 +1,40 @@
+{
+  "card_id": "dc_native_claude",
+  "task_id": "assess_a1b2c3d4",
+  "created_at": 1779617000,
+  "task": "BrainstormOrchestrator v0.6.1 架构自我评估",
+  "task_summary": "评估共谋编排引擎的架构一致性、接口冲突、模式匹配。重点关注刚完成的废案闭环采纳信号改动。",
+  "overall_risk": "medium",
+  "overall_confidence": 0.85,
+  "checkpoints_run": ["semantic_consistency", "interface_conflict", "pattern_match"],
+  "checkpoint_results": [
+    {
+      "checkpoint_id": "semantic_consistency",
+      "severity": "warn",
+      "summary": "adopted字段在record_search中存string、mark_adopted中存boolean，同一字段两种语义",
+      "risk_score": 0.5
+    },
+    {
+      "checkpoint_id": "interface_conflict",
+      "severity": "pass",
+      "summary": "无阻断性接口冲突，collusion_adopt的plan_id模糊匹配有低风险",
+      "risk_score": 0.1
+    },
+    {
+      "checkpoint_id": "pattern_match",
+      "severity": "warn",
+      "summary": "mcp_server.py两套分发逻辑并存；optimize_weights声明调整w1/w2/w3但实际只调epsilon",
+      "risk_score": 0.4
+    }
+  ],
+  "immediate_fixes": [
+    "adopted字段类型统一：record_search也改为boolean，asset_key单独存adopted_asset字段"
+  ],
+  "tech_debt": [
+    "mcp_server.py call_tool中resolve_handler和旧if/elif链并存",
+    "optimize_weights声明与实现不符"
+  ],
+  "deep_review_recommended": false,
+  "llm_source": "claude_code_native",
+  "total_tokens_estimate": 3000
+}

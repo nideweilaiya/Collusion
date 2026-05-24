@@ -87,7 +87,8 @@ class EvolutionEngine:
             "time": time.time(),
             "query": query[:100],
             "n_results": len(results),
-            "adopted": adopted_key,
+            "adopted": adopted_key is not None,  # boolean: True=已采纳, False=未采纳
+            "adopted_asset": adopted_key,         # string: 具体被采纳的资产key
             "adopted_rank": next((i+1 for i, r in enumerate(results)
                                   if r.get("key") == adopted_key), None),
         })
@@ -138,7 +139,8 @@ class EvolutionEngine:
         # 简化策略：看哪个信号更常出现在被采纳的结果中
         # 从反馈中提取最近 50 条有采纳的记录
         fb = self._feedback_list()
-        adopted = [f for f in fb[-50:] if f.get("adopted") is True]
+        adopted = [f for f in fb[-50:] if f.get("adopted") is True or
+                   (isinstance(f.get("adopted"), str) and f.get("adopted"))]
         if len(adopted) < 5:
             return
 
