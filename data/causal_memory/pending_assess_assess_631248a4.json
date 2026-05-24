@@ -1,0 +1,85 @@
+{
+  "task_id": "assess_631248a4",
+  "task": "修复Token过期后无法自动刷新的Bug",
+  "checkpoint_results": [
+    {
+      "checkpoint_id": "interface_conflict",
+      "category": "core",
+      "severity": "pass",
+      "summary": "前置检查点未执行，跳过",
+      "findings": [],
+      "risk_score": 0.0,
+      "confidence": 1.0,
+      "requires": [],
+      "provides": [],
+      "activation_gate": false,
+      "uncertainty_flags": [
+        "前置条件不满足: ['interface_definition']"
+      ],
+      "llm_calls": 0,
+      "tokens_used": 0,
+      "duration_ms": 0.0,
+      "metadata": {}
+    },
+    {
+      "checkpoint_id": "semantic_consistency",
+      "category": "core",
+      "severity": "pass",
+      "summary": "未发现语义矛盾",
+      "findings": [],
+      "risk_score": 0.0,
+      "confidence": 0.8,
+      "requires": [],
+      "provides": [
+        "semantic_gaps"
+      ],
+      "activation_gate": false,
+      "uncertainty_flags": [
+        "Token刷新接口的响应格式是否统一？",
+        "后端是否支持Refresh Token轮换（Rotation）？",
+        "当前系统是否有全局请求拦截器？",
+        "刷新失败后的重试次数和间隔策略未明确",
+        "废案警示'避免每次请求前主动检查Token是否过期并提前刷新'原因未知",
+        "废案警示'避免使用WebSocket推送新Token'原因未知"
+      ],
+      "llm_calls": 1,
+      "tokens_used": 1500,
+      "duration_ms": 7962.8236293792725,
+      "metadata": {
+        "strict_mode": false
+      }
+    },
+    {
+      "checkpoint_id": "pattern_match",
+      "category": "core",
+      "severity": "warning",
+      "summary": "命中0个明确废案, 2个原因模糊",
+      "findings": [
+        {
+          "type": "pattern",
+          "target": "每次请求前主动检查Token是否过期并提前刷新",
+          "detail": "历史废案(关联度60%)，需人工确认时效性",
+          "suggestion": "确认弃用原因在当前上下文中是否仍然成立"
+        }
+      ],
+      "risk_score": 0.12,
+      "confidence": 0.6,
+      "requires": [],
+      "provides": [
+        "pattern_warnings"
+      ],
+      "activation_gate": true,
+      "uncertainty_flags": [],
+      "llm_calls": 1,
+      "tokens_used": 500,
+      "duration_ms": 4216.00866317749,
+      "metadata": {
+        "strict_mode": false
+      }
+    }
+  ],
+  "overall_risk": "low",
+  "confidence": 0.7999999999999999,
+  "status": "pending_analysis",
+  "created_at": "2026-05-23T18:27:15.038249"
+}

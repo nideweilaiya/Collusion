@@ -45,6 +45,18 @@
       "description": "高并发下受限",
       "task_id": "task_1",
       "severity": "中"
+    },
+    "fail_fail_982b1d65": {
+      "id": "fail_fail_982b1d65",
+      "node_type": "failure",
+      "label": "（未自动提取）",
+      "description": "",
+      "error_log": "",
+      "tags": [
+        "#Go",
+        "#Bug修复"
+      ],
+      "created_at": "2026-05-23T18:35:49.655627"
     }
   },
   "edges": [

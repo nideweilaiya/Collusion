@@ -1848,5 +1848,184 @@
     "created_at": "2026-05-23T00:45:03.214444",
     "success_outcome": null,
     "yaml_meta": "---\nname: task_6b8e7b2152f5_C\ndescription: Design a TODO app\nkeywords: [待办事项]\ncreated_at: 2026-05-23T00:45:03.214444\n---"
+  },
+  "assess_9fe94813_assess": {
+    "task_id": "assess_9fe94813",
+    "scheme_id": "assess",
+    "task": "设计一个博客平台的用户认证API",
+    "keywords": [
+      "API设计",
+      "认证",
+      "博客"
+    ],
+    "tags": [],
+    "object_name": "决策评估",
+    "agent_role": "CheckpointEngine",
+    "total_score": 0.7999999999999999,
+    "is_top1": true,
+    "is_discarded": false,
+    "discard_reasons": [],
+    "rank": 1,
+    "summary": "核心检查未发现高风险项，可直接进入实现",
+    "created_at": "2026-05-23T18:26:47.005425"
+  },
+  "assess_669ee66d_assess": {
+    "task_id": "assess_669ee66d",
+    "scheme_id": "assess",
+    "task": "设计博客平台的CRUD API",
+    "keywords": [
+      "API设计",
+      "博客",
+      "CRUD"
+    ],
+    "tags": [],
+    "object_name": "决策评估",
+    "agent_role": "CheckpointEngine",
+    "total_score": 0.7999999999999999,
+    "is_top1": true,
+    "is_discarded": false,
+    "discard_reasons": [],
+    "rank": 1,
+    "summary": "核心检查未发现高风险项，可直接进入实现",
+    "created_at": "2026-05-23T18:26:56.813396"
+  },
+  "assess_631248a4_assess": {
+    "task_id": "assess_631248a4",
+    "scheme_id": "assess",
+    "task": "修复Token过期后无法自动刷新的Bug",
+    "keywords": [],
+    "tags": [],
+    "object_name": "决策评估",
+    "agent_role": "CheckpointEngine",
+    "total_score": 0.7999999999999999,
+    "is_top1": true,
+    "is_discarded": false,
+    "discard_reasons": [],
+    "rank": 1,
+    "summary": "在pattern_match方面存在需关注的风险，建议人工审查后决定是否深度展开",
+    "created_at": "2026-05-23T18:27:15.034684"
+  },
+  "assess_37058569_assess": {
+    "task_id": "assess_37058569",
+    "scheme_id": "assess",
+    "task": "将单体应用拆分为微服务架构",
+    "keywords": [
+      "微服务"
+    ],
+    "tags": [],
+    "object_name": "决策评估",
+    "agent_role": "CheckpointEngine",
+    "total_score": 0.7999999999999999,
+    "is_top1": true,
+    "is_discarded": false,
+    "discard_reasons": [],
+    "rank": 1,
+    "summary": "核心检查未发现高风险项，可直接进入实现",
+    "created_at": "2026-05-23T18:27:27.571857"
+  },
+  "assess_ceb59d3a_assess": {
+    "task_id": "assess_ceb59d3a",
+    "scheme_id": "assess",
+    "task": "设计一个支付系统，要求PCI合规、99.99%可用",
+    "keywords": [
+      "支付"
+    ],
+    "tags": [],
+    "object_name": "决策评估",
+    "agent_role": "CheckpointEngine",
+    "total_score": 0.8,
+    "is_top1": true,
+    "is_discarded": false,
+    "discard_reasons": [],
+    "rank": 1,
+    "summary": "在pattern_match方面存在需关注的风险，建议人工审查后决定是否深度展开",
+    "created_at": "2026-05-23T18:28:05.064709"
+  },
+  "assess_6b745ab7_assess": {
+    "task_id": "assess_6b745ab7",
+    "scheme_id": "assess",
+    "task": "设计文件上传API",
+    "keywords": [
+      "API设计",
+      "文件处理",
+      "文件上传"
+    ],
+    "tags": [],
+    "object_name": "决策评估",
+    "agent_role": "CheckpointEngine",
+    "total_score": 0.7999999999999999,
+    "is_top1": true,
+    "is_discarded": false,
+    "discard_reasons": [],
+    "rank": 1,
+    "summary": "核心检查未发现高风险项，可直接进入实现",
+    "created_at": "2026-05-23T18:28:16.890366"
+  },
+  "assess_c02889f1_assess": {
+    "task_id": "assess_c02889f1",
+    "scheme_id": "assess",
+    "task": "设计一个短链接服务",
+    "keywords": [
+      "短链接",
+      "链接管理"
+    ],
+    "tags": [],
+    "object_name": "决策评估",
+    "agent_role": "CheckpointEngine",
+    "total_score": 0.9333333333333332,
+    "is_top1": true,
+    "is_discarded": false,
+    "discard_reasons": [],
+    "rank": 1,
+    "summary": "核心检查未发现高风险项，可直接进入实现",
+    "created_at": "2026-05-23T18:29:51.980180"
+  },
+  "pending_c27980bad031": {
+    "goal": "修复auth.py中的Token刷新bug",
+    "action": "Edit; Bash",
+    "result": "（未自动提取）",
+    "tags": [
+      "#Bug修复",
+      "#功能",
+      "#测试"
+    ],
+    "compiled": true,
+    "type": "fix",
+    "root_cause": "",
+    "tools_used": [
+      "Edit",
+      "Bash"
+    ],
+    "id": "pending_c27980bad031",
+    "verification_status": "verified",
+    "created_at": "2026-05-23T18:39:05.767870",
+    "verified_at": "2026-05-24T14:57:30.209288",
+    "reuse_count": 0,
+    "source_hook": "auto",
+    "verified_by": "user_confirmation"
+  },
+  "pending_68ecd5091994": {
+    "goal": "求修复auth.py的Token刷新bug",
+    "action": "Edit; Bash",
+    "result": "（未自动提取）",
+    "tags": [
+      "#Bug修复",
+      "#功能",
+      "#测试"
+    ],
+    "compiled": true,
+    "type": "fix",
+    "root_cause": "",
+    "tools_used": [
+      "Edit",
+      "Bash"
+    ],
+    "id": "pending_68ecd5091994",
+    "verification_status": "verified",
+    "created_at": "2026-05-23T18:41:35.973655",
+    "verified_at": "2026-05-23T18:46:30.638475",
+    "reuse_count": 0,
+    "source_hook": "auto",
+    "verified_by": "user_confirmation"
   }
 }

@@ -1,215 +1,5 @@
 [
   {
-    "time": 1779173523.7276182,
-    "query": "高并发短链接服务，Docker单命令部署",
-    "n_results": 2,
-    "adopted": null,
-    "adopted_rank": null
-  },
-  {
-    "time": 1779173523.730129,
-    "query": "高并发短链接服务，Docker单命令部署",
-    "n_results": 2,
-    "adopted": null,
-    "adopted_rank": null
-  },
-  {
-    "time": 1779173523.7331722,
-    "query": "高并发短链接服务，Docker单命令部署",
-    "n_results": 2,
-    "adopted": null,
-    "adopted_rank": null
-  },
-  {
-    "time": 1779173523.7351885,
-    "query": "高并发短链接服务，Docker单命令部署",
-    "n_results": 2,
-    "adopted": null,
-    "adopted_rank": null
-  },
-  {
-    "time": 1779173523.7385373,
-    "query": "高并发短链接服务，Docker单命令部署",
-    "n_results": 2,
-    "adopted": null,
-    "adopted_rank": null
-  },
-  {
-    "time": 1779173523.7385373,
-    "query": "高并发短链接服务，Docker单命令部署",
-    "n_results": 2,
-    "adopted": null,
-    "adopted_rank": null
-  },
-  {
-    "time": 1779173523.7385373,
-    "query": "高并发短链接服务，Docker单命令部署",
-    "n_results": 2,
-    "adopted": null,
-    "adopted_rank": null
-  },
-  {
-    "time": 1779173523.740043,
-    "query": "高并发短链接服务，Docker单命令部署",
-    "n_results": 2,
-    "adopted": null,
-    "adopted_rank": null
-  },
-  {
-    "time": 1779173523.7413228,
-    "query": "高并发短链接服务，Docker单命令部署",
-    "n_results": 2,
-    "adopted": null,
-    "adopted_rank": null
-  },
-  {
-    "time": 1779173523.7413228,
-    "query": "高并发短链接服务，Docker单命令部署",
-    "n_results": 2,
-    "adopted": null,
-    "adopted_rank": null
-  },
-  {
-    "time": 1779173523.7423291,
-    "query": "高并发短链接服务，Docker单命令部署",
-    "n_results": 2,
-    "adopted": null,
-    "adopted_rank": null
-  },
-  {
-    "time": 1779173523.7423291,
-    "query": "高并发短链接服务，Docker单命令部署",
-    "n_results": 2,
-    "adopted": null,
-    "adopted_rank": null
-  },
-  {
-    "time": 1779173523.7455547,
-    "query": "高并发短链接服务，Docker单命令部署",
-    "n_results": 2,
-    "adopted": null,
-    "adopted_rank": null
-  },
-  {
-    "time": 1779173523.7589178,
-    "query": "设计一个待办事项API，增删改查",
-    "n_results": 5,
-    "adopted": null,
-    "adopted_rank": null
-  },
-  {
-    "time": 1779173523.7614453,
-    "query": "设计一个待办事项API，增删改查",
-    "n_results": 5,
-    "adopted": null,
-    "adopted_rank": null
-  },
-  {
-    "time": 1779173523.7644777,
-    "query": "设计一个待办事项API，增删改查",
-    "n_results": 5,
-    "adopted": null,
-    "adopted_rank": null
-  },
-  {
-    "time": 1779173523.7674954,
-    "query": "设计一个待办事项API，增删改查",
-    "n_results": 5,
-    "adopted": null,
-    "adopted_rank": null
-  },
-  {
-    "time": 1779173523.7702653,
-    "query": "设计一个待办事项API，增删改查",
-    "n_results": 5,
-    "adopted": null,
-    "adopted_rank": null
-  },
-  {
-    "time": 1779173523.7732813,
-    "query": "设计一个待办事项API，增删改查",
-    "n_results": 5,
-    "adopted": null,
-    "adopted_rank": null
-  },
-  {
-    "time": 1779173523.7765083,
-    "query": "设计一个待办事项API，增删改查",
-    "n_results": 5,
-    "adopted": null,
-    "adopted_rank": null
-  },
-  {
-    "time": 1779173523.7785485,
-    "query": "设计一个待办事项API，增删改查",
-    "n_results": 5,
-    "adopted": null,
-    "adopted_rank": null
-  },
-  {
-    "time": 1779173523.7821038,
-    "query": "设计一个待办事项API，增删改查",
-    "n_results": 5,
-    "adopted": null,
-    "adopted_rank": null
-  },
-  {
-    "time": 1779173523.7855883,
-    "query": "设计一个待办事项API，增删改查",
-    "n_results": 5,
-    "adopted": null,
-    "adopted_rank": null
-  },
-  {
-    "time": 1779173523.7876236,
-    "query": "设计一个待办事项API，增删改查",
-    "n_results": 5,
-    "adopted": null,
-    "adopted_rank": null
-  },
-  {
-    "time": 1779173523.791132,
-    "query": "设计一个待办事项API，增删改查",
-    "n_results": 5,
-    "adopted": null,
-    "adopted_rank": null
-  },
-  {
-    "time": 1779173523.7943075,
-    "query": "设计一个待办事项API，增删改查",
-    "n_results": 5,
-    "adopted": null,
-    "adopted_rank": null
-  },
-  {
-    "time": 1779173523.7963243,
-    "query": "设计一个待办事项API，增删改查",
-    "n_results": 5,
-    "adopted": null,
-    "adopted_rank": null
-  },
-  {
-    "time": 1779173523.7999797,
-    "query": "设计一个待办事项API，增删改查",
-    "n_results": 5,
-    "adopted": null,
-    "adopted_rank": null
-  },
-  {
-    "time": 1779173523.8030083,
-    "query": "设计一个待办事项API，增删改查",
-    "n_results": 5,
-    "adopted": null,
-    "adopted_rank": null
-  },
-  {
-    "time": 1779173523.806049,
-    "query": "设计一个待办事项API，增删改查",
-    "n_results": 5,
-    "adopted": null,
-    "adopted_rank": null
-  },
-  {
     "time": 1779173523.808256,
     "query": "设计一个待办事项API，增删改查",
     "n_results": 5,
@@ -6995,6 +6785,216 @@
   {
     "time": 1779529497.5208032,
     "query": "设计文件上传API",
+    "n_results": 1,
+    "adopted": null,
+    "adopted_rank": null
+  },
+  {
+    "time": 1779529818.671865,
+    "query": "设计一个博客平台的用户认证API",
+    "n_results": 2,
+    "adopted": null,
+    "adopted_rank": null
+  },
+  {
+    "time": 1779529832.6565692,
+    "query": "设计博客平台的CRUD API",
+    "n_results": 2,
+    "adopted": null,
+    "adopted_rank": null
+  },
+  {
+    "time": 1779529844.0128436,
+    "query": "修复Token过期后无法自动刷新的Bug",
+    "n_results": 0,
+    "adopted": null,
+    "adopted_rank": null
+  },
+  {
+    "time": 1779529858.6316364,
+    "query": "将单体应用拆分为微服务架构",
+    "n_results": 3,
+    "adopted": null,
+    "adopted_rank": null
+  },
+  {
+    "time": 1779529867.1797748,
+    "query": "设计一个支付系统，要求PCI合规、99.99%可用",
+    "n_results": 0,
+    "adopted": null,
+    "adopted_rank": null
+  },
+  {
+    "time": 1779529887.8289511,
+    "query": "设计文件上传API",
+    "n_results": 1,
+    "adopted": null,
+    "adopted_rank": null
+  },
+  {
+    "time": 1779530449.223105,
+    "query": "设计一个支持用户认证和高并发的API服务",
+    "n_results": 3,
+    "adopted": null,
+    "adopted_rank": null
+  },
+  {
+    "time": 1779530449.2487526,
+    "query": "设计文件分享服务，支持大文件断点续传和链接过期",
+    "n_results": 3,
+    "adopted": null,
+    "adopted_rank": null
+  },
+  {
+    "time": 1779530465.52493,
+    "query": "设计文件分享服务",
+    "n_results": 3,
+    "adopted": null,
+    "adopted_rank": null
+  },
+  {
+    "time": 1779531033.2570262,
+    "query": "设计一个博客平台的用户认证API",
+    "n_results": 2,
+    "adopted": null,
+    "adopted_rank": null
+  },
+  {
+    "time": 1779531046.7939847,
+    "query": "设计博客平台的CRUD API",
+    "n_results": 2,
+    "adopted": null,
+    "adopted_rank": null
+  },
+  {
+    "time": 1779531053.0275295,
+    "query": "修复Token过期后无法自动刷新的Bug",
+    "n_results": 0,
+    "adopted": null,
+    "adopted_rank": null
+  },
+  {
+    "time": 1779531064.5771744,
+    "query": "将单体应用拆分为微服务架构",
+    "n_results": 3,
+    "adopted": null,
+    "adopted_rank": null
+  },
+  {
+    "time": 1779531074.3221028,
+    "query": "设计一个支付系统，要求PCI合规、99.99%可用",
+    "n_results": 0,
+    "adopted": null,
+    "adopted_rank": null
+  },
+  {
+    "time": 1779531108.1281404,
+    "query": "设计文件上传API",
+    "n_results": 1,
+    "adopted": null,
+    "adopted_rank": null
+  },
+  {
+    "time": 1779531154.3006194,
+    "query": "设计文件分享服务，支持大文件断点续传和链接过期",
+    "n_results": 3,
+    "adopted": null,
+    "adopted_rank": null
+  },
+  {
+    "time": 1779531205.7642279,
+    "query": "设计一个博客平台的用户认证API",
+    "n_results": 2,
+    "adopted": null,
+    "adopted_rank": null
+  },
+  {
+    "time": 1779531217.5584495,
+    "query": "设计博客平台的CRUD API",
+    "n_results": 2,
+    "adopted": null,
+    "adopted_rank": null
+  },
+  {
+    "time": 1779531229.3345704,
+    "query": "修复Token过期后无法自动刷新的Bug",
+    "n_results": 0,
+    "adopted": null,
+    "adopted_rank": null
+  },
+  {
+    "time": 1779531243.9398918,
+    "query": "将单体应用拆分为微服务架构",
+    "n_results": 3,
+    "adopted": null,
+    "adopted_rank": null
+  },
+  {
+    "time": 1779531256.786855,
+    "query": "设计一个支付系统，要求PCI合规、99.99%可用",
+    "n_results": 0,
+    "adopted": null,
+    "adopted_rank": null
+  },
+  {
+    "time": 1779531293.4377866,
+    "query": "设计文件上传API",
+    "n_results": 1,
+    "adopted": null,
+    "adopted_rank": null
+  },
+  {
+    "time": 1779531994.4415567,
+    "query": "设计一个博客平台的用户认证API",
+    "n_results": 2,
+    "adopted": null,
+    "adopted_rank": null
+  },
+  {
+    "time": 1779532007.0223196,
+    "query": "设计博客平台的CRUD API",
+    "n_results": 3,
+    "adopted": null,
+    "adopted_rank": null
+  },
+  {
+    "time": 1779532016.826972,
+    "query": "修复Token过期后无法自动刷新的Bug",
+    "n_results": 0,
+    "adopted": null,
+    "adopted_rank": null
+  },
+  {
+    "time": 1779532035.0473034,
+    "query": "将单体应用拆分为微服务架构",
+    "n_results": 3,
+    "adopted": null,
+    "adopted_rank": null
+  },
+  {
+    "time": 1779532047.588039,
+    "query": "设计一个支付系统，要求PCI合规、99.99%可用",
+    "n_results": 0,
+    "adopted": null,
+    "adopted_rank": null
+  },
+  {
+    "time": 1779532085.496743,
+    "query": "设计文件上传API",
+    "n_results": 1,
+    "adopted": null,
+    "adopted_rank": null
+  },
+  {
+    "time": 1779532180.2364986,
+    "query": "设计一个短链接服务",
+    "n_results": 0,
+    "adopted": null,
+    "adopted_rank": null
+  },
+  {
+    "time": 1779532191.9983428,
+    "query": "短链接服务",
     "n_results": 1,
     "adopted": null,
     "adopted_rank": null

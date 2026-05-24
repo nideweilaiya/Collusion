@@ -1,0 +1,77 @@
+{
+  "task_id": "assess_6b745ab7",
+  "task": "设计文件上传API",
+  "checkpoint_results": [
+    {
+      "checkpoint_id": "interface_conflict",
+      "category": "core",
+      "severity": "pass",
+      "summary": "前置检查点未执行，跳过",
+      "findings": [],
+      "risk_score": 0.0,
+      "confidence": 1.0,
+      "requires": [],
+      "provides": [],
+      "activation_gate": false,
+      "uncertainty_flags": [
+        "前置条件不满足: ['interface_definition']"
+      ],
+      "llm_calls": 0,
+      "tokens_used": 0,
+      "duration_ms": 0.0,
+      "metadata": {}
+    },
+    {
+      "checkpoint_id": "semantic_consistency",
+      "category": "core",
+      "severity": "pass",
+      "summary": "未发现语义矛盾",
+      "findings": [],
+      "risk_score": 0.0,
+      "confidence": 0.8,
+      "requires": [],
+      "provides": [
+        "semantic_gaps"
+      ],
+      "activation_gate": false,
+      "uncertainty_flags": [
+        "文件大小上限未明确",
+        "支持的并发上传数未指定",
+        "是否需要文件类型校验",
+        "密码复杂度要求未定义",
+        "废案警示中避免使用本地文件系统存储的原因未知"
+      ],
+      "llm_calls": 1,
+      "tokens_used": 1500,
+      "duration_ms": 4189.772367477417,
+      "metadata": {
+        "strict_mode": false
+      }
+    },
+    {
+      "checkpoint_id": "pattern_match",
+      "category": "core",
+      "severity": "advisory",
+      "summary": "命中0个明确废案, 1个原因模糊",
+      "findings": [],
+      "risk_score": 0.0,
+      "confidence": 0.6,
+      "requires": [],
+      "provides": [
+        "pattern_warnings"
+      ],
+      "activation_gate": true,
+      "uncertainty_flags": [],
+      "llm_calls": 1,
+      "tokens_used": 500,
+      "duration_ms": 2615.612268447876,
+      "metadata": {
+        "strict_mode": false
+      }
+    }
+  ],
+  "overall_risk": "medium",
+  "confidence": 0.7999999999999999,
+  "status": "pending_analysis",
+  "created_at": "2026-05-23T18:28:16.893657"
+}
