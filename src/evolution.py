@@ -138,7 +138,7 @@ class EvolutionEngine:
         # 简化策略：看哪个信号更常出现在被采纳的结果中
         # 从反馈中提取最近 50 条有采纳的记录
         fb = self._feedback_list()
-        adopted = [f for f in fb[-50:] if f.get("adopted")]
+        adopted = [f for f in fb[-50:] if f.get("adopted") is True]
         if len(adopted) < 5:
             return
 
@@ -157,6 +157,74 @@ class EvolutionEngine:
         self.stats["weight_adjustments"] = self.stats.get("weight_adjustments", 0) + 1
         self.stats["last_adjustment_at"] = self.stats["total_searches"]
 
+        self._save_all()
+
+    # ==================== 采纳信号 ====================
+
+    def mark_adopted(self, query_keyword: str, adopted: bool = True) -> int:
+        """标记搜索查询对应的方案被采纳或拒绝
+
+        扫描 feedback 中匹配 query_keyword 的条目，将 adopted 从未确认(null)
+        更新为 true/false，触发权重优化。
+
+        Args:
+            query_keyword: 用于匹配 feedback 条目的关键词（匹配 query 字段）
+            adopted: True=采纳, False=淘汰
+
+        Returns:
+            更新的条目数量
+        """
+        fb = self._feedback_list()
+        updated = 0
+        now = time.time()
+        for entry in fb:
+            if query_keyword[:60] in entry.get("query", ""):
+                if entry.get("adopted") is None:
+                    entry["adopted"] = adopted
+                    entry["adopted_at"] = now
+                    updated += 1
+
+        if updated > 0:
+            self._save_all()
+            self.apply_adoption_feedback()
+
+        return updated
+
+    def apply_adoption_feedback(self):
+        """根据采纳信号调整 bandit 权重和 epsilon
+
+        adopted=true  → 提升关联资产分数，降低探索率
+        adopted=false → 降低关联资产分数，提升探索率
+        adopted=null  → 保持当前权重不变
+        """
+        fb = self._feedback_list()
+        if not fb:
+            return
+
+        # 统计最近的确认信号
+        recent = fb[-100:]
+        confirmed_adopted = [e for e in recent if e.get("adopted") is True]
+        confirmed_rejected = [e for e in recent if e.get("adopted") is False]
+
+        if not confirmed_adopted and not confirmed_rejected:
+            return
+
+        # 根据确认信号调整 epsilon
+        total_confirmed = len(confirmed_adopted) + len(confirmed_rejected)
+        adopt_rate = len(confirmed_adopted) / total_confirmed if total_confirmed > 0 else 0.5
+
+        if adopt_rate >= 0.7:
+            # 采纳率高 → 减少探索，更多利用
+            self.bandit["epsilon"] = max(self.bandit["epsilon"] - 0.03, 0.05)
+        elif adopt_rate <= 0.3:
+            # 采纳率低 → 增加探索
+            self.bandit["epsilon"] = min(self.bandit["epsilon"] + 0.03, 0.35)
+
+        self.stats["total_adoptions"] = self.stats.get("total_adoptions", 0) + len(confirmed_adopted)
+        self.stats["adoption_rate"] = round(
+            self.stats["total_adoptions"] / max(self.stats["total_searches"], 1), 4
+        )
+        self.bandit["updated_at"] = time.time()
         self._save_all()
 
     # ==================== 统计 ====================

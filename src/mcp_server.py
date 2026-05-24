@@ -246,6 +246,25 @@ async def list_tools():
             },
         ),
         Tool(
+            name="collusion_adopt",
+            description="确认采纳方案。标记某个方案为已采纳(true)或已淘汰(false)，反馈给进化引擎自动调整权重。",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "plan_id": {
+                        "type": "string",
+                        "description": "要确认的方案ID或关键词。例如'方案C'、'task_abc123'或'fix_tree_cutting'",
+                    },
+                    "adopted": {
+                        "type": "boolean",
+                        "description": "true=采纳该方案, false=淘汰该方案",
+                        "default": True,
+                    },
+                },
+                "required": ["plan_id"],
+            },
+        ),
+        Tool(
             name="collusion_refine",
             description="用户提交修改建议后，各Agent独立审查并给出反馈（认可/有隐患/高创新性）。全票通过的修改自动合并，有分歧的告知原因。",
             inputSchema={

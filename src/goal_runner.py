@@ -68,6 +68,25 @@ class GoalConfig:
     # 标签 (用于检索复用)
     tags: list = field(default_factory=list)
 
+    @classmethod
+    def from_dict(cls, data: dict) -> "GoalConfig":
+        """从字典反序列化 GoalConfig"""
+        ver = data.get("verification", {})
+        return cls(
+            goal_id=data.get("goal_id", ""),
+            description=data.get("description", ""),
+            verification={
+                "l1": ver.get("l1", {"command": "", "expected_exit_code": 0}),
+                "l2": ver.get("l2", {"command": "", "expected_exit_code": 0}),
+                "l3": ver.get("l3", {"command": "", "expected_exit_code": 0}),
+            },
+            allowed_files=data.get("allowed_files", data.get("constraints", {}).get("allowed_files", [])),
+            forbidden_files=data.get("forbidden_files", data.get("constraints", {}).get("forbidden_files", [])),
+            max_iterations=data.get("max_iterations", 5),
+            cooldown_seconds=data.get("cooldown_seconds", 0),
+            tags=data.get("tags", []),
+        )
+
 
 @dataclass
 class GoalState:
@@ -93,13 +112,14 @@ class GoalRunner:
     Agent (Reasonix) 负责编码，GoalRunner 负责验证+审查+归档。
     """
 
-    def __init__(self, data_dir: str):
+    def __init__(self, data_dir: str, on_success=None):
         self.data_dir = Path(data_dir)
         self.results_dir = self.data_dir / "goal_results"
         self.task_graphs_dir = self.data_dir / "task_graphs"
         self.results_dir.mkdir(parents=True, exist_ok=True)
         self.task_graphs_dir.mkdir(parents=True, exist_ok=True)
         self._goals: Dict[str, GoalState] = {}
+        self._on_success = on_success
 
         # 延迟导入，避免循环依赖
         self._hook_available = False
@@ -155,6 +175,24 @@ class GoalRunner:
         self._goals[goal_id] = state
         self._save_state(state)
         return cfg
+
+    def start_goal(self, cfg: "GoalConfig") -> str:
+        """从已有 GoalConfig 启动 Goal（供 MCP 工具调用）
+
+        Returns:
+            goal_id
+        """
+        state = GoalState(
+            goal_id=cfg.goal_id,
+            config=asdict(cfg),
+            status="idle",
+            current_verification="l1",
+            started_at=time.time(),
+        )
+        self._goals[cfg.goal_id] = state
+        self._save_state(state)
+        print(f"  [GoalRunner] Goal 已注册: {cfg.goal_id}")
+        return cfg.goal_id
 
     def load_goal(self, goal_id: str) -> Optional[GoalState]:
         """从磁盘加载之前创建的 Goal"""
@@ -396,6 +434,12 @@ class GoalRunner:
             state.completed_at = time.time()
             state.current_verification = "done"
             self._save_state(state)
+            # 触发采纳回调
+            if self._on_success:
+                try:
+                    self._on_success(goal_id, state.config.get("description", ""))
+                except Exception:
+                    pass
             print(f"  [GoalRunner] 🎉 {goal_id}: L1+L2+L3 全部通过 → 可以进游戏测试了 (L4)")
             return {
                 "passed": True,

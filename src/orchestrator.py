@@ -107,7 +107,10 @@ class BrainstormOrchestrator:
         if self.knowledge_config.get("enable_goal_runner", True):
             try:
                 from src.goal_runner import GoalRunner
-                self.goal_runner = GoalRunner(data_dir=str(self.data_dir))
+                self.goal_runner = GoalRunner(
+                    data_dir=str(self.data_dir),
+                    on_success=lambda gid, desc: self._on_goal_success(gid, desc),
+                )
             except Exception:
                 self.goal_runner = None
         if self._enable_vector:
@@ -2811,6 +2814,18 @@ class BrainstormOrchestrator:
                 self.evolution.record_search(query, results)
             except Exception:
                 pass
+
+    def _on_goal_success(self, goal_id: str, description: str):
+        """GoalRunner L1+L2+L3 全部通过后的采纳回调"""
+        if self._enable_evolution and self.evolution is not None:
+            try:
+                updated = self.evolution.mark_adopted(goal_id, adopted=True)
+                if updated > 0:
+                    print(f"  [进化] Goal {goal_id} 成功 → 已标记采纳, 权重已更新")
+                else:
+                    print(f"  [进化] Goal {goal_id} 成功 → (无匹配的 feedback 条目)")
+            except Exception as e:
+                print(f"  [进化] 采纳标记失败: {e}")
 
     def get_knowledge_stats(self) -> dict:
         """获取知识库综合统计"""

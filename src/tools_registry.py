@@ -48,6 +48,7 @@ TOOL_GROUPS = {
         "collusion_render",
         "collusion_branch",
         "collusion_merge",
+        "collusion_adopt",
     ],
     "blackboard": [
         "collusion_blackboard_start",
@@ -226,6 +227,25 @@ async def _handle_search_assets(arguments, orchestrator, blackboard, executor):
     }, ensure_ascii=False, indent=2))]
 
 
+async def _handle_adopt(arguments, orchestrator, blackboard, executor):
+    """collusion_adopt — 用户确认采纳方案, 反馈给进化引擎"""
+    plan_id = arguments["plan_id"]
+    status = arguments.get("adopted", True)
+    updated = 0
+    if orchestrator.evolution is not None:
+        updated = orchestrator.evolution.mark_adopted(plan_id, status)
+    return [TextContent(type="text", text=json.dumps({
+        "plan_id": plan_id,
+        "adopted": status,
+        "updated_entries": updated,
+        "hint": (
+            f"已标记 {updated} 条反馈记录为 adopted={status}。"
+            "进化引擎权重已自动更新。" if updated else
+            f"未找到匹配 '{plan_id}' 的未确认反馈记录。"
+        ),
+    }, ensure_ascii=False, indent=2))]
+
+
 async def _handle_elicit(arguments, orchestrator, blackboard, executor):
     task_id = arguments["task_id"]
     answers = arguments.get("answers", {})
@@ -290,6 +310,7 @@ TOOL_REGISTRY: Dict[str, Callable] = {
     "collusion_assess": _handle_assess,
     "collusion_check": _handle_check,
     "collusion_render": _handle_render,
+    "collusion_adopt": _handle_adopt,
     # 重命名的工具
     "collusion_search_assets": _handle_search_assets,
     "collusion_elicit": _handle_elicit,
